@@ -24,8 +24,9 @@ target_link_libraries(artisDX
 # find_package(DirectXTK REQUIRED)
 # target_link_libraries(artisDX DirectXTK)
 
+########### later ###########
 # Post-build commands (e.g., copy shaders or assets)
-add_custom_command(TARGET artisDX POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy_directory
-  ${CMAKE_SOURCE_DIR}/shaders $<TARGET_FILE_DIR:artisDX>/shaders
-)
+# add_custom_command(TARGET artisDX POST_BUILD
+#  COMMAND ${CMAKE_COMMAND} -E copy_directory
+#  ${CMAKE_SOURCE_DIR}/shaders $<TARGET_FILE_DIR:artisDX>/shaders
+# )
