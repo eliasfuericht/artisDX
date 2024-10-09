@@ -10,11 +10,11 @@ LRESULT CALLBACK WindowProcess(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-Window::Window(const CHAR* title, INT w, INT h)
+Window::Window(const CHAR* title, UINT w, UINT h)
 	: _windowTitle(title), _windowWidth(w), _windowHeight(h)
 {}
 
-int Window::Create()
+CHECK Window::Create()
 {
 	_windowClassEx.cbSize = sizeof(WNDCLASSEX);
 	_windowClassEx.style = CS_HREDRAW | CS_VREDRAW;
@@ -44,9 +44,10 @@ int Window::Create()
 	return OK;
 }
 
-void Window::Show()
+CHECK Window::Show()
 {
 	ShowWindow(_hWindow, SW_SHOW);
+	return OK;
 }
 
 std::weak_ptr<HWND> Window::GetHWND() {

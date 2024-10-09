@@ -2,15 +2,19 @@
 #include <stdio.h>
 
 #include "Window.h"
+#include "Renderer.h"
 
 int main()
 {
-	Window window("artisDX", 1280, 720);
+	std::shared_ptr<Window> window = std::make_shared<Window>("artisDX", 1280, 720);
 
-	if (window.Create() == OK) 
-		window.Show();
+	if (window->Create() != OK)
+		return NOTOK;
+		
+	Renderer renderer(window);
 
-	std::weak_ptr<HWND> hWindow = window.GetHWND();
+	if (window->Show() != OK)
+		return NOTOK;
 
 	MSG msg = { 0 };
 
@@ -23,5 +27,5 @@ int main()
 		}
 	}
 
-	return 0;
+	return OK;
 }

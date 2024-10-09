@@ -5,18 +5,20 @@
 class Window
 {
 public:
-	Window(const CHAR* title, INT w, INT h);
+	Window(const CHAR* title, UINT w, UINT h);
 
-	INT Create();
-	void Show();
+	CHECK Create();
+	CHECK Show();
 	std::weak_ptr<HWND> GetHWND();
+	UINT GetWidth() { return _windowWidth; };
+	UINT GetHeight() { return _windowHeight; };
 
 private:
 	LRESULT HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 	WNDCLASSEX _windowClassEx;
 	const CHAR* _windowTitle;
-	INT _windowWidth;
-	INT _windowHeight;
+	UINT _windowWidth;
+	UINT _windowHeight;
 	HWND _hWindow;
 };

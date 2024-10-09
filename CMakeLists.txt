@@ -23,7 +23,6 @@ target_include_directories(artisDX PRIVATE include)
 # Enable Precompiled Headers
 target_precompile_headers(artisDX PRIVATE include/pch.h)  # Path to your precompiled header
 
-
 # Link DirectX 12 libraries
 target_link_libraries(artisDX
   d3d12       # DirectX 12 core library
