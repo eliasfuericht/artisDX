@@ -2,13 +2,20 @@ cmake_minimum_required(VERSION 3.15)
 project(artisDX)
 
 # Set C++ standard
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD 20)
 
-# Specify target executables and source files
-add_executable(artisDX
-  src/main.cpp
-)
+# Automatically find all .cpp files in the src directory
+file(GLOB_RECURSE ARTISDX_SOURCES "src/*.cpp")
+
+# Automatically find all .h/.hpp files in the include directory
+file(GLOB_RECURSE ARTISDX_HEADERS "include/*.h")
+
+# Create source groups based on the directory structure
+source_group(TREE "${CMAKE_SOURCE_DIR}/src" PREFIX "Source Files" FILES ${ARTISDX_SOURCES})
+source_group(TREE "${CMAKE_SOURCE_DIR}/include" PREFIX "Header Files" FILES ${ARTISDX_HEADERS})
+
+# Specify target executable with all source files
+add_executable(artisDX ${ARTISDX_SOURCES} ${ARTISDX_HEADERS})
 
 # Add include directories
 target_include_directories(artisDX PRIVATE include)
@@ -19,6 +26,11 @@ target_link_libraries(artisDX
   dxgi        # DirectX Graphics Infrastructure
   dxguid      # DirectX GUID (for interfaces)
 )
+
+# make it a window application - maybe used later
+#set_target_properties(artisDX PROPERTIES
+#  WIN32_EXECUTABLE TRUE    # This sets the Windows subsystem
+#)
 
 # Add additional dependencies (e.g., DirectXTK or DirectXMath if needed)
 # find_package(DirectXTK REQUIRED)
