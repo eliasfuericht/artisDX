@@ -1,8 +1,6 @@
 #pragma once
-#include <windows.h>
-#include <memory>
 
-#include "Defines.h"
+#include "pch.h"
 
 class Window
 {
@@ -14,6 +12,8 @@ public:
 	std::weak_ptr<HWND> GetHWND();
 
 private:
+	LRESULT HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 	WNDCLASSEX _windowClassEx;
 	const CHAR* _windowTitle;
 	INT _windowWidth;

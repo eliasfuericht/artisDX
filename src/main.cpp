@@ -1,6 +1,5 @@
 #pragma once
 #include <stdio.h>
-#include <windows.h>
 
 #include "Window.h"
 
@@ -8,7 +7,7 @@ int main()
 {
 	Window window("artisDX", 1280, 720);
 
-	if (window.Create() == OK)
+	if (window.Create() == OK) 
 		window.Show();
 
 	std::weak_ptr<HWND> hWindow = window.GetHWND();

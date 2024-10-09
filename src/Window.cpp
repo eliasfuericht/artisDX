@@ -1,13 +1,12 @@
 #include "Window.h"
 
-LRESULT CALLBACK WindowProcess(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-	switch (msg)
-	{
+LRESULT CALLBACK WindowProcess(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+	switch (msg) {
 	case WM_DESTROY:
 		PostQuitMessage(0);
 		break;
 	}
+
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
