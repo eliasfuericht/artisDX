@@ -10,12 +10,13 @@ class Renderer
 public:
 	Renderer(Window window);
 
+	~Renderer();
+
 	CHECK Render();
 
 private:
 	CHECK InitializeAPI();
 	CHECK CreateSwapchain(UINT w, UINT h);
-	CHECK DestroyFrameBuffer();
 	CHECK SetupSwapchain();
 	IDXGISwapChain1* CreateSwapchain(	Window window, IDXGIFactory4* factory,
 																		ID3D12CommandQueue* queue,
@@ -28,9 +29,18 @@ private:
 	CHECK CreateCommands();
 	CHECK SetupCommands();
 
+	// cleanup
+	CHECK DestroyCommands();
+	CHECK DestroyFrameBuffer();
+	CHECK DestroyResources();
+	CHECK DestroyAPI();
+
 	Window _window;
 	UINT _width;
 	UINT _height;
+
+	std::chrono::time_point<std::chrono::steady_clock> tStart, tEnd;
+	float mElapsedTime = 0.0f;
 
 	// Initialization
 	IDXGIFactory4* _factory;

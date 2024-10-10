@@ -209,25 +209,6 @@ CHECK Renderer::CreateSwapchain(UINT w, UINT h)
 	return OK;
 }
 
-CHECK Renderer::DestroyFrameBuffer()
-{
-	for (size_t i = 0; i < backBufferCount; ++i)
-	{
-		if (_renderTargets[i])
-		{
-			_renderTargets[i]->Release();
-			_renderTargets[i] = 0;
-		}
-	}
-	if (_rtvHeap)
-	{
-		_rtvHeap->Release();
-		_rtvHeap = nullptr;
-	}
-
-	return OK;
-}
-
 CHECK Renderer::SetupSwapchain()
 {
 	_surfaceSize.left = 0;
@@ -788,6 +769,33 @@ CHECK Renderer::CreateCommands()
 
 CHECK Renderer::Render()
 {
+	tEnd = std::chrono::high_resolution_clock::now();
+	float time = std::chrono::duration<float, std::milli>(tEnd - tStart).count();
+
+	if (time < (1000.0f / 60.0f))
+	{
+		return OK;
+	}
+	tStart = std::chrono::high_resolution_clock::now();
+
+	{
+		// Update Uniforms
+		mElapsedTime += 0.001f * time;
+		mElapsedTime = fmodf(mElapsedTime, 6.283185307179586f);
+
+		_MVP.modelMatrix = DirectX::XMMatrixMultiply(_MVP.modelMatrix, DirectX::XMMatrixRotationAxis(DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f), 0.001f * time));
+		//_MVP.modelMatrix = glm::rotate(_MVP.modelMatrix, 0.001f * time, vec3(0.0f, 1.0f, 0.0f));
+
+		D3D12_RANGE readRange;
+		readRange.Begin = 0;
+		readRange.End = 0;
+
+		ThrowIfFailed(_uniformBuffer->Map(
+			0, &readRange, reinterpret_cast<void**>(&_mappedUniformBuffer)));
+		memcpy(_mappedUniformBuffer, &_MVP, sizeof(_MVP));
+		_uniformBuffer->Unmap(0, &readRange);
+	}
+
 	// Record all the commands we need to render the scene into the command
 	// list.
 	SetupCommands();
@@ -813,5 +821,171 @@ CHECK Renderer::Render()
 	}
 
 	_frameIndex = _swapchain->GetCurrentBackBufferIndex();
+	return OK;
+}
+
+Renderer::~Renderer()
+{
+	if (_swapchain != nullptr)
+	{
+		_swapchain->SetFullscreenState(false, nullptr);
+		_swapchain->Release();
+		_swapchain = nullptr;
+	}
+
+	DestroyCommands();
+	DestroyFrameBuffer();
+	DestroyResources();
+	DestroyAPI();
+}
+
+CHECK Renderer::DestroyCommands() 
+{
+	if (_commandList)
+	{
+		_commandList->Reset(_commandAllocator, _pipelineState);
+		_commandList->ClearState(_pipelineState);
+		ThrowIfFailed(_commandList->Close());
+		ID3D12CommandList* ppCommandLists[] = { _commandList };
+		_commandQueue->ExecuteCommandLists(_countof(ppCommandLists),
+			ppCommandLists);
+
+		// Wait for GPU to finish work
+		const UINT64 fence = _fenceValue;
+		ThrowIfFailed(_commandQueue->Signal(_fence, fence));
+		_fenceValue++;
+		if (_fence->GetCompletedValue() < fence)
+		{
+			ThrowIfFailed(_fence->SetEventOnCompletion(fence, _fenceEvent));
+			WaitForSingleObject(_fenceEvent, INFINITE);
+		}
+
+		_commandList->Release();
+		_commandList = nullptr;
+	}
+
+	return OK;
+}
+
+CHECK Renderer::DestroyFrameBuffer()
+{
+	for (size_t i = 0; i < backBufferCount; ++i)
+	{
+		if (_renderTargets[i])
+		{
+			_renderTargets[i]->Release();
+			_renderTargets[i] = 0;
+		}
+	}
+	if (_rtvHeap)
+	{
+		_rtvHeap->Release();
+		_rtvHeap = nullptr;
+	}
+
+	return OK;
+}
+
+CHECK Renderer::DestroyResources()
+{
+	// Sync
+	CloseHandle(_fenceEvent);
+
+	if (_pipelineState)
+	{
+		_pipelineState->Release();
+		_pipelineState = nullptr;
+	}
+
+	if (_rootSignature)
+	{
+		_rootSignature->Release();
+		_rootSignature = nullptr;
+	}
+
+	if (_vertexBuffer)
+	{
+		_vertexBuffer->Release();
+		_vertexBuffer = nullptr;
+	}
+
+	if (_indexBuffer)
+	{
+		_indexBuffer->Release();
+		_indexBuffer = nullptr;
+	}
+
+	if (_uniformBuffer)
+	{
+		_uniformBuffer->Release();
+		_uniformBuffer = nullptr;
+	}
+
+	if (_uniformBufferHeap)
+	{
+		_uniformBufferHeap->Release();
+		_uniformBufferHeap = nullptr;
+	}
+
+	return OK;
+}
+
+CHECK Renderer::DestroyAPI()
+{
+	if (_fence)
+	{
+		_fence->Release();
+		_fence = nullptr;
+	}
+
+	if (_commandAllocator)
+	{
+		ThrowIfFailed(_commandAllocator->Reset());
+		_commandAllocator->Release();
+		_commandAllocator = nullptr;
+	}
+
+	if (_commandQueue)
+	{
+		_commandQueue->Release();
+		_commandQueue = nullptr;
+	}
+
+	if (_device)
+	{
+		_device->Release();
+		_device = nullptr;
+	}
+
+	if (_adapter)
+	{
+		_adapter->Release();
+		_adapter = nullptr;
+	}
+
+	if (_factory)
+	{
+		_factory->Release();
+		_factory = nullptr;
+	}
+
+#if defined(_DEBUG)
+	if (_debugController)
+	{
+		_debugController->Release();
+		_debugController = nullptr;
+	}
+
+	D3D12_RLDO_FLAGS flags =
+		D3D12_RLDO_SUMMARY | D3D12_RLDO_DETAIL | D3D12_RLDO_IGNORE_INTERNAL;
+
+	_debugDevice->ReportLiveDeviceObjects(flags);
+
+	if (_debugDevice)
+	{
+		_debugDevice->Release();
+		_debugDevice = nullptr;
+	}
+#endif
 	return OK;
 }

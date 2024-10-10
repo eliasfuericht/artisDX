@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <iostream>
 #include <fstream>
+#include <chrono>
 
 // Defines
 #define CHECK INT
