@@ -173,7 +173,7 @@ CHECK Renderer::InitializeAPI()
 
 	// Create Swapchain
 	UINT width = _window.GetWidth();
-	UINT height = _window.GetWidth();
+	UINT height = _window.GetHeight();
 
 	CreateSwapchain(width, height);
 
