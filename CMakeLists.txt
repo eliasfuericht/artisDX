@@ -28,6 +28,7 @@ target_link_libraries(artisDX
   d3d12       # DirectX 12 core library
   dxgi        # DirectX Graphics Infrastructure
   dxguid      # DirectX GUID (for interfaces)
+  D3DCompiler    # D3DCompiler for shader compilation functions
 )
 
 # make it a window application - maybe used later

@@ -6,11 +6,16 @@
 
 // DirectX
 #include <direct.h>
-#include <D3D12.h>
-#include <D3Dcompiler.h>
+#include <d3d12.h>
+#include <d3dcompiler.h>
 #include <dxgi1_4.h>
+#include <DirectXMath.h>
+
+// STL
 #include <memory>
 #include <algorithm>
+#include <iostream>
+#include <fstream>
 
 // Defines
 #define CHECK INT

@@ -50,6 +50,6 @@ CHECK Window::Show()
 	return OK;
 }
 
-std::weak_ptr<HWND> Window::GetHWND() {
-	return std::weak_ptr<HWND>((std::shared_ptr<HWND>(&_hWindow, [](HWND*) { /* no-op */ })));
+HWND Window::GetHWND() {
+	return _hWindow;
 }

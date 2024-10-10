@@ -8,15 +8,27 @@ class Renderer
 	static const UINT backBufferCount = 2;
 
 public:
-	Renderer(std::weak_ptr<Window> window);
+	Renderer(Window window);
+
+	CHECK Render();
 
 private:
 	CHECK InitializeAPI();
 	CHECK CreateSwapchain(UINT w, UINT h);
 	CHECK DestroyFrameBuffer();
 	CHECK SetupSwapchain();
+	IDXGISwapChain1* CreateSwapchain(	Window window, IDXGIFactory4* factory,
+																		ID3D12CommandQueue* queue,
+																		DXGI_SWAP_CHAIN_DESC1* swapchainDesc,
+																		DXGI_SWAP_CHAIN_FULLSCREEN_DESC* fullscreenDesc = nullptr,
+																		IDXGIOutput* output = nullptr);
+	CHECK InitFrameBuffer();
 
-	std::weak_ptr<Window> _window;
+	CHECK InitializeResources();
+	CHECK CreateCommands();
+	CHECK SetupCommands();
+
+	Window _window;
 	UINT _width;
 	UINT _height;
 
@@ -50,6 +62,25 @@ private:
 
 	D3D12_VERTEX_BUFFER_VIEW _vertexBufferView;
 	D3D12_INDEX_BUFFER_VIEW _indexBufferView;
+
+	struct Vertex
+	{
+		float position[3];
+		float color[3];
+	};
+
+	Vertex _vertexBufferData[3] = { {{1.0f, -1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}},
+																 {{-1.0f, -1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+																 {{0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}} };
+
+	uint32_t _indexBufferData[3] = { 0, 1, 2 };
+
+	struct 
+	{
+		DirectX::XMMATRIX modelMatrix;
+		DirectX::XMMATRIX viewMatrix;
+		DirectX::XMMATRIX projectionMatrix;
+	} _MVP;
 
 	UINT _rtvDescriptorSize;
 	ID3D12RootSignature* _rootSignature;
