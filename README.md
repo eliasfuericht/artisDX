@@ -1,4 +1,5 @@
 # artisDX
+A DirectX12 Rendering Engine
 
 ## Building the Project
 1. Run the `setup.bat` script in the root directory.
