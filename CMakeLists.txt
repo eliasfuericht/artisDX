@@ -37,6 +37,8 @@ add_custom_command(
     DEPENDS ${ARTISDX_SOURCES}  # List the dependencies (your cpp files)
 )
 
+# Set artisDX as the startup project - only works for Visual Studio
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT artisDX)
 
 # make it a window application - maybe used later
 #set_target_properties(artisDX PROPERTIES
