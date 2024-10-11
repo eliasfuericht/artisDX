@@ -21,7 +21,7 @@ add_executable(artisDX ${ARTISDX_SOURCES} ${ARTISDX_HEADERS})
 target_include_directories(artisDX PRIVATE include)
 
 # Enable Precompiled Headers
-target_precompile_headers(artisDX PRIVATE include/pch.h)  # Path to your precompiled header
+# target_precompile_headers(artisDX PRIVATE include/pch.h)  # Path to your precompiled header
 
 # Link DirectX 12 libraries
 target_link_libraries(artisDX
@@ -30,6 +30,13 @@ target_link_libraries(artisDX
   dxguid      # DirectX GUID (for interfaces)
   D3DCompiler    # D3DCompiler for shader compilation functions
 )
+
+add_custom_command(
+    OUTPUT ${CMAKE_BINARY_DIR}/CMakeFiles/artisDX.dir/cmake_pch.hxx.pch
+    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_BINARY_DIR}/CMakeFiles/artisDX.dir/cmake_pch.hxx.pch
+    DEPENDS ${ARTISDX_SOURCES}  # List the dependencies (your cpp files)
+)
+
 
 # make it a window application - maybe used later
 #set_target_properties(artisDX PROPERTIES

@@ -268,8 +268,7 @@ IDXGISwapChain1* Renderer::CreateSwapchain(	Window window, IDXGIFactory4* factor
 {
 	IDXGISwapChain1* swapchain = nullptr;
 
-	HRESULT hr = factory->CreateSwapChainForHwnd(
-		queue, window.GetHWND(), swapchainDesc, fullscreenDesc, output, &swapchain);
+	HRESULT hr = factory->CreateSwapChainForHwnd(queue, window.GetHWND(), swapchainDesc, fullscreenDesc, output, &swapchain);
 	
 	if (!FAILED(hr))
 	{
@@ -780,11 +779,11 @@ CHECK Renderer::Render()
 
 	{
 		// Update Uniforms
-		mElapsedTime += 0.001f * time;
-		mElapsedTime = fmodf(mElapsedTime, 6.283185307179586f);
+		_elapsedTime += 0.001f * time;
+		_elapsedTime = fmodf(_elapsedTime, 6.283185307179586f);
 
-		_MVP.modelMatrix = DirectX::XMMatrixMultiply(_MVP.modelMatrix, DirectX::XMMatrixRotationAxis(DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f), 0.001f * time));
-		//_MVP.modelMatrix = glm::rotate(_MVP.modelMatrix, 0.001f * time, vec3(0.0f, 1.0f, 0.0f));
+		// _MVP.modelMatrix = DirectX::XMMatrixMultiply(_MVP.modelMatrix, DirectX::XMMatrixRotationAxis(DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), 0.001f * time));
+		// _MVP.modelMatrix = glm::rotate(_MVP.modelMatrix, 0.001f * time, vec3(0.0f, 1.0f, 0.0f));
 
 		D3D12_RANGE readRange;
 		readRange.Begin = 0;

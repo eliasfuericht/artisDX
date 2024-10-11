@@ -40,7 +40,7 @@ private:
 	UINT _height;
 
 	std::chrono::time_point<std::chrono::steady_clock> tStart, tEnd;
-	float mElapsedTime = 0.0f;
+	float _elapsedTime = 0.0f;
 
 	// Initialization
 	IDXGIFactory4* _factory;
