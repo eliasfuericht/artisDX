@@ -3,6 +3,7 @@
 
 // Windows
 #include <windows.h> 
+#include <wrl.h>
 
 // DirectX
 #include <direct.h>
@@ -22,6 +23,8 @@
 #define CHECK INT
 #define OK 0
 #define NOTOK -1
+
+#define MSPTR Microsoft::WRL
 
 #define GetHInstance() GetModuleHandle(NULL)
 

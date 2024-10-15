@@ -8,14 +8,20 @@ public:
 	Window() {};
 	Window(const CHAR* title, UINT w, UINT h);
 
-	CHECK Create();
-	CHECK Show();
+	void Create();
+	void Show();
 	HWND GetHWND();
 	UINT GetWidth() { return _windowWidth; };
 	UINT GetHeight() { return _windowHeight; };
 
-private:
+	void CleanUp();
 
+	// DX12
+	D3D12_VIEWPORT _viewport;
+	D3D12_RECT _surfaceSize;
+
+private:
+	// Win32
 	WNDCLASSEX _windowClassEx;
 	const CHAR* _windowTitle;
 	UINT _windowWidth;

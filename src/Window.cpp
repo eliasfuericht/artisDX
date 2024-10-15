@@ -12,9 +12,11 @@ LRESULT CALLBACK WindowProcess(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 Window::Window(const CHAR* title, UINT w, UINT h)
 	: _windowTitle(title), _windowWidth(w), _windowHeight(h)
-{}
+{
+	Create();
+}
 
-CHECK Window::Create()
+void Window::Create()
 {
 	_windowClassEx.cbSize = sizeof(WNDCLASSEX);
 	_windowClassEx.style = CS_HREDRAW | CS_VREDRAW;
@@ -38,18 +40,31 @@ CHECK Window::Create()
 	if (!_hWindow)
 	{
 		MessageBox(0, "Failed to create window", 0, 0);
-		return NOTOK;
+		return;
 	}
-
-	return OK;
 }
 
-CHECK Window::Show()
+void Window::Show()
 {
 	ShowWindow(_hWindow, SW_SHOW);
-	return OK;
 }
 
 HWND Window::GetHWND() {
 	return _hWindow;
+}
+
+void Window::CleanUp()
+{
+	// If a window handle exists, destroy the window
+	if (_hWindow)
+	{
+		DestroyWindow(_hWindow);
+		_hWindow = nullptr;
+	}
+
+	// Unregister the window class if it was registered
+	if (_windowClassEx.lpszClassName)
+	{
+		UnregisterClass(_windowClassEx.lpszClassName, _windowClassEx.hInstance);
+	}
 }
