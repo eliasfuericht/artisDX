@@ -21,7 +21,7 @@ add_executable(artisDX ${ARTISDX_SOURCES} ${ARTISDX_HEADERS})
 target_include_directories(artisDX PRIVATE include)
 
 # Enable Precompiled Headers
-# target_precompile_headers(artisDX PRIVATE include/pch.h)  # Path to your precompiled header
+target_precompile_headers(artisDX PRIVATE include/pch.h)  # Path to your precompiled header
 
 # Link DirectX 12 libraries
 target_link_libraries(artisDX

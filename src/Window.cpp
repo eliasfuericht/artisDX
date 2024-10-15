@@ -55,14 +55,12 @@ HWND Window::GetHWND() {
 
 void Window::CleanUp()
 {
-	// If a window handle exists, destroy the window
 	if (_hWindow)
 	{
 		DestroyWindow(_hWindow);
 		_hWindow = nullptr;
 	}
 
-	// Unregister the window class if it was registered
 	if (_windowClassEx.lpszClassName)
 	{
 		UnregisterClass(_windowClassEx.lpszClassName, _windowClassEx.hInstance);

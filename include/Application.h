@@ -18,43 +18,50 @@ private:
 	void SetupSwapchain(UINT w, UINT h);
 	void SetupCommands();
 
-	void DestroyFrameBuffer();
-	void DestroyCommands();
-	void DestroyResources();
-	void DestroyAPI();
-
 	Window _window;
 
 	// DX12 Specific
 	// Initialization
-	IDXGIFactory4* _factory;
-	IDXGIAdapter1* _adapter;
-	ID3D12Device* _device;
+	MSPTR::ComPtr<IDXGIFactory4> _factory;
+	MSPTR::ComPtr<IDXGIAdapter1> _adapter;
+	MSPTR::ComPtr<ID3D12Device> _device;
 
 #if defined(_DEBUG)
-	ID3D12Debug1* _debugController;
-	ID3D12DebugDevice* _debugDevice;
+	MSPTR::ComPtr<ID3D12Debug1> _debugController;
+	MSPTR::ComPtr<ID3D12DebugDevice> _debugDevice;
 #endif
 
-	ID3D12CommandQueue* _commandQueue;
-	ID3D12CommandAllocator* _commandAllocator;
-	ID3D12GraphicsCommandList* _commandList;
+	MSPTR::ComPtr<ID3D12CommandQueue> _commandQueue;
+	MSPTR::ComPtr<ID3D12CommandAllocator> _commandAllocator;
+	MSPTR::ComPtr<ID3D12GraphicsCommandList> _commandList;
 
 	UINT _currentBuffer;
-	ID3D12DescriptorHeap* _rtvHeap;
+	MSPTR::ComPtr<ID3D12DescriptorHeap> _rtvHeap;
 	static const UINT backBufferCount = 2;
-	ID3D12Resource* _renderTargets[backBufferCount];
-	IDXGISwapChain3* _swapchain;
+	MSPTR::ComPtr<ID3D12Resource> _renderTargets[backBufferCount];
+	MSPTR::ComPtr<IDXGISwapChain3> _swapchain;
+
+
+	UINT _rtvDescriptorSize;
+	MSPTR::ComPtr<ID3D12RootSignature> _rootSignature;
+	MSPTR::ComPtr<ID3D12PipelineState> _pipelineState;
+
+	// Sync
+	UINT _frameIndex;
+	HANDLE _fenceEvent;
+	MSPTR::ComPtr<ID3D12Fence> _fence;
+	UINT64 _fenceValue;
 
 	// Resources
 	D3D12_VIEWPORT _viewport;
 	D3D12_RECT _surfaceSize;
 
-	ID3D12Resource* _vertexBuffer;
-	ID3D12Resource* _indexBuffer;
+	MSPTR::ComPtr<ID3D12Resource> _vertexBuffer;
+	MSPTR::ComPtr<ID3D12Resource> _indexBuffer;
 
-	ID3D12Resource* _uniformBuffer;
-	ID3D12DescriptorHeap* _uniformBufferHeap;
+	MSPTR::ComPtr<ID3D12Resource> _uniformBuffer;
+	MSPTR::ComPtr<ID3D12DescriptorHeap> _uniformBufferHeap;
+	// needs to be rawpointer since we perform memcpy on it
 	UINT8* _mappedUniformBuffer;
 
 	D3D12_VERTEX_BUFFER_VIEW _vertexBufferView;
@@ -78,14 +85,4 @@ private:
 		DirectX::XMMATRIX viewMatrix;
 		DirectX::XMMATRIX projectionMatrix;
 	} _MVP;
-
-	UINT _rtvDescriptorSize;
-	ID3D12RootSignature* _rootSignature;
-	ID3D12PipelineState* _pipelineState;
-
-	// Sync
-	UINT _frameIndex;
-	HANDLE _fenceEvent;
-	ID3D12Fence* _fence;
-	UINT64 _fenceValue;
 };

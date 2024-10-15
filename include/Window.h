@@ -16,10 +16,6 @@ public:
 
 	void CleanUp();
 
-	// DX12
-	D3D12_VIEWPORT _viewport;
-	D3D12_RECT _surfaceSize;
-
 private:
 	// Win32
 	WNDCLASSEX _windowClassEx;

@@ -67,7 +67,7 @@ void Application::InitializeDX12()
 
 		// Check to see if the adapter supports Direct3D 12, but don't create
 		// the actual device yet.
-		if (SUCCEEDED(D3D12CreateDevice(_adapter, D3D_FEATURE_LEVEL_12_0, _uuidof(ID3D12Device), nullptr)))
+		if (SUCCEEDED(D3D12CreateDevice(_adapter.Get(), D3D_FEATURE_LEVEL_12_0, _uuidof(ID3D12Device), nullptr)))
 		{
 			break;
 		}
@@ -78,13 +78,13 @@ void Application::InitializeDX12()
 
 	// Create Device
 	ID3D12Device* pDev = nullptr;
-	ThrowIfFailed(D3D12CreateDevice(_adapter, D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&_device)));
+	ThrowIfFailed(D3D12CreateDevice(_adapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&_device)));
 
 	_device->SetName(L"artisDX");
 
 #if defined(_DEBUG)
 	// Get debug device
-	ThrowIfFailed(_device->QueryInterface(&_debugDevice));
+	ThrowIfFailed(_device->QueryInterface(_debugDevice.GetAddressOf()));
 #endif
 
 	// Create Command Queue
@@ -305,17 +305,15 @@ void Application::InitializeResources()
 			readRange.Begin = 0;
 			readRange.End = 0;
 
-			ThrowIfFailed(_uniformBuffer->Map(
-				0, &readRange,
-				reinterpret_cast<void**>(&_mappedUniformBuffer)));
-			memcpy(_mappedUniformBuffer, &_MVP, sizeof(_MVP));
+			ThrowIfFailed(_uniformBuffer->Map( 0, &readRange, reinterpret_cast<void**>(&_mappedUniformBuffer)));
+										memcpy(_mappedUniformBuffer, &_MVP, sizeof(_MVP));
 			_uniformBuffer->Unmap(0, &readRange);
 		}
 
 		// Describe and create the graphics pipeline state object (PSO).
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
 		psoDesc.InputLayout = { inputElementDescs, _countof(inputElementDescs) };
-		psoDesc.pRootSignature = _rootSignature;
+		psoDesc.pRootSignature = _rootSignature.Get();
 
 		D3D12_SHADER_BYTECODE vsBytecode;
 		D3D12_SHADER_BYTECODE psBytecode;
@@ -402,7 +400,7 @@ void Application::InitializeResources()
 		}
 	}
 
-	ThrowIfFailed(_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _commandAllocator, _pipelineState, IID_PPV_ARGS(&_commandList)));
+	ThrowIfFailed(_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _commandAllocator.Get(), _pipelineState.Get(), IID_PPV_ARGS(&_commandList)));
 	_commandList->SetName(L"artisDX CommandList");
 
 	// Command lists are created in the recording state, but there is nothing
@@ -533,7 +531,7 @@ void Application::InitializeResources()
 		// complete before continuing.
 		// Signal and increment the fence value.
 		const UINT64 fence = _fenceValue;
-		ThrowIfFailed(_commandQueue->Signal(_fence, fence));
+		ThrowIfFailed(_commandQueue->Signal(_fence.Get(), fence));
 		_fenceValue++;
 
 		// Wait until the previous frame is finished.
@@ -561,7 +559,7 @@ void Application::SetupSwapchain(UINT w, UINT h)
 
 	// Signal and increment the fence value.
 	const UINT64 fence = _fenceValue;
-	ThrowIfFailed(_commandQueue->Signal(_fence, fence));
+	ThrowIfFailed(_commandQueue->Signal(_fence.Get(), fence));
 	_fenceValue++;
 
 	// Wait until the previous frame is finished.
@@ -570,8 +568,6 @@ void Application::SetupSwapchain(UINT w, UINT h)
 		ThrowIfFailed(_fence->SetEventOnCompletion(fence, _fenceEvent));
 		WaitForSingleObjectEx(_fenceEvent, INFINITE, false);
 	}
-
-	DestroyFrameBuffer();
 	
 	_surfaceSize.left = 0;
 	_surfaceSize.top = 0;
@@ -615,7 +611,7 @@ void Application::SetupSwapchain(UINT w, UINT h)
 
 		IDXGISwapChain1* swapchain = nullptr;
 
-		if (FAILED(_factory->CreateSwapChainForHwnd(_commandQueue, _window.GetHWND(), &swapchainDesc, nullptr, nullptr, &swapchain)))
+		if (FAILED(_factory->CreateSwapChainForHwnd(_commandQueue.Get(), _window.GetHWND(), &swapchainDesc, nullptr, nullptr, &swapchain)))
 		{
 			MessageBox(0, "Failed to create swapchain", 0, 0);
 			return;
@@ -654,7 +650,7 @@ void Application::SetupSwapchain(UINT w, UINT h)
 		{
 			ThrowIfFailed(
 				_swapchain->GetBuffer(n, IID_PPV_ARGS(&_renderTargets[n])));
-			_device->CreateRenderTargetView(_renderTargets[n], nullptr,
+				_device->CreateRenderTargetView(_renderTargets[n].Get(), nullptr,
 				rtvHandle);
 			rtvHandle.ptr += (1 * _rtvDescriptorSize);
 		}
@@ -671,14 +667,14 @@ void Application::SetupCommands()
 	// However, when ExecuteCommandList() is called on a particular command
 	// list, that command list can then be reset at any time and must be before
 	// re-recording.
-	ThrowIfFailed(_commandList->Reset(_commandAllocator, _pipelineState));
+	ThrowIfFailed(_commandList->Reset(_commandAllocator.Get(), _pipelineState.Get()));
 
 	// Set necessary state.
-	_commandList->SetGraphicsRootSignature(_rootSignature);
+	_commandList->SetGraphicsRootSignature(_rootSignature.Get());
 	_commandList->RSSetViewports(1, &_viewport);
 	_commandList->RSSetScissorRects(1, &_surfaceSize);
 
-	ID3D12DescriptorHeap* pDescriptorHeaps[] = { _uniformBufferHeap };
+	ID3D12DescriptorHeap* pDescriptorHeaps[] = { _uniformBufferHeap.Get()};
 	_commandList->SetDescriptorHeaps(_countof(pDescriptorHeaps),
 		pDescriptorHeaps);
 
@@ -690,7 +686,7 @@ void Application::SetupCommands()
 	D3D12_RESOURCE_BARRIER renderTargetBarrier;
 	renderTargetBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	renderTargetBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	renderTargetBarrier.Transition.pResource = _renderTargets[_frameIndex];
+	renderTargetBarrier.Transition.pResource = _renderTargets[_frameIndex].Get();
 	renderTargetBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
 	renderTargetBarrier.Transition.StateAfter =
 		D3D12_RESOURCE_STATE_RENDER_TARGET;
@@ -717,7 +713,7 @@ void Application::SetupCommands()
 	D3D12_RESOURCE_BARRIER presentBarrier;
 	presentBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	presentBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	presentBarrier.Transition.pResource = _renderTargets[_frameIndex];
+	presentBarrier.Transition.pResource = _renderTargets[_frameIndex].Get();
 	presentBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	presentBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 	presentBarrier.Transition.Subresource =
@@ -726,23 +722,6 @@ void Application::SetupCommands()
 	_commandList->ResourceBarrier(1, &presentBarrier);
 
 	ThrowIfFailed(_commandList->Close());
-}
-
-void Application::DestroyFrameBuffer()
-{
-	for (size_t i = 0; i < backBufferCount; ++i)
-	{
-		if (_renderTargets[i])
-		{
-			_renderTargets[i]->Release();
-			_renderTargets[i] = 0;
-		}
-	}
-	if (_rtvHeap)
-	{
-		_rtvHeap->Release();
-		_rtvHeap = nullptr;
-	}
 }
 
 void Application::Run()
@@ -769,7 +748,7 @@ void Application::Render()
 	SetupCommands();
 
 	// Execute the command list.
-	ID3D12CommandList* ppCommandLists[] = { _commandList };
+	ID3D12CommandList* ppCommandLists[] = { _commandList.Get()};
 	_commandQueue->ExecuteCommandLists(_countof(ppCommandLists),
 		ppCommandLists);
 	_swapchain->Present(1, 0);
@@ -778,7 +757,7 @@ void Application::Render()
 
 	// Signal and increment the fence value.
 	const UINT64 fence = _fenceValue;
-	ThrowIfFailed(_commandQueue->Signal(_fence, fence));
+	ThrowIfFailed(_commandQueue->Signal(_fence.Get(), fence));
 	_fenceValue++;
 
 	// Wait until the previous frame is finished.
@@ -793,68 +772,13 @@ void Application::Render()
 
 Application::~Application()
 {
-	//ReportLiveObjects();
-	// Ensure GPU has finished executing all commands before cleanup.
-	if (_commandQueue && _fence && _fenceValue > 0)
-	{
-		_commandQueue->Signal(_fence, _fenceValue);
-		if (_fence->GetCompletedValue() < _fenceValue)
-		{
-			_fence->SetEventOnCompletion(_fenceValue, _fenceEvent);
-			WaitForSingleObject(_fenceEvent, INFINITE);
-		}
-	}
+	_window.CleanUp();
 
-	// Destroy all created resources
-	DestroyResources();
-	DestroyFrameBuffer();
-	DestroyCommands();
-	DestroyAPI();
+	/*
+	_commandQueue
+	_renderTargets
+	_swapChain
 
-	// Close the event handle for synchronization
-	if (_fenceEvent)
-	{
-		CloseHandle(_fenceEvent);
-		_fenceEvent = nullptr;
-	}
-}
-
-void Application::DestroyResources()
-{
-	// Release resources created during rendering
-	if (_vertexBuffer) { _vertexBuffer->Release(); _vertexBuffer = nullptr; }
-	if (_indexBuffer) { _indexBuffer->Release(); _indexBuffer = nullptr; }
-	if (_uniformBuffer) { _uniformBuffer->Release(); _uniformBuffer = nullptr; }
-	if (_uniformBufferHeap) { _uniformBufferHeap->Release(); _uniformBufferHeap = nullptr; }
-
-	// Release root signature and pipeline state
-	if (_rootSignature) { _rootSignature->Release(); _rootSignature = nullptr; }
-	if (_pipelineState) { _pipelineState->Release(); _pipelineState = nullptr; }
-}
-
-void Application::DestroyCommands()
-{
-	// Release command allocator, command list, and command queue
-	if (_commandList) { _commandList->Release(); _commandList = nullptr; }
-	if (_commandAllocator) { _commandAllocator->Release(); _commandAllocator = nullptr; }
-	if (_commandQueue) { _commandQueue->Release(); _commandQueue = nullptr; }
-}
-
-void Application::DestroyAPI()
-{
-	// Release the swap chain
-	if (_swapchain) { _swapchain->Release(); _swapchain = nullptr; }
-
-	// Release the DirectX device
-	if (_device) { _device->Release(); _device = nullptr; }
-
-#if defined(_DEBUG)
-	// If debug interfaces were created, release them
-	if (_debugDevice) { _debugDevice->Release(); _debugDevice = nullptr; }
-	if (_debugController) { _debugController->Release(); _debugController = nullptr; }
-#endif
-
-	// Release adapter and factory
-	if (_adapter) { _adapter->Release(); _adapter = nullptr; }
-	if (_factory) { _factory->Release(); _factory = nullptr; }
+	are not cleaned up properly
+	*/
 }
