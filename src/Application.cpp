@@ -40,16 +40,13 @@ void Application::InitializeDX12()
 	UINT dxgiFactoryFlags = 0;
 
 #if defined(_DEBUG)
-	ID3D12Debug* debugController;
+	MSPTR::ComPtr<ID3D12Debug> debugController;
 	ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));
 	ThrowIfFailed(debugController->QueryInterface(IID_PPV_ARGS(&_debugController)));
 	_debugController->EnableDebugLayer();
 	_debugController->SetEnableGPUBasedValidation(true);
 
 	dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
-
-	debugController->Release();
-	debugController = nullptr;
 #endif
 
 	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&_factory)));
@@ -77,7 +74,6 @@ void Application::InitializeDX12()
 	}
 
 	// Create Device
-	ID3D12Device* pDev = nullptr;
 	ThrowIfFailed(D3D12CreateDevice(_adapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&_device)));
 
 	_device->SetName(L"artisDX");
@@ -552,23 +548,23 @@ void Application::SetupSwapchain(UINT w, UINT h)
 	w = std::clamp(w, 1u, 0xffffu);
 	h = std::clamp(h, 1u, 0xffffu);
 
-	// WAITING FOR THE FRAME TO COMPLETE BEFORE CONTINUING IS NOT BEST PRACTICE.
-	// This is code implemented as such for simplicity. The
-	// D3D12HelloFrameBuffering sample illustrates how to use fences for
-	// efficient resource usage and to maximize GPU utilization.
-
-	// Signal and increment the fence value.
+	// Wait for the GPU to finish with the previous frame
 	const UINT64 fence = _fenceValue;
 	ThrowIfFailed(_commandQueue->Signal(_fence.Get(), fence));
 	_fenceValue++;
-
-	// Wait until the previous frame is finished.
 	if (_fence->GetCompletedValue() < fence)
 	{
 		ThrowIfFailed(_fence->SetEventOnCompletion(fence, _fenceEvent));
 		WaitForSingleObjectEx(_fenceEvent, INFINITE, false);
 	}
-	
+
+	// Clean up old resources before resizing
+	for (UINT n = 0; n < backBufferCount; n++)
+	{
+		_renderTargets[n].Reset();  // Release old render targets
+	}
+	_rtvHeap.Reset();  // Release old descriptor heap
+
 	_surfaceSize.left = 0;
 	_surfaceSize.top = 0;
 	_surfaceSize.right = static_cast<LONG>(w);
@@ -581,7 +577,7 @@ void Application::SetupSwapchain(UINT w, UINT h)
 	_viewport.MinDepth = .1f;
 	_viewport.MaxDepth = 1000.f;
 
-	//later use data from Camera here
+	// later use data from Camera here
 	// move, doesnt make sense here
 	// Update Uniforms
 	float zoom = 2.5f;
@@ -595,11 +591,12 @@ void Application::SetupSwapchain(UINT w, UINT h)
 
 	if (_swapchain != nullptr)
 	{
-		_swapchain->ResizeBuffers(backBufferCount, w, h,
-			DXGI_FORMAT_R8G8B8A8_UNORM, 0);
+		// Resize the swapchain buffers
+		_swapchain->ResizeBuffers(backBufferCount, w, h, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
 	}
 	else
 	{
+		// Create the swapchain if it doesn't exist
 		DXGI_SWAP_CHAIN_DESC1 swapchainDesc = {};
 		swapchainDesc.BufferCount = backBufferCount;
 		swapchainDesc.Width = w;
@@ -609,53 +606,47 @@ void Application::SetupSwapchain(UINT w, UINT h)
 		swapchainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 		swapchainDesc.SampleDesc.Count = 1;
 
-		IDXGISwapChain1* swapchain = nullptr;
-
+		MSPTR::ComPtr<IDXGISwapChain1> swapchain;
 		if (FAILED(_factory->CreateSwapChainForHwnd(_commandQueue.Get(), _window.GetHWND(), &swapchainDesc, nullptr, nullptr, &swapchain)))
 		{
 			MessageBox(0, "Failed to create swapchain", 0, 0);
 			return;
 		}
 
-		HRESULT swapchainSupport = swapchain->QueryInterface(__uuidof(IDXGISwapChain3), (void**)&swapchain);
-
+		MSPTR::ComPtr<IDXGISwapChain3> swapchain3;
+		HRESULT swapchainSupport = swapchain->QueryInterface(__uuidof(IDXGISwapChain3), (void**)&swapchain3);
 		if (SUCCEEDED(swapchainSupport))
-			_swapchain = (IDXGISwapChain3*)swapchain;
-	}
-	_frameIndex = _swapchain->GetCurrentBackBufferIndex();
-
-	_currentBuffer = _swapchain->GetCurrentBackBufferIndex();
-
-	// Create descriptor heaps.
-	{
-		// Describe and create a render target view (RTV) descriptor heap.
-		D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-		rtvHeapDesc.NumDescriptors = backBufferCount;
-		rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-		rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-		ThrowIfFailed(_device->CreateDescriptorHeap(&rtvHeapDesc,
-			IID_PPV_ARGS(&_rtvHeap)));
-
-		_rtvDescriptorSize = _device->GetDescriptorHandleIncrementSize(
-			D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	}
-
-	// Create frame resources.
-	{
-		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle(
-			_rtvHeap->GetCPUDescriptorHandleForHeapStart());
-
-		// Create a RTV for each frame.
-		for (UINT n = 0; n < backBufferCount; n++)
 		{
-			ThrowIfFailed(
-				_swapchain->GetBuffer(n, IID_PPV_ARGS(&_renderTargets[n])));
-				_device->CreateRenderTargetView(_renderTargets[n].Get(), nullptr,
-				rtvHandle);
-			rtvHandle.ptr += (1 * _rtvDescriptorSize);
+			_swapchain = swapchain3;
+		}
+		else
+		{
+			swapchain->Release();  // Release the original swapchain if QueryInterface fails
 		}
 	}
+
+	_frameIndex = _swapchain->GetCurrentBackBufferIndex();
+	_currentBuffer = _swapchain->GetCurrentBackBufferIndex();
+
+	// Recreate descriptor heaps and render targets
+	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
+	rtvHeapDesc.NumDescriptors = backBufferCount;
+	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	ThrowIfFailed(_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&_rtvHeap)));
+
+	_rtvDescriptorSize = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+	// Create frame resources
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle(_rtvHeap->GetCPUDescriptorHandleForHeapStart());
+	for (UINT n = 0; n < backBufferCount; n++)
+	{
+		ThrowIfFailed(_swapchain->GetBuffer(n, IID_PPV_ARGS(&_renderTargets[n])));
+		_device->CreateRenderTargetView(_renderTargets[n].Get(), nullptr, rtvHandle);
+		rtvHandle.ptr += _rtvDescriptorSize;
+	}
 }
+
 
 void Application::SetupCommands()
 {
@@ -774,11 +765,5 @@ Application::~Application()
 {
 	_window.CleanUp();
 
-	/*
-	_commandQueue
-	_renderTargets
-	_swapChain
-
-	are not cleaned up properly
-	*/
+	_debugDevice->ReportLiveDeviceObjects(D3D12_RLDO_DETAIL);
 }
