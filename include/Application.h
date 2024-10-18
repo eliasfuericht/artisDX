@@ -2,6 +2,7 @@
 
 #include "pch.h"
 #include "Window.h"
+#include "Camera.h"
 
 class Application
 {
@@ -19,6 +20,7 @@ private:
 	void SetupCommands();
 
 	Window _window;
+	Camera _camera;
 
 	// DX12 Specific
 	// Initialization

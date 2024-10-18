@@ -30,6 +30,15 @@ Application::Application(const CHAR* name, INT w, INT h)
 	_fence = nullptr;
 	_fenceValue = 0;
 
+	_camera = Camera(
+		DirectX::XMVectorSet(0.0f, 2.0f, -5.0f, 0.0f), // Position (x, y, z)
+		DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), // Up vector
+		0.0f,  // Yaw
+		0.0f,  // Pitch
+		0.1f,  // Movement speed
+		0.1f   // Turn speed
+	);
+
 	InitializeDX12();
 	InitializeResources();
 }
@@ -583,6 +592,7 @@ void Application::SetupSwapchain(UINT w, UINT h)
 	float zoom = 2.5f;
 
 	// Update matrices
+
 	_MVP.projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(45.0f, (FLOAT)w / (FLOAT)h, 0.01f, 1024.0f);
 
 	_MVP.viewMatrix = DirectX::XMMatrixTranslation(0.0f, 0.0f, zoom);
@@ -734,6 +744,18 @@ void Application::Run()
 
 void Application::Render()
 {
+	_camera.ConsumeMouse(_window.GetXChange(), _window.GetYChange());
+	_camera.ConsumeKey(_window.GetKeys(), 0.1f);
+	_MVP.viewMatrix = _camera.GetViewMatrix();
+
+	D3D12_RANGE readRange;
+	readRange.Begin = 0;
+	readRange.End = 0;
+
+	ThrowIfFailed(_uniformBuffer->Map(
+		0, &readRange, reinterpret_cast<void**>(&_mappedUniformBuffer)));
+	memcpy(_mappedUniformBuffer, &_MVP, sizeof(_MVP));
+	_uniformBuffer->Unmap(0, &readRange);
 	// Record all the commands we need to render the scene into the command
 	// list.
 	SetupCommands();
