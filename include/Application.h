@@ -22,45 +22,45 @@ private:
 
 	// DX12 Specific
 	// Initialization
-	MSPTR::ComPtr<IDXGIFactory4> _factory;
-	MSPTR::ComPtr<IDXGIAdapter1> _adapter;
-	MSPTR::ComPtr<ID3D12Device> _device;
+	MS::ComPtr<IDXGIFactory4> _factory;
+	MS::ComPtr<IDXGIAdapter1> _adapter;
+	MS::ComPtr<ID3D12Device> _device;
 
 #if defined(_DEBUG)
-	MSPTR::ComPtr<ID3D12Debug1> _debugController;
-	MSPTR::ComPtr<ID3D12DebugDevice> _debugDevice;
+	MS::ComPtr<ID3D12Debug1> _debugController;
+	MS::ComPtr<ID3D12DebugDevice> _debugDevice;
 #endif
 
-	MSPTR::ComPtr<ID3D12CommandQueue> _commandQueue;
-	MSPTR::ComPtr<ID3D12CommandAllocator> _commandAllocator;
-	MSPTR::ComPtr<ID3D12GraphicsCommandList> _commandList;
+	MS::ComPtr<ID3D12CommandQueue> _commandQueue;
+	MS::ComPtr<ID3D12CommandAllocator> _commandAllocator;
+	MS::ComPtr<ID3D12GraphicsCommandList> _commandList;
 
 	UINT _currentBuffer;
-	MSPTR::ComPtr<ID3D12DescriptorHeap> _rtvHeap;
+	MS::ComPtr<ID3D12DescriptorHeap> _rtvHeap;
 	static const UINT backBufferCount = 2;
-	MSPTR::ComPtr<ID3D12Resource> _renderTargets[backBufferCount];
-	MSPTR::ComPtr<IDXGISwapChain3> _swapchain;
+	MS::ComPtr<ID3D12Resource> _renderTargets[backBufferCount];
+	MS::ComPtr<IDXGISwapChain3> _swapchain;
 
 
 	UINT _rtvDescriptorSize;
-	MSPTR::ComPtr<ID3D12RootSignature> _rootSignature;
-	MSPTR::ComPtr<ID3D12PipelineState> _pipelineState;
+	MS::ComPtr<ID3D12RootSignature> _rootSignature;
+	MS::ComPtr<ID3D12PipelineState> _pipelineState;
 
 	// Sync
 	UINT _frameIndex;
 	HANDLE _fenceEvent;
-	MSPTR::ComPtr<ID3D12Fence> _fence;
+	MS::ComPtr<ID3D12Fence> _fence;
 	UINT64 _fenceValue;
 
 	// Resources
 	D3D12_VIEWPORT _viewport;
 	D3D12_RECT _surfaceSize;
 
-	MSPTR::ComPtr<ID3D12Resource> _vertexBuffer;
-	MSPTR::ComPtr<ID3D12Resource> _indexBuffer;
+	MS::ComPtr<ID3D12Resource> _vertexBuffer;
+	MS::ComPtr<ID3D12Resource> _indexBuffer;
 
-	MSPTR::ComPtr<ID3D12Resource> _uniformBuffer;
-	MSPTR::ComPtr<ID3D12DescriptorHeap> _uniformBufferHeap;
+	MS::ComPtr<ID3D12Resource> _uniformBuffer;
+	MS::ComPtr<ID3D12DescriptorHeap> _uniformBufferHeap;
 	// needs to be rawpointer since we perform memcpy on it
 	UINT8* _mappedUniformBuffer;
 

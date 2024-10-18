@@ -5,7 +5,6 @@
 class Window
 {
 public:
-	Window() {};
 	Window(const CHAR* title, UINT w, UINT h);
 
 	void Create();

@@ -24,7 +24,7 @@
 #define OK 0
 #define NOTOK -1
 
-#define MSPTR Microsoft::WRL
+#define MS Microsoft::WRL
 
 #define GetHInstance() GetModuleHandle(NULL)
 

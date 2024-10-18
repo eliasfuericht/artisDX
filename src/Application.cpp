@@ -1,6 +1,7 @@
 #include "Application.h"
 
 Application::Application(const CHAR* name, INT w, INT h)
+	: _window(name, w, h)
 {
 	_factory = nullptr;
 	_adapter = nullptr;
@@ -29,7 +30,6 @@ Application::Application(const CHAR* name, INT w, INT h)
 	_fence = nullptr;
 	_fenceValue = 0;
 
-	_window = Window(name, w, h);
 	InitializeDX12();
 	InitializeResources();
 }
@@ -40,7 +40,7 @@ void Application::InitializeDX12()
 	UINT dxgiFactoryFlags = 0;
 
 #if defined(_DEBUG)
-	MSPTR::ComPtr<ID3D12Debug> debugController;
+	MS::ComPtr<ID3D12Debug> debugController;
 	ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));
 	ThrowIfFailed(debugController->QueryInterface(IID_PPV_ARGS(&_debugController)));
 	_debugController->EnableDebugLayer();
@@ -606,14 +606,14 @@ void Application::SetupSwapchain(UINT w, UINT h)
 		swapchainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 		swapchainDesc.SampleDesc.Count = 1;
 
-		MSPTR::ComPtr<IDXGISwapChain1> swapchain;
+		MS::ComPtr<IDXGISwapChain1> swapchain;
 		if (FAILED(_factory->CreateSwapChainForHwnd(_commandQueue.Get(), _window.GetHWND(), &swapchainDesc, nullptr, nullptr, &swapchain)))
 		{
 			MessageBox(0, "Failed to create swapchain", 0, 0);
 			return;
 		}
 
-		MSPTR::ComPtr<IDXGISwapChain3> swapchain3;
+		MS::ComPtr<IDXGISwapChain3> swapchain3;
 		HRESULT swapchainSupport = swapchain->QueryInterface(__uuidof(IDXGISwapChain3), (void**)&swapchain3);
 		if (SUCCEEDED(swapchainSupport))
 		{
@@ -764,6 +764,4 @@ void Application::Render()
 Application::~Application()
 {
 	_window.CleanUp();
-
-	_debugDevice->ReportLiveDeviceObjects(D3D12_RLDO_DETAIL);
 }
