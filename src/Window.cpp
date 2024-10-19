@@ -91,7 +91,7 @@ void Window::HandleKeys(INT key, INT action)
 			}
 		}
 
-		if (key == 27 && _captureMouse)
+		if (key == KEYCODES::ESC && _captureMouse)
 		{
 			_captureMouse = false;
 			SetCapture(0);

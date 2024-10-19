@@ -38,7 +38,6 @@ inline void ThrowIfFailed(HRESULT hr)
 	}
 }
 
-//CAMERA
 enum KEYCODES
 {
 	W = 87,
@@ -46,5 +45,6 @@ enum KEYCODES
 	S = 83,
 	D = 68,
 	SPACE = 32,
-	LCTRL = 17
+	LCTRL = 17,
+	ESC = 27,
 };
