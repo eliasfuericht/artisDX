@@ -21,8 +21,7 @@ public:
 	FLOAT GetYChange();
 	void CleanUp();
 
-	FLOAT _lastX;
-	FLOAT _lastY;
+	BOOL _captureMouse;
 private:
 	// Win32
 	WNDCLASSEX _windowClassEx;

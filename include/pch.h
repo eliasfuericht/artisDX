@@ -28,6 +28,8 @@
 
 #define GetHInstance() GetModuleHandle(NULL)
 
+#define PRINT(arg) std::cout << arg << std::endl
+
 inline void ThrowIfFailed(HRESULT hr)
 {
 	if (FAILED(hr))

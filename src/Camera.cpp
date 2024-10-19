@@ -37,7 +37,7 @@ void Camera::ConsumeKey(BOOL* keys, FLOAT deltaTime)
 	}
 	if (keys[KEYCODES::A])
 	{
-		_position = DirectX::XMVectorSubtract(_position, DirectX::XMVectorScale(_right, velocity));
+		_position = DirectX::XMVectorAdd(_position, DirectX::XMVectorScale(_right, velocity));
 	}
 	if (keys[KEYCODES::S])
 	{
@@ -45,16 +45,16 @@ void Camera::ConsumeKey(BOOL* keys, FLOAT deltaTime)
 	}
 	if (keys[KEYCODES::D])
 	{
-		_position = DirectX::XMVectorAdd(_position, DirectX::XMVectorScale(_right, velocity));
+		_position = DirectX::XMVectorSubtract(_position, DirectX::XMVectorScale(_right, velocity));
 	}
 	if (keys[KEYCODES::SPACE])
 	{
 		_position = DirectX::XMVectorAdd(_position, DirectX::XMVectorScale(_up, velocity));
 	}
-	/*if (keys[KEYCODES::LCTRL])
+	if (keys[KEYCODES::LCTRL])
 	{
 		_position = DirectX::XMVectorSubtract(_position, DirectX::XMVectorScale(_up, velocity));
-	}*/
+	}
 }
 
 void Camera::Update()

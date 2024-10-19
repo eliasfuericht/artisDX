@@ -31,7 +31,7 @@ Application::Application(const CHAR* name, INT w, INT h)
 	_fenceValue = 0;
 
 	_camera = Camera(
-		DirectX::XMVectorSet(0.0f, 2.0f, -5.0f, 0.0f), // Position (x, y, z)
+		DirectX::XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f), // Position (x, y, z)
 		DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), // Up vector
 		0.0f,  // Yaw
 		0.0f,  // Pitch

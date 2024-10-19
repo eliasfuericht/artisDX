@@ -7,9 +7,40 @@ LRESULT CALLBACK WindowProcess(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 	switch (msg) {
 		case WM_MOUSEMOVE:
 		{
-			FLOAT x = static_cast<FLOAT>(((int)(short)LOWORD(lParam)));
-			FLOAT y = static_cast<FLOAT>(((int)(short)HIWORD(lParam)));
-			windowInstance->HandleMouse(x, y);
+			if (!windowInstance->_captureMouse)
+				break;
+
+			// Get the current cursor position (in screen coordinates)
+			POINT currentCursorPos;
+			GetCursorPos(&currentCursorPos);
+
+			// Convert screen coordinates to client coordinates
+			ScreenToClient(hwnd, &currentCursorPos);
+
+			// Calculate mouse deltas (movement since last frame)
+			RECT clientRect;
+			GetClientRect(hwnd, &clientRect);
+			POINT center = { (clientRect.right - clientRect.left) / 2, (clientRect.bottom - clientRect.top) / 2 };
+
+			// The delta is how much the cursor moved from the center
+			LONG deltaX = center.x - currentCursorPos.x;
+			LONG deltaY = center.y - currentCursorPos.y;
+
+			windowInstance->HandleMouse(deltaX, deltaY);
+
+			ClientToScreen(hwnd, &center);
+			SetCursorPos(center.x, center.y);
+
+			break;
+		}
+		case WM_LBUTTONDOWN:
+		{
+			if (!windowInstance->_captureMouse)
+			{
+				windowInstance->_captureMouse = true;
+				SetCapture(windowInstance->GetHWND());
+				ShowCursor(FALSE);
+			}
 			break;
 		}
 		case WM_KEYDOWN:
@@ -25,6 +56,16 @@ LRESULT CALLBACK WindowProcess(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 		case WM_DESTROY:
 		{
 			PostQuitMessage(0);
+			break;
+		}
+		case WM_SYSCOMMAND:
+		{
+			if ((wParam & 0xFFF0) == SC_CLOSE)  // SC_CLOSE is triggered by Alt + F4
+			{
+				// Perform any additional logic or just allow default behavior
+				PostMessage(hwnd, WM_CLOSE, 0, 0);  // Post WM_CLOSE to close the window
+				return 0;
+			}
 			break;
 		}
 	}
@@ -49,25 +90,20 @@ void Window::HandleKeys(INT key, INT action)
 				break;
 			}
 		}
+
+		if (key == 27 && _captureMouse)
+		{
+			_captureMouse = false;
+			SetCapture(0);
+			ShowCursor(TRUE);
+		}
 	}
 }
 
 void Window::HandleMouse(FLOAT x, FLOAT y)
 {
-	/*
-	if (theWindow->mouseFirstMoved)
-	{
-		theWindow->lastX = xPos;
-		theWindow->lastY = yPos;
-		theWindow->mouseFirstMoved = false;
-	}
-	*/
-
-	_xChange = x - _lastX;
-	_yChange = _lastY - y;
-
-	_lastX = x;
-	_lastY = y;
+	_xChange += x;
+	_yChange += y;
 }
 
 Window::Window(const CHAR* title, UINT w, UINT h)
@@ -109,11 +145,11 @@ void Window::Create()
 
 	SetWindowLongPtr(_hWindow, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
 	
-	// Hide the cursor
   ShowCursor(FALSE);
 
-  // Capture the mouse
   SetCapture(_hWindow);
+
+	_captureMouse = true;
 }
 
 void Window::Show()
