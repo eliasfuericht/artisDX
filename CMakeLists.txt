@@ -31,6 +31,34 @@ target_link_libraries(artisDX
   D3DCompiler    # D3DCompiler for shader compilation functions
 )
 
+# Add ImGui to the project
+set(IMGUI_DIR "${CMAKE_SOURCE_DIR}/extern/imgui")  # Adjust this to your ImGui directory
+
+# Add ImGui source files
+file(GLOB IMGUI_SOURCES 
+    "${IMGUI_DIR}/*.cpp" 
+    "${IMGUI_DIR}/backends/imgui_impl_dx12.cpp" 
+    "${IMGUI_DIR}/backends/imgui_impl_win32.cpp"
+)
+
+# Add ImGui include directories
+target_include_directories(artisDX PRIVATE "${IMGUI_DIR}" "${IMGUI_DIR}/backends")
+
+# Add ImGui sources to the target executable
+target_sources(artisDX PRIVATE ${IMGUI_SOURCES})
+
+# Add required dependencies for ImGui (e.g., DirectX12, Win32 platform)
+target_link_libraries(artisDX
+  d3d12
+  dxgi
+  dxguid
+  D3DCompiler
+)
+
+# Ensure Win32 is defined for ImGui when building on Windows
+target_compile_definitions(artisDX PRIVATE IMGUI_IMPL_WIN32_DISABLE_GAMEPAD)
+
+# Custom command for precompiled headers
 add_custom_command(
     OUTPUT ${CMAKE_BINARY_DIR}/CMakeFiles/artisDX.dir/cmake_pch.hxx.pch
     COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_BINARY_DIR}/CMakeFiles/artisDX.dir/cmake_pch.hxx.pch
@@ -45,11 +73,6 @@ set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT a
 #  WIN32_EXECUTABLE TRUE    # This sets the Windows subsystem
 #)
 
-# Add additional dependencies (e.g., DirectXTK or DirectXMath if needed)
-# find_package(DirectXTK REQUIRED)
-# target_link_libraries(artisDX DirectXTK)
-
-########### later ###########
 # Post-build commands (e.g., copy shaders or assets)
 # add_custom_command(TARGET artisDX POST_BUILD
 #  COMMAND ${CMAKE_COMMAND} -E copy_directory

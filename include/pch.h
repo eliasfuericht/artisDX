@@ -19,6 +19,12 @@
 #include <fstream>
 #include <chrono>
 
+// IMGUI
+#define IMGUI_DEFINE_MATH_OPERATORS
+#include "../extern/imgui/imgui.h"
+#include "../extern/imgui/backends/imgui_impl_win32.h"
+#include "../extern/imgui/backends/imgui_impl_dx12.h"
+
 // Defines
 #define CHECK INT
 #define OK 0

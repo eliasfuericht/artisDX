@@ -26,10 +26,14 @@ LRESULT CALLBACK WindowProcess(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 			LONG deltaX = center.x - currentCursorPos.x;
 			LONG deltaY = center.y - currentCursorPos.y;
 
-			windowInstance->HandleMouse(deltaX, deltaY);
+			//something is wrong with the y translation??
+			if (abs(deltaX) > 0 || abs(deltaY) > 0)
+			{
+				windowInstance->HandleMouse(deltaX, deltaY);
 
-			ClientToScreen(hwnd, &center);
-			SetCursorPos(center.x, center.y);
+				ClientToScreen(hwnd, &center);
+				SetCursorPos(center.x, center.y);
+			}
 
 			break;
 		}
