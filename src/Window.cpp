@@ -10,23 +10,16 @@ LRESULT CALLBACK WindowProcess(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 			if (!windowInstance->_captureMouse)
 				break;
 
-			// Get the current cursor position (in screen coordinates)
 			POINT currentCursorPos;
 			GetCursorPos(&currentCursorPos);
-
-			// Convert screen coordinates to client coordinates
 			ScreenToClient(hwnd, &currentCursorPos);
-
-			// Calculate mouse deltas (movement since last frame)
 			RECT clientRect;
 			GetClientRect(hwnd, &clientRect);
 			POINT center = { (clientRect.right - clientRect.left) / 2, (clientRect.bottom - clientRect.top) / 2 };
 
-			// The delta is how much the cursor moved from the center
-			LONG deltaX = center.x - currentCursorPos.x;
-			LONG deltaY = center.y - currentCursorPos.y;
+			auto deltaX = center.x - currentCursorPos.x;
+			auto deltaY = center.y - currentCursorPos.y;
 
-			//something is wrong with the y translation??
 			if (abs(deltaX) > 0 || abs(deltaY) > 0)
 			{
 				windowInstance->HandleMouse(deltaX, deltaY);
@@ -41,6 +34,12 @@ LRESULT CALLBACK WindowProcess(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 		{
 			if (!windowInstance->_captureMouse)
 			{
+				RECT clientRect;
+				GetClientRect(hwnd, &clientRect);
+				POINT center = { (clientRect.right - clientRect.left) / 2, (clientRect.bottom - clientRect.top) / 2 };
+				ClientToScreen(hwnd, &center);
+				SetCursorPos(center.x, center.y);
+
 				windowInstance->_captureMouse = true;
 				SetCapture(windowInstance->GetHWND());
 				ShowCursor(FALSE);
@@ -62,12 +61,12 @@ LRESULT CALLBACK WindowProcess(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 			PostQuitMessage(0);
 			break;
 		}
+		// ALT+F4
 		case WM_SYSCOMMAND:
 		{
-			if ((wParam & 0xFFF0) == SC_CLOSE)  // SC_CLOSE is triggered by Alt + F4
+			if ((wParam & 0xFFF0) == SC_CLOSE)
 			{
-				// Perform any additional logic or just allow default behavior
-				PostMessage(hwnd, WM_CLOSE, 0, 0);  // Post WM_CLOSE to close the window
+				PostMessage(hwnd, WM_CLOSE, 0, 0); 
 				return 0;
 			}
 			break;
@@ -113,6 +112,9 @@ void Window::HandleMouse(FLOAT x, FLOAT y)
 Window::Window(const CHAR* title, UINT w, UINT h)
 	: _windowTitle(title), _windowWidth(w), _windowHeight(h)
 {
+	_captureMouse = true;
+	_xChange = 0.0f;
+	_yChange = 0.0f;
 	for (INT i = 0; i < 1024; i++)
 	{
 		_keys[i] = 0;
@@ -139,7 +141,7 @@ void Window::Create()
 	RegisterClassEx(&_windowClassEx);
 
 	_hWindow = CreateWindow(windowClassName, _windowTitle, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0,
-															_windowWidth, _windowHeight, nullptr, nullptr, GetHInstance(), nullptr);
+		_windowWidth, _windowHeight, nullptr, nullptr, GetHInstance(), nullptr);
 
 	if (!_hWindow)
 	{
@@ -148,12 +150,10 @@ void Window::Create()
 	}
 
 	SetWindowLongPtr(_hWindow, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
-	
-  ShowCursor(FALSE);
 
-  SetCapture(_hWindow);
+	ShowCursor(FALSE);
 
-	_captureMouse = true;
+	SetCapture(_hWindow);
 }
 
 void Window::Show()
