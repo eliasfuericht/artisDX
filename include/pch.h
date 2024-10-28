@@ -4,6 +4,7 @@
 // Windows
 #include <windows.h> 
 #include <wrl.h>
+#include <filesystem>
 
 // DirectX
 #include <direct.h>

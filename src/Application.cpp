@@ -197,9 +197,10 @@ void Application::InitializeResources()
 		path += "\\..\\";
 		std::wstring wpath = std::wstring(path.begin(), path.end());
 
-		std::string vertCompiledPath = path, fragCompiledPath = path;
-		vertCompiledPath += "shaders\\triangle.vert.dxbc";
-		fragCompiledPath += "shaders\\triangle.frag.dxbc";
+		std::filesystem::create_directories(path + "shaders\\compiled");
+
+		std::string vertCompiledPath = path + "shaders\\compiled\\triangle.vert.dxbc";
+		std::string fragCompiledPath = path + "shaders\\compiled\\triangle.frag.dxbc";
 
 #define COMPILESHADERS
 #ifdef COMPILESHADERS
