@@ -21,48 +21,49 @@ private:
 
 	Window _window;
 	Camera _camera;
+	FLOAT _elapsedTime;
 
 	// DX12 Specific
 	// Initialization
-	MS::ComPtr<IDXGIFactory4> _factory;
-	MS::ComPtr<IDXGIAdapter1> _adapter;
-	MS::ComPtr<ID3D12Device> _device;
+	MSWRL::ComPtr<IDXGIFactory4> _factory;
+	MSWRL::ComPtr<IDXGIAdapter1> _adapter;
+	MSWRL::ComPtr<ID3D12Device> _device;
 
 #if defined(_DEBUG)
-	MS::ComPtr<ID3D12Debug1> _debugController;
-	MS::ComPtr<ID3D12DebugDevice> _debugDevice;
+	MSWRL::ComPtr<ID3D12Debug1> _debugController;
+	MSWRL::ComPtr<ID3D12DebugDevice> _debugDevice;
 #endif
 
-	MS::ComPtr<ID3D12CommandQueue> _commandQueue;
-	MS::ComPtr<ID3D12CommandAllocator> _commandAllocator;
-	MS::ComPtr<ID3D12GraphicsCommandList> _commandList;
+	MSWRL::ComPtr<ID3D12CommandQueue> _commandQueue;
+	MSWRL::ComPtr<ID3D12CommandAllocator> _commandAllocator;
+	MSWRL::ComPtr<ID3D12GraphicsCommandList> _commandList;
 
 	UINT _currentBuffer;
-	MS::ComPtr<ID3D12DescriptorHeap> _rtvHeap;
+	MSWRL::ComPtr<ID3D12DescriptorHeap> _rtvHeap;
 	static const UINT backBufferCount = 2;
-	MS::ComPtr<ID3D12Resource> _renderTargets[backBufferCount];
-	MS::ComPtr<IDXGISwapChain3> _swapchain;
+	MSWRL::ComPtr<ID3D12Resource> _renderTargets[backBufferCount];
+	MSWRL::ComPtr<IDXGISwapChain3> _swapchain;
 
 
 	UINT _rtvDescriptorSize;
-	MS::ComPtr<ID3D12RootSignature> _rootSignature;
-	MS::ComPtr<ID3D12PipelineState> _pipelineState;
+	MSWRL::ComPtr<ID3D12RootSignature> _rootSignature;
+	MSWRL::ComPtr<ID3D12PipelineState> _pipelineState;
 
 	// Sync
 	UINT _frameIndex;
 	HANDLE _fenceEvent;
-	MS::ComPtr<ID3D12Fence> _fence;
+	MSWRL::ComPtr<ID3D12Fence> _fence;
 	UINT64 _fenceValue;
 
 	// Resources
 	D3D12_VIEWPORT _viewport;
 	D3D12_RECT _surfaceSize;
 
-	MS::ComPtr<ID3D12Resource> _vertexBuffer;
-	MS::ComPtr<ID3D12Resource> _indexBuffer;
+	MSWRL::ComPtr<ID3D12Resource> _vertexBuffer;
+	MSWRL::ComPtr<ID3D12Resource> _indexBuffer;
 
-	MS::ComPtr<ID3D12Resource> _uniformBuffer;
-	MS::ComPtr<ID3D12DescriptorHeap> _uniformBufferHeap;
+	MSWRL::ComPtr<ID3D12Resource> _uniformBuffer;
+	MSWRL::ComPtr<ID3D12DescriptorHeap> _uniformBufferHeap;
 	// needs to be rawpointer since we perform memcpy on it
 	UINT8* _mappedUniformBuffer;
 

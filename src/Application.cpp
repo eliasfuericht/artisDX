@@ -31,16 +31,18 @@ Application::Application(const CHAR* name, INT w, INT h)
 	_fenceValue = 0;
 
 	_camera = Camera(
-		DirectX::XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f), // Position (x, y, z)
-		DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), // Up vector
-		0.0f,  // Yaw
-		0.0f,  // Pitch
-		0.1f,  // Movement speed
-		0.1f   // Turn speed
+		DirectX::XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f),
+		DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), 
+		0.0f,
+		0.0f,
+		0.1f,
+		0.1f
 	);
 
 	InitializeDX12();
+	SetupSwapchain(w, h);
 	InitializeResources();
+	SetupCommands();
 }
 
 void Application::InitializeDX12()
@@ -49,7 +51,7 @@ void Application::InitializeDX12()
 	UINT dxgiFactoryFlags = 0;
 
 #if defined(_DEBUG)
-	MS::ComPtr<ID3D12Debug> debugController;
+	MSWRL::ComPtr<ID3D12Debug> debugController;
 	ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));
 	ThrowIfFailed(debugController->QueryInterface(IID_PPV_ARGS(&_debugController)));
 	_debugController->EnableDebugLayer();
@@ -60,32 +62,28 @@ void Application::InitializeDX12()
 
 	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&_factory)));
 
+	// iterate over all available adpaters (adapters = GPUs)
 	for (UINT adapterIndex = 0; DXGI_ERROR_NOT_FOUND != _factory->EnumAdapters1(adapterIndex, &_adapter); ++adapterIndex)
 	{
 		DXGI_ADAPTER_DESC1 desc;
 		_adapter->GetDesc1(&desc);
 
 		if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
-		{
-			// Don't select the Basic Render Driver adapter.
-			continue;
-		}
+			continue; // Don't select the Basic Render Driver adapter.
+		
 
-		// Check to see if the adapter supports Direct3D 12, but don't create
-		// the actual device yet.
-		if (SUCCEEDED(D3D12CreateDevice(_adapter.Get(), D3D_FEATURE_LEVEL_12_0, _uuidof(ID3D12Device), nullptr)))
-		{
-			break;
-		}
+		// Check to see if the adapter supports Direct3D 12, but don't create the actual device yet.
+		if (SUCCEEDED(D3D12CreateDevice(_adapter.Get(), D3D_FEATURE_LEVEL_12_2, _uuidof(ID3D12Device), nullptr)))
+			break; // we have selected the first DX12 compatible adapter in the system
 
-		// We won't use this adapter, so release it
+		// if its not compatible -> Release();
 		_adapter->Release();
 	}
 
 	// Create Device
-	ThrowIfFailed(D3D12CreateDevice(_adapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&_device)));
-
-	_device->SetName(L"artisDX");
+	// The device is the interface between the program(CPU) and the adapter(GPU)
+	ThrowIfFailed(D3D12CreateDevice(_adapter.Get(), D3D_FEATURE_LEVEL_12_2, IID_PPV_ARGS(&_device)), "Device creation failed!");
+	_device->SetName(L"artisDX_Device");
 
 #if defined(_DEBUG)
 	// Get debug device
@@ -96,20 +94,17 @@ void Application::InitializeDX12()
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+	// D3D12_COMMAND_LIST_TYPE_DIRECT = normal graphics pipeline
+	// D3D12_COMMAND_LIST_TYPE_COMPUTE = compute pipeline
+	// ...
 
-	ThrowIfFailed(_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&_commandQueue)));
+	ThrowIfFailed(_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&_commandQueue)),"CommandQueue creation failed!");
 
 	// Create Command Allocator
 	ThrowIfFailed(_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_commandAllocator)));
 
 	// Sync
 	ThrowIfFailed(_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence)));
-
-	// Create Swapchain
-	UINT width = _window.GetWidth();
-	UINT height = _window.GetHeight();
-
-	SetupSwapchain(width, height);
 }
 
 void Application::InitializeResources()
@@ -309,6 +304,10 @@ void Application::InitializeResources()
 			D3D12_RANGE readRange;
 			readRange.Begin = 0;
 			readRange.End = 0;
+
+			// setup matrices
+			_MVP.projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(45.0f, (FLOAT)_window.GetWidth() / (FLOAT)_window.GetHeight(), 0.01f, 1024.0f);
+			_MVP.modelMatrix = DirectX::XMMatrixIdentity();
 
 			ThrowIfFailed(_uniformBuffer->Map( 0, &readRange, reinterpret_cast<void**>(&_mappedUniformBuffer)));
 										memcpy(_mappedUniformBuffer, &_MVP, sizeof(_MVP));
@@ -548,15 +547,10 @@ void Application::InitializeResources()
 
 		_frameIndex = _swapchain->GetCurrentBackBufferIndex();
 	}
-
-	SetupCommands();
 }
 
 void Application::SetupSwapchain(UINT w, UINT h)
 {
-	w = std::clamp(w, 1u, 0xffffu);
-	h = std::clamp(h, 1u, 0xffffu);
-
 	// Wait for the GPU to finish with the previous frame
 	const UINT64 fence = _fenceValue;
 	ThrowIfFailed(_commandQueue->Signal(_fence.Get(), fence));
@@ -586,19 +580,6 @@ void Application::SetupSwapchain(UINT w, UINT h)
 	_viewport.MinDepth = .1f;
 	_viewport.MaxDepth = 1000.f;
 
-	// later use data from Camera here
-	// move, doesnt make sense here
-	// Update Uniforms
-	float zoom = 2.5f;
-
-	// Update matrices
-
-	_MVP.projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(45.0f, (FLOAT)w / (FLOAT)h, 0.01f, 1024.0f);
-
-	_MVP.viewMatrix = DirectX::XMMatrixTranslation(0.0f, 0.0f, zoom);
-
-	_MVP.modelMatrix = DirectX::XMMatrixIdentity();
-
 	if (_swapchain != nullptr)
 	{
 		// Resize the swapchain buffers
@@ -616,23 +597,12 @@ void Application::SetupSwapchain(UINT w, UINT h)
 		swapchainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 		swapchainDesc.SampleDesc.Count = 1;
 
-		MS::ComPtr<IDXGISwapChain1> swapchain;
-		if (FAILED(_factory->CreateSwapChainForHwnd(_commandQueue.Get(), _window.GetHWND(), &swapchainDesc, nullptr, nullptr, &swapchain)))
-		{
-			MessageBox(0, "Failed to create swapchain", 0, 0);
-			return;
-		}
+		MSWRL::ComPtr<IDXGISwapChain1> swapchain;
+		ThrowIfFailed(_factory->CreateSwapChainForHwnd(_commandQueue.Get(), _window.GetHWND(), &swapchainDesc, nullptr, nullptr, &swapchain), "Failed to create swapchain");
 
-		MS::ComPtr<IDXGISwapChain3> swapchain3;
-		HRESULT swapchainSupport = swapchain->QueryInterface(__uuidof(IDXGISwapChain3), (void**)&swapchain3);
-		if (SUCCEEDED(swapchainSupport))
-		{
-			_swapchain = swapchain3;
-		}
-		else
-		{
-			swapchain->Release();  // Release the original swapchain if QueryInterface fails
-		}
+		MSWRL::ComPtr<IDXGISwapChain3> swapchain3;
+		ThrowIfFailed(swapchain->QueryInterface(__uuidof(IDXGISwapChain3), (void**)&swapchain3), "QueryInterface for swapchain failed.");
+		_swapchain = swapchain3;
 	}
 
 	_frameIndex = _swapchain->GetCurrentBackBufferIndex();
@@ -744,6 +714,8 @@ void Application::Run()
 
 void Application::Render()
 {
+	
+
 	_camera.ConsumeMouse(_window.GetXChange(), _window.GetYChange());
 	_camera.ConsumeKey(_window.GetKeys(), 0.1f);
 	_MVP.viewMatrix = _camera.GetViewMatrix();
@@ -753,7 +725,7 @@ void Application::Render()
 	readRange.End = 0;
 
 	ThrowIfFailed(_uniformBuffer->Map(
-		0, &readRange, reinterpret_cast<void**>(&_mappedUniformBuffer)));
+		0, &readRange, reinterpret_cast<void**>(&_mappedUniformBuffer)), "Mapping failed.");
 	memcpy(_mappedUniformBuffer, &_MVP, sizeof(_MVP));
 	_uniformBuffer->Unmap(0, &readRange);
 	// Record all the commands we need to render the scene into the command
@@ -779,7 +751,6 @@ void Application::Render()
 		ThrowIfFailed(_fence->SetEventOnCompletion(fence, _fenceEvent));
 		WaitForSingleObject(_fenceEvent, INFINITE);
 	}
-
 	_frameIndex = _swapchain->GetCurrentBackBufferIndex();
 }
 
