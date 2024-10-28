@@ -18,6 +18,7 @@
 #include <iostream>
 #include <fstream>
 #include <chrono>
+#include <comdef.h>  // For _com_error
 
 // IMGUI
 #define IMGUI_DEFINE_MATH_OPERATORS
@@ -30,17 +31,32 @@
 #define OK 0
 #define NOTOK -1
 
-#define MS Microsoft::WRL
+#define MSWRL Microsoft::WRL
 
 #define GetHInstance() GetModuleHandle(NULL)
 
-#define PRINT(arg) std::cout << arg << std::endl
+#define PRINT(arg) \
+    { \
+        std::ostringstream oss; \
+        oss << arg << "\n"; \
+        OutputDebugStringA(oss.str().c_str()); \
+    }
 
-inline void ThrowIfFailed(HRESULT hr)
+inline void ThrowIfFailed(HRESULT hr, const std::string& errorMsg = "")
 {
 	if (FAILED(hr))
 	{
-		throw std::exception();
+		_com_error err(hr);  // Convert HRESULT to readable error message
+		std::string fullError;
+		errorMsg == "" ? fullError = "" : fullError = "Error: ";
+		if (!errorMsg.empty())
+		{
+			fullError += errorMsg + " | ";
+		}
+		fullError += "HRESULT: " + std::to_string(hr) + " | Error Message: " + err.ErrorMessage();
+
+		OutputDebugStringA(fullError.c_str());
+		throw std::runtime_error(fullError);
 	}
 }
 
