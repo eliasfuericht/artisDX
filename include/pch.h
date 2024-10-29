@@ -20,6 +20,8 @@
 #include <fstream>
 #include <chrono>
 #include <comdef.h>  // For _com_error
+#include <sstream>
+
 
 // IMGUI
 #define IMGUI_DEFINE_MATH_OPERATORS
@@ -36,12 +38,16 @@
 
 #define GetHInstance() GetModuleHandle(NULL)
 
-#define PRINT(arg) \
-    { \
-        std::ostringstream oss; \
-        oss << arg << "\n"; \
-        OutputDebugStringA(oss.str().c_str()); \
-    }
+template<typename... Args>
+void PrintHelper(Args&&... args) {
+	std::ostringstream oss;
+	(oss << ... << args);  // C++17 fold expression
+	oss << "\n";
+	OutputDebugStringA(oss.str().c_str());
+}
+
+#define PRINT(...) PrintHelper(__VA_ARGS__)
+
 
 inline void ThrowIfFailed(HRESULT hr, const std::string& errorMsg = "")
 {
@@ -59,6 +65,19 @@ inline void ThrowIfFailed(HRESULT hr, const std::string& errorMsg = "")
 		OutputDebugStringA(fullError.c_str());
 		throw std::runtime_error(fullError);
 	}
+}
+
+inline void ThrowException(const std::string& errorMsg = "")
+{
+	std::string fullError;
+	errorMsg == "" ? fullError = "" : fullError = "Error: ";
+	if (!errorMsg.empty())
+	{
+		fullError += errorMsg + " | ";
+	}
+
+	OutputDebugStringA(fullError.c_str());
+	throw std::runtime_error(fullError);
 }
 
 enum KEYCODES

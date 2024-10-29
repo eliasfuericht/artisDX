@@ -16,9 +16,8 @@ Application::Application(const CHAR* name, INT w, INT h)
 	_commandAllocator = nullptr;
 	_commandList = nullptr;
 
-	_currentBuffer = 0;
 	_rtvHeap = nullptr;
-	for (size_t i = 0; i < backBufferCount; ++i)
+	for (size_t i = 0; i < _backBufferCount; ++i)
 	{
 		_renderTargets[i] = nullptr;
 	}
@@ -62,6 +61,9 @@ void Application::InitializeDX12()
 
 	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&_factory)));
 
+	SIZE_T maxMemSize = 0;
+	UINT maxMemSizeAdapterIndex = NOTOK;
+
 	// iterate over all available adpaters (adapters = GPUs)
 	for (UINT adapterIndex = 0; DXGI_ERROR_NOT_FOUND != _factory->EnumAdapters1(adapterIndex, &_adapter); ++adapterIndex)
 	{
@@ -74,11 +76,24 @@ void Application::InitializeDX12()
 
 		// Check to see if the adapter supports Direct3D 12, but don't create the actual device yet.
 		if (SUCCEEDED(D3D12CreateDevice(_adapter.Get(), D3D_FEATURE_LEVEL_12_2, _uuidof(ID3D12Device), nullptr)))
-			break; // we have selected the first DX12 compatible adapter in the system
+		{
+			if (desc.DedicatedVideoMemory > maxMemSize)
+				maxMemSizeAdapterIndex = adapterIndex;
+			continue;
+		}
 
 		// if its not compatible -> Release();
 		_adapter->Release();
 	}
+
+	if (maxMemSizeAdapterIndex == NOTOK)
+	{
+		ThrowException("no suitable adapter found.");
+		return;
+	}
+	
+	PRINT("GPU at index ", maxMemSizeAdapterIndex, " has the most VRAM and was chosen as adapter.");
+	_factory->EnumAdapters1(maxMemSizeAdapterIndex, &_adapter);
 
 	// Create Device
 	// The device is the interface between the program(CPU) and the adapter(GPU)
@@ -107,6 +122,84 @@ void Application::InitializeDX12()
 	ThrowIfFailed(_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence)));
 }
 
+void Application::SetupSwapchain(UINT w, UINT h)
+{
+	// Wait for the GPU to finish with the previous frame
+	const UINT64 fence = _fenceValue;
+	ThrowIfFailed(_commandQueue->Signal(_fence.Get(), fence));
+	_fenceValue++;
+	if (_fence->GetCompletedValue() < fence)
+	{
+		ThrowIfFailed(_fence->SetEventOnCompletion(fence, _fenceEvent));
+		WaitForSingleObjectEx(_fenceEvent, INFINITE, false);
+	}
+
+	// Clean up old resources before resizing
+	for (UINT n = 0; n < _backBufferCount; n++)
+	{
+		_renderTargets[n].Reset();  // Release old render targets
+	}
+	_rtvHeap.Reset();  // Release old descriptor heap
+
+	_surfaceSize.left = 0;
+	_surfaceSize.top = 0;
+	_surfaceSize.right = static_cast<LONG>(w);
+	_surfaceSize.bottom = static_cast<LONG>(h);
+
+	_viewport.TopLeftX = 0.0f;
+	_viewport.TopLeftY = 0.0f;
+	_viewport.Width = static_cast<float>(w);
+	_viewport.Height = static_cast<float>(h);
+	_viewport.MinDepth = .1f;
+	_viewport.MaxDepth = 1000.f;
+
+	if (_swapchain != nullptr)
+	{
+		// Resize the swapchain buffers
+		_swapchain->ResizeBuffers(_backBufferCount, w, h, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
+	}
+	else
+	{
+		// Create the swapchain if it doesn't exist
+		DXGI_SWAP_CHAIN_DESC1 swapchainDesc = {};
+		swapchainDesc.BufferCount = _backBufferCount;
+		swapchainDesc.Width = w;
+		swapchainDesc.Height = h;
+		swapchainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		swapchainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+		swapchainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+		swapchainDesc.SampleDesc.Count = 1;
+
+		MSWRL::ComPtr<IDXGISwapChain1> swapchain;
+		ThrowIfFailed(_factory->CreateSwapChainForHwnd(_commandQueue.Get(), _window.GetHWND(), &swapchainDesc, nullptr, nullptr, &swapchain), "Failed to create swapchain");
+
+		MSWRL::ComPtr<IDXGISwapChain3> swapchain3;
+		ThrowIfFailed(swapchain->QueryInterface(__uuidof(IDXGISwapChain3), (void**)&swapchain3), "QueryInterface for swapchain failed.");
+		_swapchain = swapchain3;
+	}
+
+	_frameIndex = _swapchain->GetCurrentBackBufferIndex();
+
+	// Recreate descriptor heaps and render targets
+	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
+	rtvHeapDesc.NumDescriptors = _backBufferCount;
+	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	ThrowIfFailed(_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&_rtvHeap)));
+
+	_rtvDescriptorSize = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+	// Create frame resources
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle(_rtvHeap->GetCPUDescriptorHandleForHeapStart());
+	for (UINT n = 0; n < _backBufferCount; n++)
+	{
+		ThrowIfFailed(_swapchain->GetBuffer(n, IID_PPV_ARGS(&_renderTargets[n])));
+		_device->CreateRenderTargetView(_renderTargets[n].Get(), nullptr, rtvHandle);
+		rtvHandle.ptr += _rtvDescriptorSize;
+	}
+}
+
+// TODO: rework
 void Application::InitializeResources()
 {
 	// Create the root signature.
@@ -550,85 +643,6 @@ void Application::InitializeResources()
 	}
 }
 
-void Application::SetupSwapchain(UINT w, UINT h)
-{
-	// Wait for the GPU to finish with the previous frame
-	const UINT64 fence = _fenceValue;
-	ThrowIfFailed(_commandQueue->Signal(_fence.Get(), fence));
-	_fenceValue++;
-	if (_fence->GetCompletedValue() < fence)
-	{
-		ThrowIfFailed(_fence->SetEventOnCompletion(fence, _fenceEvent));
-		WaitForSingleObjectEx(_fenceEvent, INFINITE, false);
-	}
-
-	// Clean up old resources before resizing
-	for (UINT n = 0; n < backBufferCount; n++)
-	{
-		_renderTargets[n].Reset();  // Release old render targets
-	}
-	_rtvHeap.Reset();  // Release old descriptor heap
-
-	_surfaceSize.left = 0;
-	_surfaceSize.top = 0;
-	_surfaceSize.right = static_cast<LONG>(w);
-	_surfaceSize.bottom = static_cast<LONG>(h);
-
-	_viewport.TopLeftX = 0.0f;
-	_viewport.TopLeftY = 0.0f;
-	_viewport.Width = static_cast<float>(w);
-	_viewport.Height = static_cast<float>(h);
-	_viewport.MinDepth = .1f;
-	_viewport.MaxDepth = 1000.f;
-
-	if (_swapchain != nullptr)
-	{
-		// Resize the swapchain buffers
-		_swapchain->ResizeBuffers(backBufferCount, w, h, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
-	}
-	else
-	{
-		// Create the swapchain if it doesn't exist
-		DXGI_SWAP_CHAIN_DESC1 swapchainDesc = {};
-		swapchainDesc.BufferCount = backBufferCount;
-		swapchainDesc.Width = w;
-		swapchainDesc.Height = h;
-		swapchainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-		swapchainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-		swapchainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-		swapchainDesc.SampleDesc.Count = 1;
-
-		MSWRL::ComPtr<IDXGISwapChain1> swapchain;
-		ThrowIfFailed(_factory->CreateSwapChainForHwnd(_commandQueue.Get(), _window.GetHWND(), &swapchainDesc, nullptr, nullptr, &swapchain), "Failed to create swapchain");
-
-		MSWRL::ComPtr<IDXGISwapChain3> swapchain3;
-		ThrowIfFailed(swapchain->QueryInterface(__uuidof(IDXGISwapChain3), (void**)&swapchain3), "QueryInterface for swapchain failed.");
-		_swapchain = swapchain3;
-	}
-
-	_frameIndex = _swapchain->GetCurrentBackBufferIndex();
-	_currentBuffer = _swapchain->GetCurrentBackBufferIndex();
-
-	// Recreate descriptor heaps and render targets
-	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-	rtvHeapDesc.NumDescriptors = backBufferCount;
-	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-	ThrowIfFailed(_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&_rtvHeap)));
-
-	_rtvDescriptorSize = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-
-	// Create frame resources
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle(_rtvHeap->GetCPUDescriptorHandleForHeapStart());
-	for (UINT n = 0; n < backBufferCount; n++)
-	{
-		ThrowIfFailed(_swapchain->GetBuffer(n, IID_PPV_ARGS(&_renderTargets[n])));
-		_device->CreateRenderTargetView(_renderTargets[n].Get(), nullptr, rtvHandle);
-		rtvHandle.ptr += _rtvDescriptorSize;
-	}
-}
-
-
 void Application::SetupCommands()
 {
 	// Command list allocators can only be reset when the associated
@@ -715,8 +729,6 @@ void Application::Run()
 
 void Application::Render()
 {
-	
-
 	_camera.ConsumeMouse(_window.GetXChange(), _window.GetYChange());
 	_camera.ConsumeKey(_window.GetKeys(), 0.1f);
 	_MVP.viewMatrix = _camera.GetViewMatrix();

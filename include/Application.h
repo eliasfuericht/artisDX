@@ -40,8 +40,8 @@ private:
 
 	UINT _currentBuffer;
 	MSWRL::ComPtr<ID3D12DescriptorHeap> _rtvHeap;
-	static const UINT backBufferCount = 2;
-	MSWRL::ComPtr<ID3D12Resource> _renderTargets[backBufferCount];
+	static const UINT _backBufferCount = 2; // double buffering
+	MSWRL::ComPtr<ID3D12Resource> _renderTargets[_backBufferCount];
 	MSWRL::ComPtr<IDXGISwapChain3> _swapchain;
 
 
