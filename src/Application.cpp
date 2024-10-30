@@ -34,7 +34,7 @@ Application::Application(const CHAR* name, INT w, INT h)
 		DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), 
 		0.0f,
 		0.0f,
-		0.1f,
+		0.5f,
 		0.1f
 	);
 
@@ -64,7 +64,7 @@ void Application::InitializeDX12()
 	SIZE_T maxMemSize = 0;
 	UINT maxMemSizeAdapterIndex = NOTOK;
 
-	// iterate over all available adpaters (adapters = GPUs)
+	// iterate over all available adapters (adapters = GPUs)
 	for (UINT adapterIndex = 0; DXGI_ERROR_NOT_FOUND != _factory->EnumAdapters1(adapterIndex, &_adapter); ++adapterIndex)
 	{
 		DXGI_ADAPTER_DESC1 desc;
@@ -75,7 +75,8 @@ void Application::InitializeDX12()
 		
 
 		// Check to see if the adapter supports Direct3D 12, but don't create the actual device yet.
-		if (SUCCEEDED(D3D12CreateDevice(_adapter.Get(), D3D_FEATURE_LEVEL_12_2, _uuidof(ID3D12Device), nullptr)))
+		// if laptop is in battery safer -> dGPU gets deactivated, will select CPU-GPU
+		if (SUCCEEDED(D3D12CreateDevice(_adapter.Get(), D3D_FEATURE_LEVEL_12_0, _uuidof(ID3D12Device), nullptr)))
 		{
 			if (desc.DedicatedVideoMemory > maxMemSize)
 				maxMemSizeAdapterIndex = adapterIndex;
@@ -97,7 +98,7 @@ void Application::InitializeDX12()
 
 	// Create Device
 	// The device is the interface between the program(CPU) and the adapter(GPU)
-	ThrowIfFailed(D3D12CreateDevice(_adapter.Get(), D3D_FEATURE_LEVEL_12_2, IID_PPV_ARGS(&_device)), "Device creation failed!");
+	ThrowIfFailed(D3D12CreateDevice(_adapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&_device)), "Device creation failed!");
 	_device->SetName(L"artisDX_Device");
 
 #if defined(_DEBUG)
@@ -729,8 +730,16 @@ void Application::Run()
 
 void Application::Render()
 {
+
+	std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+	std::chrono::duration<float> dt = now - _tLastTime;
+	FLOAT deltaTime = dt.count();
+	_tLastTime = now;
+
+	//PRINT(deltaTime);
+
 	_camera.ConsumeMouse(_window.GetXChange(), _window.GetYChange());
-	_camera.ConsumeKey(_window.GetKeys(), 0.1f);
+	_camera.ConsumeKey(_window.GetKeys(), deltaTime);
 	_MVP.viewMatrix = _camera.GetViewMatrix();
 
 	D3D12_RANGE readRange;

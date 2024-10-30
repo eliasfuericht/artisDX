@@ -21,7 +21,8 @@ private:
 
 	Window _window;
 	Camera _camera;
-	FLOAT _elapsedTime;
+
+	std::chrono::steady_clock::time_point _tLastTime = std::chrono::steady_clock::now();
 
 	// DX12 Specific
 	// Initialization
