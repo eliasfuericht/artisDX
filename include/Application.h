@@ -12,12 +12,13 @@ public:
 	~Application();
 
 private:
-	void InitializeDX12();
-	void InitializeResources();
+	void InitDX12();
+	void InitResources();
+	void InitSwapchain(UINT w, UINT h);
+	void InitCommands();
+	void InitIMGUI();
+	
 	void Render();
-
-	void SetupSwapchain(UINT w, UINT h);
-	void SetupCommands();
 
 	Window _window;
 	Camera _camera;
@@ -41,10 +42,11 @@ private:
 
 	UINT _currentBuffer;
 	MSWRL::ComPtr<ID3D12DescriptorHeap> _rtvHeap;
+	MSWRL::ComPtr<ID3D12DescriptorHeap> _srvHeap;
 	static const UINT _backBufferCount = 2; // double buffering
+	D3D12_CPU_DESCRIPTOR_HANDLE  _rtvDescriptor[_backBufferCount] = {};
 	MSWRL::ComPtr<ID3D12Resource> _renderTargets[_backBufferCount];
 	MSWRL::ComPtr<IDXGISwapChain3> _swapchain;
-
 
 	UINT _rtvDescriptorSize;
 	MSWRL::ComPtr<ID3D12RootSignature> _rootSignature;
@@ -89,4 +91,8 @@ private:
 		DirectX::XMMATRIX viewMatrix;
 		DirectX::XMMATRIX projectionMatrix;
 	} _MVP;
+
+	// IMGUI
+	ImGuiIO* _imguiIO;
+	BOOL _runImgui = false;
 };

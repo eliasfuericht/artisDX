@@ -17,6 +17,7 @@ Application::Application(const CHAR* name, INT w, INT h)
 	_commandList = nullptr;
 
 	_rtvHeap = nullptr;
+	_srvHeap = nullptr;
 	for (size_t i = 0; i < _backBufferCount; ++i)
 	{
 		_renderTargets[i] = nullptr;
@@ -38,13 +39,43 @@ Application::Application(const CHAR* name, INT w, INT h)
 		0.1f
 	);
 
-	InitializeDX12();
-	SetupSwapchain(w, h);
-	InitializeResources();
-	SetupCommands();
+	InitDX12();
+	InitSwapchain(w, h);
+	InitResources();
+	InitIMGUI();
+	InitCommands();
 }
 
-void Application::InitializeDX12()
+void Application::InitIMGUI()
+{
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	_imguiIO = &ImGui::GetIO();
+	(void)_imguiIO;
+	_imguiIO->ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+	_imguiIO->ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+	_imguiIO->ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking
+	_imguiIO->ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;       // Enable Multi-Viewport / Platform Windows
+	//io.ConfigViewportsNoAutoMerge = true;
+	//io.ConfigViewportsNoTaskBarIcon = true;
+
+	// Setup Dear ImGui style
+	ImGui::StyleColorsDark();
+	//ImGui::StyleColorsLight();
+
+	// When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
+	ImGuiStyle& style = ImGui::GetStyle();
+	if (_imguiIO->ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+	{
+		style.WindowRounding = 0.0f;
+		style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+	}
+
+	ImGui_ImplWin32_Init(_window.GetHWND());
+	ImGui_ImplDX12_Init(_device.Get(), 3, DXGI_FORMAT_R8G8B8A8_UNORM, _srvHeap.Get(), _srvHeap->GetCPUDescriptorHandleForHeapStart(), _srvHeap->GetGPUDescriptorHandleForHeapStart());
+}
+
+void Application::InitDX12()
 {
 	// Create Factory
 	UINT dxgiFactoryFlags = 0;
@@ -93,8 +124,12 @@ void Application::InitializeDX12()
 		return;
 	}
 	
-	PRINT("GPU at index ", maxMemSizeAdapterIndex, " has the most VRAM and was chosen as adapter.");
 	_factory->EnumAdapters1(maxMemSizeAdapterIndex, &_adapter);
+
+	DXGI_ADAPTER_DESC1 desc;
+	_adapter->GetDesc1(&desc);
+
+	PRINT("GPU at index ", maxMemSizeAdapterIndex, " has the most VRAM and was chosen as adapter.");
 
 	// Create Device
 	// The device is the interface between the program(CPU) and the adapter(GPU)
@@ -123,7 +158,7 @@ void Application::InitializeDX12()
 	ThrowIfFailed(_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence)));
 }
 
-void Application::SetupSwapchain(UINT w, UINT h)
+void Application::InitSwapchain(UINT w, UINT h)
 {
 	// Wait for the GPU to finish with the previous frame
 	const UINT64 fence = _fenceValue;
@@ -192,16 +227,17 @@ void Application::SetupSwapchain(UINT w, UINT h)
 
 	// Create frame resources
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle(_rtvHeap->GetCPUDescriptorHandleForHeapStart());
-	for (UINT n = 0; n < _backBufferCount; n++)
+	for (UINT i = 0; i < _backBufferCount; i++)
 	{
-		ThrowIfFailed(_swapchain->GetBuffer(n, IID_PPV_ARGS(&_renderTargets[n])));
-		_device->CreateRenderTargetView(_renderTargets[n].Get(), nullptr, rtvHandle);
+		ThrowIfFailed(_swapchain->GetBuffer(i, IID_PPV_ARGS(&_renderTargets[i])));
+		_device->CreateRenderTargetView(_renderTargets[i].Get(), nullptr, rtvHandle);
 		rtvHandle.ptr += _rtvDescriptorSize;
+		_rtvDescriptor[i] = rtvHandle;
+
 	}
 }
 
-// TODO: rework
-void Application::InitializeResources()
+void Application::InitResources()
 {
 	// Create the root signature.
 	{
@@ -212,12 +248,8 @@ void Application::InitializeResources()
 		// greater than this.
 		featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
 
-		if (FAILED(_device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE,
-			&featureData,
-			sizeof(featureData))))
-		{
+		if (FAILED(_device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData,sizeof(featureData))))
 			featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
-		}
 
 		D3D12_DESCRIPTOR_RANGE1 ranges[1];
 		ranges[0].BaseShaderRegister = 0;
@@ -228,53 +260,32 @@ void Application::InitializeResources()
 		ranges[0].Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
 
 		D3D12_ROOT_PARAMETER1 rootParameters[1];
-		rootParameters[0].ParameterType =
-			D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 		rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-
 		rootParameters[0].DescriptorTable.NumDescriptorRanges = 1;
 		rootParameters[0].DescriptorTable.pDescriptorRanges = ranges;
 
 		D3D12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
 		rootSignatureDesc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
-		rootSignatureDesc.Desc_1_1.Flags =
-			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+		rootSignatureDesc.Desc_1_1.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 		rootSignatureDesc.Desc_1_1.NumParameters = 1;
 		rootSignatureDesc.Desc_1_1.pParameters = rootParameters;
 		rootSignatureDesc.Desc_1_1.NumStaticSamplers = 0;
 		rootSignatureDesc.Desc_1_1.pStaticSamplers = nullptr;
 
-		ID3DBlob* signature;
-		ID3DBlob* error;
-		try
-		{
-			ThrowIfFailed(D3D12SerializeVersionedRootSignature(
-				&rootSignatureDesc, &signature, &error));
-			ThrowIfFailed(_device->CreateRootSignature(
-				0, signature->GetBufferPointer(), signature->GetBufferSize(),
-				IID_PPV_ARGS(&_rootSignature)));
-			_rootSignature->SetName(L"artisDX");
-		}
-		catch (std::exception e)
-		{
-			const char* errStr = (const char*)error->GetBufferPointer();
-			std::cout << errStr;
-			error->Release();
-			error = nullptr;
-		}
+		MSWRL::ComPtr<ID3DBlob> signature;
+		MSWRL::ComPtr<ID3DBlob> error;
 
-		if (signature)
-		{
-			signature->Release();
-			signature = nullptr;
-		}
+		ThrowIfFailed(D3D12SerializeVersionedRootSignature(&rootSignatureDesc, &signature, &error));
+		ThrowIfFailed(_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&_rootSignature)));
+		_rootSignature->SetName(L"artisDX_rootSignature");
 	}
 
 	// Create the pipeline state, which includes compiling and loading shaders.
 	{
-		ID3DBlob* vertexShader = nullptr;
-		ID3DBlob* pixelShader = nullptr;
-		ID3DBlob* errors = nullptr;
+		MSWRL::ComPtr<ID3DBlob> vertexShader;
+		MSWRL::ComPtr<ID3DBlob> pixelShader;
+		MSWRL::ComPtr<ID3DBlob> errors;
 
 #if defined(_DEBUG)
 		// Enable better shader debugging with the graphics debugging tools.
@@ -300,7 +311,7 @@ void Application::InitializeResources()
 #ifdef COMPILESHADERS
 		std::wstring vertPath = wpath + L"shaders\\triangle.vert.hlsl";
 		std::wstring fragPath = wpath + L"shaders\\triangle.frag.hlsl";
-
+				
 		try
 		{
 			ThrowIfFailed(D3DCompileFromFile(vertPath.c_str(), nullptr, nullptr,
@@ -321,10 +332,8 @@ void Application::InitializeResources()
 		std::ofstream vsOut(vertCompiledPath, std::ios::out | std::ios::binary);
 		std::ofstream	fsOut(fragCompiledPath, std::ios::out | std::ios::binary);
 
-		vsOut.write((const char*)vertexShader->GetBufferPointer(),
-			vertexShader->GetBufferSize());
-		fsOut.write((const char*)pixelShader->GetBufferPointer(),
-			pixelShader->GetBufferSize());
+		vsOut.write((const char*)vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
+		fsOut.write((const char*)pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
 
 #else
 		std::vector<char> vsBytecodeData = readFile(vertCompiledPath);
@@ -356,8 +365,13 @@ void Application::InitializeResources()
 			heapDesc.NumDescriptors = 1;
 			heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 			heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-			ThrowIfFailed(_device->CreateDescriptorHeap(
-				&heapDesc, IID_PPV_ARGS(&_uniformBufferHeap)));
+			ThrowIfFailed(_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_uniformBufferHeap)));
+
+			D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+			desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+			desc.NumDescriptors = 1;
+			desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+			ThrowIfFailed(_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&_srvHeap)));
 
 			D3D12_RESOURCE_DESC uboResourceDesc;
 			uboResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -376,21 +390,14 @@ void Application::InitializeResources()
 				&heapProps, D3D12_HEAP_FLAG_NONE, &uboResourceDesc,
 				D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
 				IID_PPV_ARGS(&_uniformBuffer)));
-			_uniformBufferHeap->SetName(
-				L"Constant Buffer Upload Resource Heap");
+			_uniformBufferHeap->SetName(L"Constant Buffer Upload Resource Heap");
 
 			D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 			cbvDesc.BufferLocation = _uniformBuffer->GetGPUVirtualAddress();
-			cbvDesc.SizeInBytes =
-				(sizeof(_MVP) + 255) &
-				~255; // CB size is required to be 256-byte aligned.
+			cbvDesc.SizeInBytes = (sizeof(_MVP) + 255) & ~255; // CB size is required to be 256-byte aligned.
 
-			D3D12_CPU_DESCRIPTOR_HANDLE cbvHandle(
-				_uniformBufferHeap->GetCPUDescriptorHandleForHeapStart());
-			cbvHandle.ptr =
-				cbvHandle.ptr + _device->GetDescriptorHandleIncrementSize(
-					D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) *
-				0;
+			D3D12_CPU_DESCRIPTOR_HANDLE cbvHandle(_uniformBufferHeap->GetCPUDescriptorHandleForHeapStart());
+			cbvHandle.ptr = cbvHandle.ptr + _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 0;
 
 			_device->CreateConstantBufferView(&cbvDesc, cbvHandle);
 
@@ -445,8 +452,7 @@ void Application::InitializeResources()
 		rasterDesc.MultisampleEnable = FALSE;
 		rasterDesc.AntialiasedLineEnable = FALSE;
 		rasterDesc.ForcedSampleCount = 0;
-		rasterDesc.ConservativeRaster =
-			D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+		rasterDesc.ConservativeRaster =D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
 
 		psoDesc.RasterizerState = rasterDesc;
 
@@ -478,24 +484,11 @@ void Application::InitializeResources()
 		psoDesc.SampleDesc.Count = 1;
 		try
 		{
-			ThrowIfFailed(_device->CreateGraphicsPipelineState(
-				&psoDesc, IID_PPV_ARGS(&_pipelineState)));
+			ThrowIfFailed(_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&_pipelineState)));
 		}
 		catch (std::exception e)
 		{
 			std::cout << "Failed to create Graphics Pipeline!";
-		}
-
-		if (vertexShader)
-		{
-			vertexShader->Release();
-			vertexShader = nullptr;
-		}
-
-		if (pixelShader)
-		{
-			pixelShader->Release();
-			pixelShader = nullptr;
 		}
 	}
 
@@ -644,16 +637,12 @@ void Application::InitializeResources()
 	}
 }
 
-void Application::SetupCommands()
+void Application::InitCommands()
 {
-	// Command list allocators can only be reset when the associated
-		// command lists have finished execution on the GPU; apps should use
-		// fences to determine GPU execution progress.
+	// Ensure the command allocator has finished execution before resetting.
 	ThrowIfFailed(_commandAllocator->Reset());
 
-	// However, when ExecuteCommandList() is called on a particular command
-	// list, that command list can then be reset at any time and must be before
-	// re-recording.
+	// Reset the command list with the command allocator and pipeline state.
 	ThrowIfFailed(_commandList->Reset(_commandAllocator.Get(), _pipelineState.Get()));
 
 	// Set necessary state.
@@ -661,33 +650,28 @@ void Application::SetupCommands()
 	_commandList->RSSetViewports(1, &_viewport);
 	_commandList->RSSetScissorRects(1, &_surfaceSize);
 
-	ID3D12DescriptorHeap* pDescriptorHeaps[] = { _uniformBufferHeap.Get()};
-	_commandList->SetDescriptorHeaps(_countof(pDescriptorHeaps),
-		pDescriptorHeaps);
+	ID3D12DescriptorHeap* pDescriptorHeaps[] = { _uniformBufferHeap.Get() };
+	_commandList->SetDescriptorHeaps(_countof(pDescriptorHeaps), pDescriptorHeaps);
 
 	D3D12_GPU_DESCRIPTOR_HANDLE srvHandle(
 		_uniformBufferHeap->GetGPUDescriptorHandleForHeapStart());
 	_commandList->SetGraphicsRootDescriptorTable(0, srvHandle);
 
-	// Indicate that the back buffer will be used as a render target.
-	D3D12_RESOURCE_BARRIER renderTargetBarrier;
+	// Transition the back buffer from present to render target state.
+	D3D12_RESOURCE_BARRIER renderTargetBarrier = {};
 	renderTargetBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	renderTargetBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
 	renderTargetBarrier.Transition.pResource = _renderTargets[_frameIndex].Get();
 	renderTargetBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-	renderTargetBarrier.Transition.StateAfter =
-		D3D12_RESOURCE_STATE_RENDER_TARGET;
-	renderTargetBarrier.Transition.Subresource =
-		D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-
+	renderTargetBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	renderTargetBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	_commandList->ResourceBarrier(1, &renderTargetBarrier);
 
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle(
-		_rtvHeap->GetCPUDescriptorHandleForHeapStart());
-	rtvHandle.ptr = rtvHandle.ptr + (_frameIndex * _rtvDescriptorSize);
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle(_rtvHeap->GetCPUDescriptorHandleForHeapStart());
+	rtvHandle.ptr += (_frameIndex * _rtvDescriptorSize);
 	_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
 
-	// Record commands.
+	// Clear the render target.
 	const float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
 	_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 	_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -696,20 +680,49 @@ void Application::SetupCommands()
 
 	_commandList->DrawIndexedInstanced(3, 1, 0, 0, 0);
 
-	// Indicate that the back buffer will now be used to present.
-	D3D12_RESOURCE_BARRIER presentBarrier;
+	// START IMGUI commands
+	if (_runImgui)
+	{
+		// Set the render target for ImGui.
+		D3D12_RESOURCE_BARRIER imguiRenderTargetBarrier = {};
+		imguiRenderTargetBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		imguiRenderTargetBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		imguiRenderTargetBarrier.Transition.pResource = _renderTargets[_frameIndex].Get();
+		imguiRenderTargetBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+		imguiRenderTargetBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+		imguiRenderTargetBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		_commandList->ResourceBarrier(1, &imguiRenderTargetBarrier);
+
+		_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+		_commandList->SetDescriptorHeaps(1, _srvHeap.GetAddressOf());
+		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), _commandList.Get());
+
+		// Transition back to present for ImGui.
+		D3D12_RESOURCE_BARRIER imguiPresentBarrier = {};
+		imguiPresentBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		imguiPresentBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		imguiPresentBarrier.Transition.pResource = _renderTargets[_frameIndex].Get();
+		imguiPresentBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+		imguiPresentBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+		imguiPresentBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		_commandList->ResourceBarrier(1, &imguiPresentBarrier);
+	}
+	// END IMGUI
+
+	// Transition back buffer to present state for the swap chain.
+	D3D12_RESOURCE_BARRIER presentBarrier = {};
 	presentBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	presentBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
 	presentBarrier.Transition.pResource = _renderTargets[_frameIndex].Get();
 	presentBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	presentBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
-	presentBarrier.Transition.Subresource =
-		D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-
+	presentBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	_commandList->ResourceBarrier(1, &presentBarrier);
 
+	// Close the command list.
 	ThrowIfFailed(_commandList->Close());
 }
+
 
 void Application::Run()
 {
@@ -719,24 +732,33 @@ void Application::Run()
 
 	while (msg.message != WM_QUIT)
 	{
+		_runImgui = true;
+		ImGui_ImplDX12_NewFrame();
+		ImGui_ImplWin32_NewFrame();
+		ImGui::NewFrame();
+		ImGui::ShowDemoWindow();
+		ImGui::Render();
+
 		Render();
+
 		if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE))
 		{
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		}
 	}
+
+	ImGui_ImplDX12_Shutdown();
+	ImGui_ImplWin32_Shutdown();
+	ImGui::DestroyContext();
 }
 
 void Application::Render()
 {
-
 	std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 	std::chrono::duration<float> dt = now - _tLastTime;
 	FLOAT deltaTime = dt.count();
 	_tLastTime = now;
-
-	//PRINT(deltaTime);
 
 	_camera.ConsumeMouse(_window.GetXChange(), _window.GetYChange());
 	_camera.ConsumeKey(_window.GetKeys(), deltaTime);
@@ -752,7 +774,7 @@ void Application::Render()
 	_uniformBuffer->Unmap(0, &readRange);
 	// Record all the commands we need to render the scene into the command
 	// list.
-	SetupCommands();
+	InitCommands();
 
 	// Execute the command list.
 	ID3D12CommandList* ppCommandLists[] = { _commandList.Get()};
@@ -761,6 +783,13 @@ void Application::Render()
 	_swapchain->Present(1, 0);
 
 	// WAITING FOR THE FRAME TO COMPLETE BEFORE CONTINUING IS NOT BEST PRACTICE.
+
+	// Update and Render additional Platform Windows
+	if (_imguiIO->ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+	{
+		ImGui::UpdatePlatformWindows();
+		ImGui::RenderPlatformWindowsDefault(nullptr, (void*)_commandList.Get());
+	}
 
 	// Signal and increment the fence value.
 	const UINT64 fence = _fenceValue;

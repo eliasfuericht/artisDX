@@ -14,21 +14,21 @@ file(GLOB_RECURSE ARTISDX_HEADERS "include/*.h")
 add_executable(artisDX ${ARTISDX_SOURCES} ${ARTISDX_HEADERS})
 
 # Enable Precompiled Headers
-target_precompile_headers(artisDX PRIVATE include/pch.h)  # Path to your precompiled header
+target_precompile_headers(artisDX PRIVATE include/pch.h)
 
-set(EXTERN_DIR "${CMAKE_SOURCE_DIR}/extern")  # Adjust this to your ImGui directory
+set(EXTERN_DIR "${CMAKE_SOURCE_DIR}/extern")
 
 # Add ImGui source files
 file(GLOB IMGUI_SOURCES 
-    "${EXTERN_DIR}/imgui/*.cpp" 
-    "${EXTERN_DIR}/imgui/imgui_impl_dx12.cpp" 
-    "${EXTERN_DIR}/imgui/imgui_impl_win32.cpp"
+    "${EXTERN_DIR}/imgui/*.cpp"
+    "${EXTERN_DIR}/imgui/backends/imgui_impl_dx12.cpp" 
+    "${EXTERN_DIR}/imgui/backends/imgui_impl_win32.cpp"
 )
+
+target_sources(artisDX PRIVATE ${IMGUI_SOURCES})
 
 # Add include directories
 target_include_directories(artisDX PRIVATE include "${EXTERN_DIR}/imgui" "${EXTERN_DIR}/imgui/backends")
-
-target_sources(artisDX PRIVATE ${IMGUI_SOURCES})
 
 target_link_libraries(
   artisDX     # main application
@@ -38,7 +38,9 @@ target_link_libraries(
   D3DCompiler    # D3DCompiler for shader compilation functions
 )
 
-# Create source groups based on the directory structure
+### Organization in VS ###
+
+# Create filters
 source_group(TREE "${CMAKE_SOURCE_DIR}/src" PREFIX "src" FILES ${ARTISDX_SOURCES})
 source_group(TREE "${CMAKE_SOURCE_DIR}/include" PREFIX "include" FILES ${ARTISDX_HEADERS})
 source_group(TREE "${EXTERN_DIR}/imgui" PREFIX "extern/ImGUI" FILES ${IMGUI_SOURCES})
