@@ -31,9 +31,9 @@ Application::Application(const CHAR* name, INT w, INT h)
 	_fenceValue = 0;
 
 	_camera = Camera(
-		DirectX::XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f),
-		DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), 
-		0.0f,
+		glm::vec3(0.0f, 0.0f, -1.0f),
+		glm::vec3(0.0f, 1.0f, 0.0f),
+		90.0f,
 		0.0f,
 		0.5f,
 		0.1f
@@ -408,8 +408,12 @@ void Application::InitResources()
 			readRange.End = 0;
 
 			// setup matrices
-			_MVP.projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(45.0f, (FLOAT)_window.GetWidth() / (FLOAT)_window.GetHeight(), 0.01f, 1024.0f);
-			_MVP.modelMatrix = DirectX::XMMatrixIdentity();
+			_MVP.projectionMatrix = glm::perspective(glm::radians(45.0f),
+				static_cast<float>(_window.GetWidth()) / static_cast<float>(_window.GetHeight()),
+				0.01f, 1024.0f);
+
+			// Set the model matrix as an identity matrix
+			_MVP.modelMatrix = glm::mat4(1.0f);
 
 			ThrowIfFailed(_uniformBuffer->Map( 0, &readRange, reinterpret_cast<void**>(&_mappedUniformBuffer)));
 										memcpy(_mappedUniformBuffer, &_MVP, sizeof(_MVP));
@@ -683,29 +687,9 @@ void Application::InitCommands()
 	// START IMGUI commands
 	if (_runImgui)
 	{
-		// Set the render target for ImGui.
-		D3D12_RESOURCE_BARRIER imguiRenderTargetBarrier = {};
-		imguiRenderTargetBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-		imguiRenderTargetBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-		imguiRenderTargetBarrier.Transition.pResource = _renderTargets[_frameIndex].Get();
-		imguiRenderTargetBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-		imguiRenderTargetBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
-		imguiRenderTargetBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-		_commandList->ResourceBarrier(1, &imguiRenderTargetBarrier);
-
 		_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
 		_commandList->SetDescriptorHeaps(1, _srvHeap.GetAddressOf());
 		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), _commandList.Get());
-
-		// Transition back to present for ImGui.
-		D3D12_RESOURCE_BARRIER imguiPresentBarrier = {};
-		imguiPresentBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-		imguiPresentBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-		imguiPresentBarrier.Transition.pResource = _renderTargets[_frameIndex].Get();
-		imguiPresentBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-		imguiPresentBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-		imguiPresentBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-		_commandList->ResourceBarrier(1, &imguiPresentBarrier);
 	}
 	// END IMGUI
 
@@ -736,7 +720,11 @@ void Application::Run()
 		ImGui_ImplDX12_NewFrame();
 		ImGui_ImplWin32_NewFrame();
 		ImGui::NewFrame();
-		ImGui::ShowDemoWindow();
+		
+		ImGui::Begin("Another Window");
+		//ImGui::DragFloat("pos", &_camera._position);
+		ImGui::End();
+
 		ImGui::Render();
 
 		Render();
@@ -747,7 +735,6 @@ void Application::Run()
 			DispatchMessage(&msg);
 		}
 	}
-
 	ImGui_ImplDX12_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();

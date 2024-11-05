@@ -87,9 +87,9 @@ private:
 
 	struct
 	{
-		DirectX::XMMATRIX modelMatrix;
-		DirectX::XMMATRIX viewMatrix;
-		DirectX::XMMATRIX projectionMatrix;
+		glm::mat4 modelMatrix;
+		glm::mat4 viewMatrix;
+		glm::mat4 projectionMatrix;
 	} _MVP;
 
 	// IMGUI

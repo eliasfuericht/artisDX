@@ -28,7 +28,7 @@ file(GLOB IMGUI_SOURCES
 target_sources(artisDX PRIVATE ${IMGUI_SOURCES})
 
 # Add include directories
-target_include_directories(artisDX PRIVATE include "${EXTERN_DIR}/imgui" "${EXTERN_DIR}/imgui/backends")
+target_include_directories(artisDX PRIVATE include "${EXTERN_DIR}/glm/glm" "${EXTERN_DIR}/imgui" "${EXTERN_DIR}/imgui/backends")
 
 target_link_libraries(
   artisDX     # main application

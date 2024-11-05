@@ -22,6 +22,9 @@
 #include <comdef.h>  // For _com_error
 #include <sstream>
 
+// GLM
+#include <../extern/glm/glm/glm.hpp>
+#include <../extern/glm/glm/gtc/matrix_transform.hpp>
 
 // IMGUI
 #define IMGUI_DEFINE_MATH_OPERATORS
