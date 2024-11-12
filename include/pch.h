@@ -23,14 +23,14 @@
 #include <sstream>
 
 // GLM
-#include <../extern/glm/glm/glm.hpp>
-#include <../extern/glm/glm/gtc/matrix_transform.hpp>
+#include <../build/_deps/glm-src/glm/glm.hpp>
+#include <../build/_deps/glm-src/glm/gtc/matrix_transform.hpp>
 
 // IMGUI
 #define IMGUI_DEFINE_MATH_OPERATORS
-#include "../extern/imgui/imgui.h"
-#include "../extern/imgui/backends/imgui_impl_win32.h"
-#include "../extern/imgui/backends/imgui_impl_dx12.h"
+#include "../build/_deps/imgui-src/imgui.h"
+#include "../build/_deps/imgui-src/backends/imgui_impl_win32.h"
+#include "../build/_deps/imgui-src/backends/imgui_impl_dx12.h"
 
 // Defines
 #define CHECK INT

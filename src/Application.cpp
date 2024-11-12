@@ -113,6 +113,7 @@ void Application::InitDX12()
 			{
 				maxMemSize = desc.DedicatedVideoMemory;
 				maxMemSizeAdapterIndex = adapterIndex;
+				continue;
 			}
 		}
 
