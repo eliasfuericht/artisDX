@@ -110,8 +110,10 @@ void Application::InitDX12()
 		if (SUCCEEDED(D3D12CreateDevice(_adapter.Get(), D3D_FEATURE_LEVEL_12_0, _uuidof(ID3D12Device), nullptr)))
 		{
 			if (desc.DedicatedVideoMemory > maxMemSize)
+			{
+				maxMemSize = desc.DedicatedVideoMemory;
 				maxMemSizeAdapterIndex = adapterIndex;
-			continue;
+			}
 		}
 
 		// if its not compatible -> Release();
