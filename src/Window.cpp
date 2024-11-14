@@ -22,7 +22,7 @@ LRESULT CALLBACK WindowProcess(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 			if (abs(deltaX) > 0 || abs(deltaY) > 0)
 			{
-				windowInstance->HandleMouse(deltaX, deltaY);
+				windowInstance->HandleMouse(-deltaX, deltaY);
 
 				ClientToScreen(hwnd, &center);
 				SetCursorPos(center.x, center.y);
