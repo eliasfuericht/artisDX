@@ -93,46 +93,33 @@ void Application::InitDX12()
 	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&_factory)));
 
 	SIZE_T maxMemSize = 0;
-	UINT maxMemSizeAdapterIndex = NOTOK;
 
-	// iterate over all available adapters (adapters = GPUs)
-	for (UINT adapterIndex = 0; DXGI_ERROR_NOT_FOUND != _factory->EnumAdapters1(adapterIndex, &_adapter); ++adapterIndex)
+	// iterate over all available adapters
+	for (UINT adapterIndex = 0; ; ++adapterIndex)
 	{
+		MSWRL::ComPtr<IDXGIAdapter1> adapter;
+		if (_factory->EnumAdapters1(adapterIndex, &adapter) == DXGI_ERROR_NOT_FOUND)
+			break;
+
 		DXGI_ADAPTER_DESC1 desc;
-		_adapter->GetDesc1(&desc);
+		adapter->GetDesc1(&desc);
 
+		// Skip software adapters
 		if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
-			continue; // Don't select the Basic Render Driver adapter.
-		
+			continue;
 
-		// Check to see if the adapter supports Direct3D 12, but don't create the actual device yet.
-		// if laptop is in battery safer -> dGPU gets deactivated, will select CPU-GPU
-		if (SUCCEEDED(D3D12CreateDevice(_adapter.Get(), D3D_FEATURE_LEVEL_12_0, _uuidof(ID3D12Device), nullptr)))
+		// Check if the adapter supports Direct3D 12
+		if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_0, __uuidof(ID3D12Device), nullptr)))
 		{
+			// Update if this adapter has more dedicated video memory than previous best
 			if (desc.DedicatedVideoMemory > maxMemSize)
 			{
 				maxMemSize = desc.DedicatedVideoMemory;
-				maxMemSizeAdapterIndex = adapterIndex;
-				continue;
+				_adapter = adapter; // Store the adapter with the largest video memory
 			}
 		}
-
-		// if its not compatible -> Release();
-		_adapter->Release();
+		// Adapter will be released automatically at the end of scope
 	}
-
-	if (maxMemSizeAdapterIndex == NOTOK)
-	{
-		ThrowException("no suitable adapter found.");
-		return;
-	}
-	
-	_factory->EnumAdapters1(maxMemSizeAdapterIndex, &_adapter);
-
-	DXGI_ADAPTER_DESC1 desc;
-	_adapter->GetDesc1(&desc);
-
-	PRINT("GPU at index ", maxMemSizeAdapterIndex, " has the most VRAM and was chosen as adapter.");
 
 	// Create Device
 	// The device is the interface between the program(CPU) and the adapter(GPU)
@@ -717,7 +704,7 @@ void Application::Run()
 
 	MSG msg = { 0 };
 
-	while (msg.message != WM_QUIT)
+	while (msg.message != WM_CLOSE)
 	{
 		_runImgui = true;
 		ImGui_ImplDX12_NewFrame();
