@@ -711,8 +711,8 @@ void Application::Run()
 		ImGui_ImplWin32_NewFrame();
 		ImGui::NewFrame();
 		
-		ImGui::Begin("Another Window");
-		//ImGui::DragFloat("pos", &_camera._position);
+		ImGui::Begin("Window");
+		ImGui::DragFloat3("debug", &_camera._position.x);
 		ImGui::End();
 
 		ImGui::Render();

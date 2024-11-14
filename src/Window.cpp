@@ -4,6 +4,9 @@ LRESULT CALLBACK WindowProcess(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 	Window* windowInstance = reinterpret_cast<Window*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
 
+	if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam))
+		return true;
+
 	switch (msg) {
 		case WM_MOUSEMOVE:
 		{
@@ -32,17 +35,20 @@ LRESULT CALLBACK WindowProcess(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 		}
 		case WM_LBUTTONDOWN:
 		{
-			if (!windowInstance->_captureMouse)
+			if (!ImGui::IsAnyItemHovered() && !ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow))
 			{
-				RECT clientRect;
-				GetClientRect(hwnd, &clientRect);
-				POINT center = { (clientRect.right - clientRect.left) / 2, (clientRect.bottom - clientRect.top) / 2 };
-				ClientToScreen(hwnd, &center);
-				SetCursorPos(center.x, center.y);
+				if (!windowInstance->_captureMouse)
+				{
+					RECT clientRect;
+					GetClientRect(hwnd, &clientRect);
+					POINT center = { (clientRect.right - clientRect.left) / 2, (clientRect.bottom - clientRect.top) / 2 };
+					ClientToScreen(hwnd, &center);
+					SetCursorPos(center.x, center.y);
 
-				windowInstance->_captureMouse = true;
-				SetCapture(windowInstance->GetHWND());
-				ShowCursor(FALSE);
+					windowInstance->_captureMouse = true;
+					SetCapture(windowInstance->GetHWND());
+					ShowCursor(FALSE);
+				}
 			}
 			break;
 		}
@@ -93,11 +99,9 @@ void Window::HandleKeys(INT key, INT action)
 				break;
 			}
 		}
-
 		if (key == KEYCODES::ESC && _captureMouse)
 		{
 			_captureMouse = false;
-			SetCapture(0);
 			ShowCursor(TRUE);
 		}
 	}
