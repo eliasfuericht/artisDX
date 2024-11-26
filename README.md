@@ -2,7 +2,7 @@
 A DirectX12 Rendering Engine
 
 ## Clone
-```git clone --rescursive https://github.com/eliasfuericht/artisDX.git```
+```git clone https://github.com/eliasfuericht/artisDX.git```
 
 ## Building the Project
 1. Run the `setup.bat` script in the root directory.
