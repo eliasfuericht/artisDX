@@ -31,6 +31,11 @@
 #include "../build/_deps/imgui-src/imgui.h"
 #include "../build/_deps/imgui-src/backends/imgui_impl_win32.h"
 
+// fastgltf
+//#include "../build/_deps/fastgltf-src/include/fastgltf/core.hpp"
+//#include "../build/_deps/fastgltf-src/include/fastgltf/types.hpp"
+//#include "../build/_deps/fastgltf-src/include/fastgltf/tools.hpp"
+
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 #include "../build/_deps/imgui-src/backends/imgui_impl_dx12.h"

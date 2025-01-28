@@ -8,6 +8,60 @@ LRESULT CALLBACK WindowProcess(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 		return true;
 
 	switch (msg) {
+		case WM_SIZE:
+		{
+		// reconfigur swapchain
+		/*
+		for (UINT i = 0; i < FrameCount; ++i) {
+			renderTargets[i].Reset();
+		}
+
+		// Resize the swap chain buffers
+		DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
+		swapChain->GetDesc(&swapChainDesc);
+		swapChain->ResizeBuffers(
+				FrameCount,
+				newWidth,
+				newHeight,
+				swapChainDesc.BufferDesc.Format,
+				swapChainDesc.Flags
+		);
+		*/
+
+		// recreate render targets
+		/*
+		for (UINT i = 0; i < FrameCount; ++i) {
+			ComPtr<ID3D12Resource> backBuffer;
+			swapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffer));
+			device->CreateRenderTargetView(backBuffer.Get(), nullptr, rtvHeap->GetCPUDescriptorHandleForHeapStart());
+			renderTargets[i] = backBuffer;
+		}
+		*/
+
+		// update viewport
+
+		/*
+		D3D12_VIEWPORT viewport = {};
+		viewport.TopLeftX = 0;
+		viewport.TopLeftY = 0;
+		viewport.Width = static_cast<float>(newWidth);
+		viewport.Height = static_cast<float>(newHeight);
+		viewport.MinDepth = 0.0f;
+		viewport.MaxDepth = 1.0f;
+
+		D3D12_RECT scissorRect = {};
+		scissorRect.left = 0;
+		scissorRect.top = 0;
+		scissorRect.right = newWidth;
+		scissorRect.bottom = newHeight;
+
+		// Apply them in your render loop before drawing
+		commandList->RSSetViewports(1, &viewport);
+		commandList->RSSetScissorRects(1, &scissorRect);
+		*/
+
+			PRINT("entered");
+		}
 		case WM_MOUSEMOVE:
 		{
 			if (!windowInstance->_captureMouse)

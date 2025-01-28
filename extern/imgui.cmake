@@ -1,7 +1,7 @@
 CPMAddPackage(
   NAME imgui
   GITHUB_REPOSITORY ocornut/imgui
-  GIT_TAG docking
+  GIT_TAG v1.91.6-docking
 )
 file(GLOB IMGUI_SOURCES ${imgui_SOURCE_DIR}/*.cpp
      ${imgui_SOURCE_DIR}/backends/imgui_impl_dx12.cpp
