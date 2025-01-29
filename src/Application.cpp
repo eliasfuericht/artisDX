@@ -493,6 +493,11 @@ void Application::InitResources()
 	// to record yet. The main loop expects it to be closed, so close it now.
 	ThrowIfFailed(_commandList->Close());
 
+	// MODELLOADING
+
+	ModelManager modelManager;
+	modelManager.LoadModel("../assets/cube.glb");
+
 	// Create the vertex buffer.
 	{
 		const UINT vertexBufferSize = sizeof(_vertexBufferData);
@@ -696,7 +701,6 @@ void Application::InitCommands()
 	// Close the command list.
 	ThrowIfFailed(_commandList->Close());
 }
-
 
 void Application::Run()
 {
