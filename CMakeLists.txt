@@ -23,6 +23,7 @@ target_link_libraries(
   dxguid      # DirectX GUID (for interfaces)
   D3DCompiler    # D3DCompiler for shader compilation functions
   DearImGui
+  fastgltf
 )
 
 ### Organization in VS ###

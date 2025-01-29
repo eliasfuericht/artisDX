@@ -10,6 +10,7 @@ include(${CMAKE_BINARY_DIR}/cmake/CPM.cmake)
 
 include(glm.cmake)
 include(imgui.cmake)
-# include(fastgltf.cmake)
+CPMAddPackage("gh:spnda/fastgltf@0.8.0")
+#include(fastgltf.cmake)
 
 message(STATUS "External libraries configured successfully.")
