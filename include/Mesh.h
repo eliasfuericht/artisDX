@@ -6,12 +6,12 @@ class Mesh
 {
 public:
 	Mesh() {};
-	Mesh(MSWRL::ComPtr<ID3D12Device> device, std::vector<VertexAdvanced> vertices, std::vector<uint32_t> indices);
+	Mesh(MSWRL::ComPtr<ID3D12Device> device, std::vector<Vertex> vertices, std::vector<uint32_t> indices);
 	void DrawMesh(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 
 private:
 	MSWRL::ComPtr<ID3D12Resource> CreateBuffer(ID3D12Device* device, UINT64 size, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES initialState);
-	void UploadBuffers(std::vector<VertexAdvanced> vertices, UINT vertexBufferSize, std::vector<uint32_t> indices, UINT indexBufferSize);
+	void UploadBuffers(std::vector<Vertex> vertices, UINT vertexBufferSize, std::vector<uint32_t> indices, UINT indexBufferSize);
 
 	MSWRL::ComPtr<ID3D12Resource> _vertexBuffer;
 	D3D12_VERTEX_BUFFER_VIEW _vertexBufferView = {};

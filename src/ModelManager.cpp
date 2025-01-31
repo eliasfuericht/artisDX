@@ -27,7 +27,7 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 
 	for (auto& mesh : asset->meshes) 
 	{
-		std::vector<VertexAdvanced> vertices;
+		std::vector<Vertex> vertices;
 		std::vector<uint32_t> indices;
 
 		for (auto& primitive : mesh.primitives) 

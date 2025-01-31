@@ -622,9 +622,9 @@ void Application::InitCommands()
 
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle(_rtvHeap->GetCPUDescriptorHandleForHeapStart());
 	rtvHandle.ptr += (_frameIndex * _rtvDescriptorSize);
-	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle(_dsvHeap->GetCPUDescriptorHandleForHeapStart());
-	_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
-	_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+	//D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle(_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+	_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+	//_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 	// Clear the render target.
 	const float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };

@@ -1,8 +1,8 @@
 #include "Mesh.h"
 
-Mesh::Mesh(MSWRL::ComPtr<ID3D12Device> device, std::vector<VertexAdvanced> vertices, std::vector<uint32_t> indices)
+Mesh::Mesh(MSWRL::ComPtr<ID3D12Device> device, std::vector<Vertex> vertices, std::vector<uint32_t> indices)
 {
-	UINT vertexBufferSize = vertices.size() * sizeof(VertexAdvanced);
+	UINT vertexBufferSize = vertices.size() * sizeof(Vertex);
 	_vertexBuffer = CreateBuffer(device.Get(), vertexBufferSize, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
 
 	_indicesSize = indices.size();
@@ -13,7 +13,7 @@ Mesh::Mesh(MSWRL::ComPtr<ID3D12Device> device, std::vector<VertexAdvanced> verti
 
 	_vertexBufferView.BufferLocation = _vertexBuffer->GetGPUVirtualAddress();
 	_vertexBufferView.SizeInBytes = vertexBufferSize;
-	_vertexBufferView.StrideInBytes = sizeof(VertexAdvanced); // Replace with your vertex stride (e.g., sizeof(Vertex))
+	_vertexBufferView.StrideInBytes = sizeof(Vertex); // Replace with your vertex stride (e.g., sizeof(Vertex))
 
 	_indexBufferView.BufferLocation = _indexBuffer->GetGPUVirtualAddress();
 	_indexBufferView.SizeInBytes = indexBufferSize;
@@ -57,7 +57,7 @@ MSWRL::ComPtr<ID3D12Resource>  Mesh::CreateBuffer(ID3D12Device* device, UINT64 s
 	return buffer;
 }
 
-void Mesh::UploadBuffers(std::vector<VertexAdvanced> vertices, UINT vertexBufferSize, std::vector<uint32_t> indices, UINT indexBufferSize)
+void Mesh::UploadBuffers(std::vector<Vertex> vertices, UINT vertexBufferSize, std::vector<uint32_t> indices, UINT indexBufferSize)
 {
 	// Upload vertex data
 	UINT8* pVertexDataBegin = nullptr;
