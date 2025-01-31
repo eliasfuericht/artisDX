@@ -23,6 +23,7 @@ private:
 
 	Window _window;
 	Camera _camera;
+	INT _width, _height;
 
 	std::chrono::steady_clock::time_point _tLastTime = std::chrono::steady_clock::now();
 
@@ -63,8 +64,9 @@ private:
 	D3D12_VIEWPORT _viewport;
 	D3D12_RECT _surfaceSize;
 
-	MSWRL::ComPtr<ID3D12Resource> _vertexBuffer;
-	MSWRL::ComPtr<ID3D12Resource> _indexBuffer;
+	// DepthBuffer
+	MSWRL::ComPtr<ID3D12Resource> _depthStencilBuffer;
+	MSWRL::ComPtr<ID3D12DescriptorHeap> _dsvHeap;
 
 	MSWRL::ComPtr<ID3D12Resource> _uniformBuffer;
 	MSWRL::ComPtr<ID3D12DescriptorHeap> _uniformBufferHeap;
@@ -75,18 +77,6 @@ private:
 	D3D12_INDEX_BUFFER_VIEW _indexBufferView;
 
 	ModelManager _modelManager;
-
-	struct Vertex
-	{
-		float position[3];
-		float color[3];
-	};
-
-	Vertex _vertexBufferData[3] = { {{1.0f, -1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}},
-																 {{-1.0f, -1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},
-																 {{0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}} };
-
-	uint32_t _indexBufferData[3] = { 0, 1, 2 };
 
 	struct
 	{
