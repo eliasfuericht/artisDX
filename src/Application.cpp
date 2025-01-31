@@ -332,10 +332,16 @@ void Application::InitResources()
 #endif
 		// Define the vertex input layout.
 		D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
-				{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
-				 D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-				{"COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12,
-				 D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0} };
+			{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
+					D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12,
+					D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 24,
+					D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 40,
+					D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
+		};
+
 
 		// Create the UBO.
 		{
@@ -495,8 +501,8 @@ void Application::InitResources()
 
 	// MODELLOADING
 
-	ModelManager modelManager;
-	modelManager.LoadModel("../assets/cube.glb");
+	_modelManager = ModelManager(_device, _commandList);
+	_modelManager.LoadModel("../assets/elicube.glb");
 
 	// Create the vertex buffer.
 	{
@@ -528,7 +534,9 @@ void Application::InitResources()
 		vertexBufferResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
 		ThrowIfFailed(_device->CreateCommittedResource(
-			&heapProps, D3D12_HEAP_FLAG_NONE, &vertexBufferResourceDesc,
+			&heapProps, 
+			D3D12_HEAP_FLAG_NONE, 
+			&vertexBufferResourceDesc,
 			D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
 			IID_PPV_ARGS(&_vertexBuffer)));
 
@@ -673,11 +681,15 @@ void Application::InitCommands()
 	// Clear the render target.
 	const float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
 	_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+	/*
 	_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	_commandList->IASetVertexBuffers(0, 1, &_vertexBufferView);
 	_commandList->IASetIndexBuffer(&_indexBufferView);
 
-	_commandList->DrawIndexedInstanced(3, 1, 0, 0, 0);
+	_commandList->DrawIndexedInstanced(3, 1, 0, 0, 0);*/
+
+	_modelManager.DrawAllModels();
+
 
 	// START IMGUI commands
 	if (_runImgui)
@@ -744,7 +756,7 @@ void Application::Render()
 	_camera.ConsumeMouse(_window.GetXChange(), _window.GetYChange());
 	_camera.ConsumeKey(_window.GetKeys(), deltaTime);
 	_MVP.viewMatrix = _camera.GetViewMatrix();
-
+	
 	D3D12_RANGE readRange;
 	readRange.Begin = 0;
 	readRange.End = 0;

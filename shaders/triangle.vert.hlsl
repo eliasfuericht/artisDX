@@ -7,13 +7,17 @@ cbuffer ubo : register(b0)
 
 static float4 position;
 static float3 outColor;
-static float3 inColor;
+static float2 inUV;
+static float4 inTangent;
+static float3 inNormal;
 static float3 inPos;
 
 struct SPIRV_Cross_Input
 {
     float3 inPos : POSITION;
-    float3 inColor : COLOR;
+    float3 inNormal : NORMAL;
+    float4 inTangent : TANGENT;
+    float2 inUV : TEXCOORD;
 };
 
 struct SPIRV_Cross_Output
@@ -24,13 +28,14 @@ struct SPIRV_Cross_Output
 
 void vert_main()
 {
-    outColor = inColor;
+    outColor = float3(inUV, 1.0f);
     position = mul(float4(inPos, 1.0f), mul(ubo_modelMatrix, mul(ubo_viewMatrix, ubo_projectionMatrix)));
 }
 
 SPIRV_Cross_Output main(SPIRV_Cross_Input stage_input)
 {
-    inColor = stage_input.inColor;
+    inUV = stage_input.inUV;
+    inNormal = stage_input.inNormal;
     inPos = stage_input.inPos;
     vert_main();
     SPIRV_Cross_Output stage_output;

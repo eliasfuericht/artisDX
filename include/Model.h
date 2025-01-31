@@ -9,8 +9,11 @@ class Model
 {
 public:
 	Model() {};
-	Model(std::vector<FLOAT> vertices, std::vector<INT> indices);
+	Model(MSWRL::ComPtr<ID3D12Device> device, std::vector<VertexAdvanced> vertices, std::vector<uint32_t> indices);
+	void DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
+
 private:
+
 	Mesh _mesh;
 	AABB _aabb;
 };

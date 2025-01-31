@@ -29,7 +29,13 @@ void Camera::ConsumeMouse(FLOAT xChange, FLOAT yChange)
 
 void Camera::ConsumeKey(BOOL* keys, FLOAT deltaTime)
 {
-	FLOAT velocity = _moveSpeed * deltaTime;
+	FLOAT multiplier = 1.0f;
+	if (keys[KEYCODES::SHIFT])
+	{
+		multiplier = 10.0f;
+	}
+
+	FLOAT velocity = _moveSpeed * deltaTime * multiplier;
 
 	if (keys[KEYCODES::W])
 	{
