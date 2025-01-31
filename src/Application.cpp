@@ -511,12 +511,17 @@ void Application::InitResources()
 		heapProps.CreationNodeMask = 1;
 		heapProps.VisibleNodeMask = 1;
 
+		D3D12_CLEAR_VALUE depthOptimizedClearValue = {};
+		depthOptimizedClearValue.Format = DXGI_FORMAT_D32_FLOAT;
+		depthOptimizedClearValue.DepthStencil.Depth = 1.0f; // Default clear depth
+		depthOptimizedClearValue.DepthStencil.Stencil = 0;  // Default clear stencil
+
 		ThrowIfFailed(_device->CreateCommittedResource(
 			&heapProps,
 			D3D12_HEAP_FLAG_NONE,
 			&depthStencilDesc,
-			D3D12_RESOURCE_STATE_DEPTH_WRITE,  // Initial state for the depth buffer
-			nullptr,
+			D3D12_RESOURCE_STATE_COMMON,  // Initial state for the depth buffer
+			&depthOptimizedClearValue,
 			IID_PPV_ARGS(&_depthStencilBuffer)
 		));
 
@@ -620,11 +625,20 @@ void Application::InitCommands()
 	renderTargetBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	_commandList->ResourceBarrier(1, &renderTargetBarrier);
 
+	D3D12_RESOURCE_BARRIER depthBarrierStart = {};
+	depthBarrierStart.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	depthBarrierStart.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	depthBarrierStart.Transition.pResource = _depthStencilBuffer.Get();
+	depthBarrierStart.Transition.StateBefore = D3D12_RESOURCE_STATE_DEPTH_READ;
+	depthBarrierStart.Transition.StateAfter = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+	depthBarrierStart.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	_commandList->ResourceBarrier(1, &depthBarrierStart);
+
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle(_rtvHeap->GetCPUDescriptorHandleForHeapStart());
 	rtvHandle.ptr += (_frameIndex * _rtvDescriptorSize);
-	//D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle(_dsvHeap->GetCPUDescriptorHandleForHeapStart());
-	_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
-	//_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle(_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+	_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+	_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 	// Clear the render target.
 	const float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
@@ -651,6 +665,15 @@ void Application::InitCommands()
 	presentBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 	presentBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	_commandList->ResourceBarrier(1, &presentBarrier);
+
+	D3D12_RESOURCE_BARRIER depthBarrierEnd = {};
+	depthBarrierEnd.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	depthBarrierEnd.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	depthBarrierEnd.Transition.pResource = _depthStencilBuffer.Get();
+	depthBarrierEnd.Transition.StateBefore = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+	depthBarrierEnd.Transition.StateAfter = D3D12_RESOURCE_STATE_DEPTH_READ;
+	depthBarrierEnd.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	_commandList->ResourceBarrier(1, &depthBarrierEnd);
 
 	// Close the command list.
 	ThrowIfFailed(_commandList->Close());
