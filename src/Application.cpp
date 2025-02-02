@@ -34,8 +34,8 @@ Application::Application(const CHAR* name, INT w, INT h)
 	_fenceValue = 0;
 
 	_camera = Camera(
-		glm::vec3(0.0f, 0.0f, -1.0f),
-		glm::vec3(0.0f, 1.0f, 0.0f),
+		DirectX::XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f),
+		DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f),
 		90.0f,
 		0.0f,
 		0.5f,
@@ -406,12 +406,16 @@ void Application::InitResources()
 			readRange.End = 0;
 
 			// setup matrices
-			_MVP.projectionMatrix = glm::perspectiveLH_ZO(glm::radians(45.0f),
+			DirectX::XMStoreFloat4x4(&_MVP.projectionMatrix,DirectX::XMMatrixPerspectiveFovLH(
+				DirectX::XMConvertToRadians(45.0f), // Convert to radians
 				static_cast<float>(_window.GetWidth()) / static_cast<float>(_window.GetHeight()),
-				0.1f, 1000.0f);
+				0.1f,
+				1000.0f
+			));
+
 
 			// Set the model matrix as an identity matrix
-			_MVP.modelMatrix = glm::mat4(1.0f);
+			DirectX::XMStoreFloat4x4(&_MVP.modelMatrix, DirectX::XMMatrixIdentity());
 
 			ThrowIfFailed(_uniformBuffer->Map( 0, &readRange, reinterpret_cast<void**>(&_mappedUniformBuffer)));
 										memcpy(_mappedUniformBuffer, &_MVP, sizeof(_MVP));
@@ -583,8 +587,8 @@ void Application::InitCommands()
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = _rtvHeap->GetCPUDescriptorHandleForHeapStart();
 	rtvHandle.ptr += (_frameIndex * _rtvDescriptorSize);
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = _dsvHeap->GetCPUDescriptorHandleForHeapStart();
-	_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
-	//_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+	//_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+	_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 	_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0.0f, 0, nullptr);
 
 	// Clear the render target.
@@ -631,7 +635,13 @@ void Application::Run()
 		ImGui::NewFrame();
 		
 		ImGui::Begin("Window");
-		ImGui::DragFloat3("debug", &_camera._position.x);
+		DirectX::XMFLOAT3 positionFloat3;
+		DirectX::XMStoreFloat3(&positionFloat3, _camera._position);
+		ImGui::DragFloat3("debug", &positionFloat3.x);
+
+		// Update _camera._position with the new values
+		_camera._position = DirectX::XMLoadFloat3(&positionFloat3);
+
 		ImGui::End();
 
 		ImGui::Render();

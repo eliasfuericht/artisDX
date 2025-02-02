@@ -1,6 +1,6 @@
 struct Vertex {
-	glm::vec3 position;
-	glm::vec3 normal;
-	glm::vec4 tangent;
-	glm::vec2 uv;
+	DirectX::XMFLOAT3 position;
+	DirectX::XMFLOAT3 normal;
+	DirectX::XMFLOAT4 tangent;
+	DirectX::XMFLOAT2 uv;
 };

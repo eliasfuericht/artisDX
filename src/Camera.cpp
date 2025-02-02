@@ -1,10 +1,11 @@
 #include "Camera.h"
 
-Camera::Camera(glm::vec3 pos, glm::vec3 startUp, FLOAT startYaw, FLOAT startPitch, FLOAT startMoveSpeed, FLOAT startTurnSpeed)
+Camera::Camera(DirectX::XMVECTOR pos, DirectX::XMVECTOR startUp, FLOAT startYaw, FLOAT startPitch, FLOAT startMoveSpeed, FLOAT startTurnSpeed)
 	: _position(pos), _worldUp(startUp), _yaw(startYaw), _pitch(startPitch), _moveSpeed(startMoveSpeed), _turnSpeed(startTurnSpeed)
 {
-	_front = glm::vec3(0.0f, 0.0f, -1.0f);
+	_front = DirectX::XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f);
 }
+
 
 void Camera::ConsumeMouse(FLOAT xChange, FLOAT yChange)
 {
@@ -39,41 +40,53 @@ void Camera::ConsumeKey(BOOL* keys, FLOAT deltaTime)
 
 	if (keys[KEYCODES::W])
 	{
-		_position += _front * velocity;
+		_position = DirectX::XMVectorAdd(_position, DirectX::XMVectorScale(_front, velocity));
 	}
 	if (keys[KEYCODES::A])
 	{
-		_position -= _right * velocity;
+		_position = DirectX::XMVectorAdd(_position, DirectX::XMVectorScale(_right, velocity));
 	}
 	if (keys[KEYCODES::S])
 	{
-		_position -= _front * velocity;
+		_position = DirectX::XMVectorSubtract(_position, DirectX::XMVectorScale(_front, velocity));
 	}
 	if (keys[KEYCODES::D])
 	{
-		_position += _right * velocity;
+		_position = DirectX::XMVectorSubtract(_position, DirectX::XMVectorScale(_right, velocity));
 	}
 	if (keys[KEYCODES::SPACE])
 	{
-		_position += _up * velocity;
+		_position = DirectX::XMVectorAdd(_position, DirectX::XMVectorScale(_up, velocity));
 	}
 	if (keys[KEYCODES::LCTRL])
 	{
-		_position -= _up * velocity;
+		_position = DirectX::XMVectorSubtract(_position, DirectX::XMVectorScale(_up, velocity));
 	}
+
 }
 
-// TODO: fix camera
+#include <DirectXMath.h>
+
 void Camera::Update()
 {
-	_front = glm::normalize(glm::vec3(
-		glm::cos(glm::radians(_yaw)) * glm::cos(glm::radians(_pitch)),
-		glm::sin(glm::radians(_pitch)),
-		-glm::sin(glm::radians(_yaw)) * glm::cos(glm::radians(_pitch))
+	using namespace DirectX;
+
+	// Convert angles to radians
+	float yawRad = XMConvertToRadians(_yaw);
+	float pitchRad = XMConvertToRadians(_pitch);
+
+	// Compute front vector
+	_front = XMVector3Normalize(XMVectorSet(
+		cosf(yawRad) * cosf(pitchRad),
+		sinf(pitchRad),
+		-sinf(yawRad) * cosf(pitchRad),
+		0.0f
 	));
 
-	_right = glm::normalize(glm::cross(_front, _worldUp));
-	_up = glm::normalize(glm::cross(_right, _front));
+	// Compute right and up vectors
+	_right = XMVector3Normalize(XMVector3Cross(_front, _worldUp));
+	_up = XMVector3Normalize(XMVector3Cross(_right, _front));
 
-	_viewMatrix = glm::lookAtLH(_position, _position + _front, _up);
+	// Compute view matrix
+	XMStoreFloat4x4(&_viewMatrix, XMMatrixLookAtLH(_position, XMVectorAdd(_position, _front), _up));
 }

@@ -16,5 +16,5 @@ private:
 
 	Mesh _mesh;
 	AABB _aabb;
-	glm::mat4 _modelMatrix = glm::mat4(1.0f);
+	DirectX::XMFLOAT4X4 _modelMatrix;
 };

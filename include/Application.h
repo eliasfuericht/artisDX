@@ -80,9 +80,9 @@ private:
 
 	struct
 	{
-		glm::mat4 modelMatrix;
-		glm::mat4 viewMatrix;
-		glm::mat4 projectionMatrix;
+		DirectX::XMFLOAT4X4 modelMatrix;
+		DirectX::XMFLOAT4X4 viewMatrix;
+		DirectX::XMFLOAT4X4 projectionMatrix;
 	} _MVP;
 
 	// IMGUI
