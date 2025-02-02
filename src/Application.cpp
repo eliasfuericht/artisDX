@@ -406,9 +406,9 @@ void Application::InitResources()
 			readRange.End = 0;
 
 			// setup matrices
-			_MVP.projectionMatrix = glm::perspective(glm::radians(45.0f),
+			_MVP.projectionMatrix = glm::perspectiveLH_ZO(glm::radians(45.0f),
 				static_cast<float>(_window.GetWidth()) / static_cast<float>(_window.GetHeight()),
-				0.01f, 1024.0f);
+				0.1f, 1000.0f);
 
 			// Set the model matrix as an identity matrix
 			_MVP.modelMatrix = glm::mat4(1.0f);
@@ -426,121 +426,24 @@ void Application::InitResources()
 		D3D12_SHADER_BYTECODE vsBytecode;
 		D3D12_SHADER_BYTECODE psBytecode;
 
-#ifdef COMPILESHADERS
 		vsBytecode.pShaderBytecode = vertexShader->GetBufferPointer();
 		vsBytecode.BytecodeLength = vertexShader->GetBufferSize();
+		psoDesc.VS = vsBytecode;
 
 		psBytecode.pShaderBytecode = pixelShader->GetBufferPointer();
 		psBytecode.BytecodeLength = pixelShader->GetBufferSize();
-#else
-		vsBytecode.pShaderBytecode = vsBytecodeData.data();
-		vsBytecode.BytecodeLength = vsBytecodeData.size();
-
-		psBytecode.pShaderBytecode = fsBytecodeData.data();
-		psBytecode.BytecodeLength = fsBytecodeData.size();
-#endif
-
-		psoDesc.VS = vsBytecode;
 		psoDesc.PS = psBytecode;
 
-		D3D12_RASTERIZER_DESC rasterDesc;
-		rasterDesc.FillMode = D3D12_FILL_MODE_SOLID;
-		//rasterDesc.FillMode = D3D12_FILL_MODE_WIREFRAME;
-		rasterDesc.CullMode = D3D12_CULL_MODE_NONE; // nothing is culled
-		rasterDesc.FrontCounterClockwise = FALSE;
-		rasterDesc.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
-		rasterDesc.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
-		rasterDesc.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
-		rasterDesc.DepthClipEnable = TRUE;
-		rasterDesc.MultisampleEnable = FALSE;
-		rasterDesc.AntialiasedLineEnable = FALSE;
-		rasterDesc.ForcedSampleCount = 0;
-		rasterDesc.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
-
-		psoDesc.RasterizerState = rasterDesc;
-
-		D3D12_BLEND_DESC blendDesc;
-		blendDesc.AlphaToCoverageEnable = FALSE;
-		blendDesc.IndependentBlendEnable = FALSE;
-		const D3D12_RENDER_TARGET_BLEND_DESC defaultRenderTargetBlendDesc = {
-				FALSE,
-				FALSE,
-				D3D12_BLEND_ONE,
-				D3D12_BLEND_ZERO,
-				D3D12_BLEND_OP_ADD,
-				D3D12_BLEND_ONE,
-				D3D12_BLEND_ZERO,
-				D3D12_BLEND_OP_ADD,
-				D3D12_LOGIC_OP_NOOP,
-				D3D12_COLOR_WRITE_ENABLE_ALL,
-		};
-		for (UINT i = 0; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
-			blendDesc.RenderTarget[i] = defaultRenderTargetBlendDesc;
-
-		psoDesc.BlendState = blendDesc;
-		psoDesc.DepthStencilState.DepthEnable = TRUE;               // Enable depth testing
-		psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-		psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS; // Use LESS for standard depth testing
-		psoDesc.DepthStencilState.StencilEnable = FALSE;
-		psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+		psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+		psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+		psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+		psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+		//psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 		psoDesc.SampleMask = UINT_MAX;
 		psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 		psoDesc.NumRenderTargets = 1;
 		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 		psoDesc.SampleDesc.Count = 1;
-
-		// Create Depth-Stencil Resource (Texture2D)
-		D3D12_RESOURCE_DESC depthStencilDesc = {};
-		depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-		depthStencilDesc.Alignment = 0;
-		depthStencilDesc.Width = _width;        // Width of the texture
-		depthStencilDesc.Height = _height;      // Height of the texture
-		depthStencilDesc.DepthOrArraySize = 1;
-		depthStencilDesc.MipLevels = 1;
-		depthStencilDesc.Format = DXGI_FORMAT_D32_FLOAT;  // Depth format (could also be D24_UNORM_S8_UINT)
-		depthStencilDesc.SampleDesc.Count = 1;
-		depthStencilDesc.SampleDesc.Quality = 0;
-		depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-		depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-
-		// Heap properties for creating the texture (GPU read/write)
-		D3D12_HEAP_PROPERTIES heapProps = {};
-		heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
-		heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-		heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-		heapProps.CreationNodeMask = 1;
-		heapProps.VisibleNodeMask = 1;
-
-		D3D12_CLEAR_VALUE depthOptimizedClearValue = {};
-		depthOptimizedClearValue.Format = DXGI_FORMAT_D32_FLOAT;
-		depthOptimizedClearValue.DepthStencil.Depth = 1.0f; // Default clear depth
-		depthOptimizedClearValue.DepthStencil.Stencil = 0;  // Default clear stencil
-
-		ThrowIfFailed(_device->CreateCommittedResource(
-			&heapProps,
-			D3D12_HEAP_FLAG_NONE,
-			&depthStencilDesc,
-			D3D12_RESOURCE_STATE_COMMON,  // Initial state for the depth buffer
-			&depthOptimizedClearValue,
-			IID_PPV_ARGS(&_depthStencilBuffer)
-		));
-
-		D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
-		dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;  // Depth format must match the texture format
-		dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-		dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
-		dsvDesc.Texture2D.MipSlice = 0;         // Use the first mip level
-
-		// Create the DSV handle
-		D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
-		dsvHeapDesc.NumDescriptors = 1;
-		dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-		dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-
-		ThrowIfFailed(_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&_dsvHeap)));
-
-		// Create the DSV for the depth-stencil buffer
-		_device->CreateDepthStencilView(_depthStencilBuffer.Get(), &dsvDesc, _dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
 		try
 		{
@@ -550,6 +453,58 @@ void Application::InitResources()
 		{
 			std::cout << "Failed to create Graphics Pipeline!";
 		}
+
+		// Create the DSV Heap
+		D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
+		dsvHeapDesc.NumDescriptors = 1;
+		dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+		dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+
+		ThrowIfFailed(_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&_dsvHeap)));
+
+		// Heap properties for creating the texture (GPU read/write)
+		D3D12_HEAP_PROPERTIES heapProps = {};
+		heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+		heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		heapProps.CreationNodeMask = 1;
+		heapProps.VisibleNodeMask = 1;
+
+		// Create Depth-Stencil Resource (Texture2D)
+		D3D12_RESOURCE_DESC depthResourceDesc = {};
+		depthResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		depthResourceDesc.Alignment = 0;
+		depthResourceDesc.Width = _width;       // Width of the texture
+		depthResourceDesc.Height = _height;      // Height of the texture
+		depthResourceDesc.DepthOrArraySize = 1;
+		depthResourceDesc.MipLevels = 1;
+		depthResourceDesc.Format = DXGI_FORMAT_D32_FLOAT;  // Depth format (could also be D24_UNORM_S8_UINT)
+		depthResourceDesc.SampleDesc.Count = 1;
+		depthResourceDesc.SampleDesc.Quality = 0;
+		depthResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+		depthResourceDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+		D3D12_CLEAR_VALUE depthOptimizedClearValue = {};
+		depthOptimizedClearValue.Format = DXGI_FORMAT_D32_FLOAT;
+		depthOptimizedClearValue.DepthStencil.Depth = 1.0f; // Default clear depth
+		depthOptimizedClearValue.DepthStencil.Stencil = 0;  // Default clear stencil
+
+		ThrowIfFailed(_device->CreateCommittedResource(
+			&heapProps,
+			D3D12_HEAP_FLAG_NONE,
+			&depthResourceDesc,
+			D3D12_RESOURCE_STATE_DEPTH_WRITE,
+			&depthOptimizedClearValue,
+			IID_PPV_ARGS(&_depthStencilBuffer)
+		));
+
+		D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
+		dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
+		dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+		dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
+
+		// Create the DSV for the depth-stencil buffer
+		_device->CreateDepthStencilView(_depthStencilBuffer.Get(), &dsvDesc, _dsvHeap->GetCPUDescriptorHandleForHeapStart());
 	}
 
 	ThrowIfFailed(_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _commandAllocator.Get(), _pipelineState.Get(), IID_PPV_ARGS(&_commandList)));
@@ -625,27 +580,19 @@ void Application::InitCommands()
 	renderTargetBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	_commandList->ResourceBarrier(1, &renderTargetBarrier);
 
-	D3D12_RESOURCE_BARRIER depthBarrierStart = {};
-	depthBarrierStart.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	depthBarrierStart.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	depthBarrierStart.Transition.pResource = _depthStencilBuffer.Get();
-	depthBarrierStart.Transition.StateBefore = D3D12_RESOURCE_STATE_DEPTH_READ;
-	depthBarrierStart.Transition.StateAfter = D3D12_RESOURCE_STATE_DEPTH_WRITE;
-	depthBarrierStart.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	_commandList->ResourceBarrier(1, &depthBarrierStart);
-
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle(_rtvHeap->GetCPUDescriptorHandleForHeapStart());
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = _rtvHeap->GetCPUDescriptorHandleForHeapStart();
 	rtvHandle.ptr += (_frameIndex * _rtvDescriptorSize);
-	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle(_dsvHeap->GetCPUDescriptorHandleForHeapStart());
-	_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
-	_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = _dsvHeap->GetCPUDescriptorHandleForHeapStart();
+	_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+	//_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+	_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0.0f, 0, nullptr);
 
 	// Clear the render target.
 	const float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
 	_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 
+	// TODO: also set modelmatrix for every model!
 	_modelManager.DrawAllModels();
-
 
 	// START IMGUI commands
 	if (_runImgui)
@@ -665,15 +612,6 @@ void Application::InitCommands()
 	presentBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 	presentBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	_commandList->ResourceBarrier(1, &presentBarrier);
-
-	D3D12_RESOURCE_BARRIER depthBarrierEnd = {};
-	depthBarrierEnd.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	depthBarrierEnd.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	depthBarrierEnd.Transition.pResource = _depthStencilBuffer.Get();
-	depthBarrierEnd.Transition.StateBefore = D3D12_RESOURCE_STATE_DEPTH_WRITE;
-	depthBarrierEnd.Transition.StateAfter = D3D12_RESOURCE_STATE_DEPTH_READ;
-	depthBarrierEnd.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	_commandList->ResourceBarrier(1, &depthBarrierEnd);
 
 	// Close the command list.
 	ThrowIfFailed(_commandList->Close());

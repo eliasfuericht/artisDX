@@ -66,19 +66,14 @@ void Camera::ConsumeKey(BOOL* keys, FLOAT deltaTime)
 // TODO: fix camera
 void Camera::Update()
 {
-	_front = glm::vec3(
+	_front = glm::normalize(glm::vec3(
 		glm::cos(glm::radians(_yaw)) * glm::cos(glm::radians(_pitch)),
 		glm::sin(glm::radians(_pitch)),
-		glm::sin(glm::radians(_yaw)) * glm::cos(glm::radians(_pitch))
-	);
+		-glm::sin(glm::radians(_yaw)) * glm::cos(glm::radians(_pitch))
+	));
 
-	_front = glm::normalize(_front);
+	_right = glm::normalize(glm::cross(_front, _worldUp));
+	_up = glm::normalize(glm::cross(_right, _front));
 
-	_right = glm::cross(_front, _worldUp);
-	_right = glm::normalize(_right);
-
-	_up = glm::cross(_right, _front);
-	_up = glm::normalize(_up);
-
-	_viewMatrix = glm::lookAt(_position, _position + _front, _up);
+	_viewMatrix = glm::lookAtLH(_position, _position + _front, _up);
 }

@@ -9,6 +9,7 @@
 // DirectX
 #include <direct.h>
 #include <d3d12.h>
+#include <../build/_deps/d3dx12-src/include/directx/d3dx12.h>
 #include <d3dcompiler.h>
 #include <dxgi1_4.h>
 #include <DirectXMath.h>

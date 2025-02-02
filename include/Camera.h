@@ -24,8 +24,8 @@ private:
 	glm::vec3 _right;
 	glm::vec3 _worldUp;
 
-
 	glm::mat4 _viewMatrix;
+	DirectX::XMFLOAT4X4 _dxViewMatrix;
 
 	FLOAT _moveSpeed;
 	FLOAT _turnSpeed;

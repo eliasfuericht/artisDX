@@ -26,20 +26,15 @@ struct SPIRV_Cross_Output
     float4 position : SV_Position;
 };
 
-void vert_main()
-{
-    outUV = inUV;
-    position = mul(float4(inPos, 1.0f), mul(ubo_modelMatrix, mul(ubo_viewMatrix, ubo_projectionMatrix)));
-}
-
 SPIRV_Cross_Output main(SPIRV_Cross_Input stage_input)
 {
-    inUV = stage_input.inUV;
-    inNormal = stage_input.inNormal;
-    inPos = stage_input.inPos;
-    vert_main();
     SPIRV_Cross_Output stage_output;
-    stage_output.position = position;
-    stage_output.outUV = outUV;
+
+    inUV = stage_input.inUV;
+    inPos = stage_input.inPos;
+
+    stage_output.position = mul(float4(inPos, 1.0f), mul(ubo_modelMatrix, mul(ubo_viewMatrix, ubo_projectionMatrix)));
+    stage_output.outUV = inUV;
+
     return stage_output;
 }
