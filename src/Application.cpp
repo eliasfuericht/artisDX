@@ -175,12 +175,9 @@ void Application::InitSwapchain(UINT w, UINT h)
 	_surfaceSize.right = static_cast<LONG>(w);
 	_surfaceSize.bottom = static_cast<LONG>(h);
 
-	_viewport.TopLeftX = 0.0f;
-	_viewport.TopLeftY = 0.0f;
-	_viewport.Width = static_cast<float>(w);
-	_viewport.Height = static_cast<float>(h);
-	_viewport.MinDepth = .1f;
-	_viewport.MaxDepth = 1000.f;
+	_viewport = CD3DX12_VIEWPORT{ 0.0f, 0.0f, static_cast<float>(w), static_cast<float>(h) };
+	_viewport.MinDepth = 0.0f;
+	_viewport.MaxDepth = 1.0f;
 
 	if (_swapchain != nullptr)
 	{
@@ -406,13 +403,13 @@ void Application::InitResources()
 			readRange.End = 0;
 
 			// setup matrices
-			DirectX::XMStoreFloat4x4(&_MVP.projectionMatrix,DirectX::XMMatrixPerspectiveFovLH(
-				DirectX::XMConvertToRadians(45.0f), // Convert to radians
-				static_cast<float>(_window.GetWidth()) / static_cast<float>(_window.GetHeight()),
-				0.1f,
-				1000.0f
-			));
-
+			DirectX::XMStoreFloat4x4(&_MVP.projectionMatrix,
+				DirectX::XMMatrixPerspectiveFovLH(
+					DirectX::XMConvertToRadians(45.0f),
+					static_cast<float>(_window.GetWidth()) / static_cast<float>(_window.GetHeight()),
+					0.1f,
+					1000.0f)
+			);
 
 			// Set the model matrix as an identity matrix
 			DirectX::XMStoreFloat4x4(&_MVP.modelMatrix, DirectX::XMMatrixIdentity());
@@ -442,7 +439,7 @@ void Application::InitResources()
 		psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 		psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 		psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-		//psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+		psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 		psoDesc.SampleMask = UINT_MAX;
 		psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 		psoDesc.NumRenderTargets = 1;
