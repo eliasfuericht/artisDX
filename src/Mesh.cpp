@@ -73,7 +73,7 @@ void Mesh::UploadBuffers(std::vector<Vertex> vertices, UINT vertexBufferSize, st
 	_indexBuffer->Unmap(0, nullptr);
 }
 
-void Mesh::DrawMesh(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
+void Mesh::BindMeshData(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
 	commandList->IASetVertexBuffers(0, 1, &_vertexBufferView); // Slot 0, 1 buffer
 	commandList->IASetIndexBuffer(&_indexBufferView);

@@ -7,7 +7,7 @@ class Mesh
 public:
 	Mesh() {};
 	Mesh(MSWRL::ComPtr<ID3D12Device> device, std::vector<Vertex> vertices, std::vector<uint32_t> indices);
-	void DrawMesh(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
+	void BindMeshData(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 
 private:
 	MSWRL::ComPtr<ID3D12Resource> CreateBuffer(ID3D12Device* device, UINT64 size, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES initialState);
