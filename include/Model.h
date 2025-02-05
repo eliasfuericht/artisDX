@@ -13,8 +13,13 @@ public:
 	void DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 
 private:
+	void CreateModelMatrixBuffer(MSWRL::ComPtr<ID3D12Device> device);
 
 	Mesh _mesh;
 	AABB _aabb;
 	DirectX::XMFLOAT4X4 _modelMatrix;
+	MSWRL::ComPtr<ID3D12Resource> _modelMatrixBuffer;
+	MSWRL::ComPtr<ID3D12DescriptorHeap> _modelMatrixBufferHeap;
+
+	UINT8* _mappedUniformBuffer;
 };

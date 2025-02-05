@@ -411,9 +411,6 @@ void Application::InitResources()
 					1000.0f)
 			);
 
-			// Set the model matrix as an identity matrix
-			DirectX::XMStoreFloat4x4(&_MVP.modelMatrix, DirectX::XMMatrixIdentity());
-
 			ThrowIfFailed(_uniformBuffer->Map( 0, &readRange, reinterpret_cast<void**>(&_mappedUniformBuffer)));
 										memcpy(_mappedUniformBuffer, &_MVP, sizeof(_MVP));
 			_uniformBuffer->Unmap(0, &readRange);
@@ -517,7 +514,7 @@ void Application::InitResources()
 
 	// MODELLOADING
 	_modelManager = ModelManager(_device, _commandList);
-	_modelManager.LoadModel("../assets/elicube.glb");
+	//_modelManager.LoadModel("../assets/elicube.glb");
 	_modelManager.LoadModel("../assets/cube.glb");
 
 	// Create synchronization objects and wait until assets have been uploaded
