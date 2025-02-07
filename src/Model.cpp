@@ -10,22 +10,12 @@ Model::Model(MSWRL::ComPtr<ID3D12Device> device, std::vector<Vertex> vertices, s
 void Model::DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
 	_mesh.BindMeshData(commandList);
-	// bind model Matrix here
 
-	D3D12_RANGE readRange;
-	readRange.Begin = 0;
-	readRange.End = 0;
-
-	ThrowIfFailed(_modelMatrixBuffer->Map(
-		0, &readRange, reinterpret_cast<void**>(&_mappedUniformBuffer)), "Modelmatrix mapping failed.");
+	// Update model matrix buffer
 	memcpy(_mappedUniformBuffer, &_modelMatrix, sizeof(_modelMatrix));
-	_modelMatrixBuffer->Unmap(0, &readRange);
 
-	ID3D12DescriptorHeap* pDescriptorHeaps[] = { _modelMatrixBufferHeap.Get() };
-	commandList->SetDescriptorHeaps(_countof(pDescriptorHeaps), pDescriptorHeaps);
-
-	D3D12_GPU_DESCRIPTOR_HANDLE srvHandle(_modelMatrixBufferHeap->GetGPUDescriptorHandleForHeapStart());
-	commandList->SetGraphicsRootDescriptorTable(0, srvHandle);
+	// Bind model matrix buffer directly (instead of using descriptor heap)
+	commandList->SetGraphicsRootConstantBufferView(1, _modelMatrixBuffer->GetGPUVirtualAddress());
 }
 
 void Model::CreateModelMatrixBuffer(MSWRL::ComPtr<ID3D12Device> device)
@@ -71,11 +61,15 @@ void Model::CreateModelMatrixBuffer(MSWRL::ComPtr<ID3D12Device> device)
 
 	device->CreateConstantBufferView(&cbvDesc, cbvHandle);
 
-	D3D12_RANGE readRange;
-	readRange.Begin = 0;
-	readRange.End = 0;
-
+	// Map once and keep the pointer
+	D3D12_RANGE readRange = { 0, 0 };
 	ThrowIfFailed(_modelMatrixBuffer->Map(0, &readRange, reinterpret_cast<void**>(&_mappedUniformBuffer)));
+
+	// Copy initial model matrix data
 	memcpy(_mappedUniformBuffer, &_modelMatrix, sizeof(_modelMatrix));
-	_modelMatrixBuffer->Unmap(0, &readRange);
+}
+
+void Model::Transform(FLOAT x)
+{
+	DirectX::XMStoreFloat4x4(&_modelMatrix, DirectX::XMMatrixTranslation(x, 0.0, 0.0));
 }

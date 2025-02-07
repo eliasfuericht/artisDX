@@ -95,3 +95,9 @@ void ModelManager::DrawAllModels()
 		model.DrawModel(_commandList);
 	}
 }
+
+void ModelManager::TransformModel(FLOAT x, UINT modelId)
+{
+	_models[modelId].Transform(x);
+
+}

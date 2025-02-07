@@ -13,6 +13,7 @@ public:
 
 	bool LoadModel(std::filesystem::path path);
 	void DrawAllModels();
+	void TransformModel(FLOAT x, UINT modelId);
 
 private:
 	MSWRL::ComPtr<ID3D12Device> _device;

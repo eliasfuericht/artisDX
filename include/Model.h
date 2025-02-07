@@ -11,6 +11,7 @@ public:
 	Model() {};
 	Model(MSWRL::ComPtr<ID3D12Device> device, std::vector<Vertex> vertices, std::vector<uint32_t> indices, DirectX::XMFLOAT4X4 modelMatrix);
 	void DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
+	void Transform(FLOAT x);
 
 private:
 	void CreateModelMatrixBuffer(MSWRL::ComPtr<ID3D12Device> device);

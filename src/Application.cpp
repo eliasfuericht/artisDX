@@ -249,16 +249,25 @@ void Application::InitResources()
 		ranges[0].OffsetInDescriptorsFromTableStart = 0;
 		ranges[0].Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
 
-		D3D12_ROOT_PARAMETER1 rootParameters[1];
+		// constant buffers
+		D3D12_ROOT_PARAMETER1 rootParameters[2] = {};
+
+		// View Projection Buffer
 		rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 		rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 		rootParameters[0].DescriptorTable.NumDescriptorRanges = 1;
 		rootParameters[0].DescriptorTable.pDescriptorRanges = ranges;
 
+		// Model Matrix Buffer
+		rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+		rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+		rootParameters[1].Descriptor.RegisterSpace = 0;
+		rootParameters[1].Descriptor.ShaderRegister = 1;
+
 		D3D12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
 		rootSignatureDesc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
 		rootSignatureDesc.Desc_1_1.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-		rootSignatureDesc.Desc_1_1.NumParameters = 1;
+		rootSignatureDesc.Desc_1_1.NumParameters = _countof(rootParameters);
 		rootSignatureDesc.Desc_1_1.pParameters = rootParameters;
 		rootSignatureDesc.Desc_1_1.NumStaticSamplers = 0;
 		rootSignatureDesc.Desc_1_1.pStaticSamplers = nullptr;
@@ -514,8 +523,9 @@ void Application::InitResources()
 
 	// MODELLOADING
 	_modelManager = ModelManager(_device, _commandList);
-	//_modelManager.LoadModel("../assets/elicube.glb");
 	_modelManager.LoadModel("../assets/cube.glb");
+	_modelManager.LoadModel("../assets/elicube.glb");
+
 
 	// Create synchronization objects and wait until assets have been uploaded
 	// to the GPU.
@@ -657,23 +667,19 @@ void Application::Render()
 {
 	std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 	std::chrono::duration<float> dt = now - _tLastTime;
+	FLOAT nowFloat = std::chrono::duration<float>(now.time_since_epoch()).count();
 	FLOAT deltaTime = dt.count();
 	_tLastTime = now;
 
 	_camera.ConsumeMouse(_window.GetXChange(), _window.GetYChange());
 	_camera.ConsumeKey(_window.GetKeys(), deltaTime);
 	_MVP.viewMatrix = _camera.GetViewMatrix();
-	
-	D3D12_RANGE readRange;
-	readRange.Begin = 0;
-	readRange.End = 0;
 
-	ThrowIfFailed(_uniformBuffer->Map(
-		0, &readRange, reinterpret_cast<void**>(&_mappedUniformBuffer)), "Mapping failed.");
 	memcpy(_mappedUniformBuffer, &_MVP, sizeof(_MVP));
-	_uniformBuffer->Unmap(0, &readRange);
 	// Record all the commands we need to render the scene into the command
 	// list.
+	_modelManager.TransformModel(DirectX::XMScalarSin(nowFloat) * 10.0f, 0);
+
 	InitCommands();
 
 	// Execute the command list.
