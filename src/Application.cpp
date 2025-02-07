@@ -526,7 +526,6 @@ void Application::InitResources()
 	_modelManager.LoadModel("../assets/cube.glb");
 	_modelManager.LoadModel("../assets/elicube.glb");
 
-
 	// Create synchronization objects and wait until assets have been uploaded
 	// to the GPU.
 	{
@@ -631,6 +630,10 @@ void Application::Run()
 
 	MSG msg = { 0 };
 
+	DirectX::XMFLOAT3 positionFloat3 = { 0.0f, 0.0f, 0.0f };
+	DirectX::XMFLOAT3 rotationFloat3 = { 0.0f, 0.0f, 0.0f };
+	DirectX::XMFLOAT3 scaleFloat3 = { 1.0f, 1.0f, 1.0f };
+
 	while (msg.message != WM_CLOSE)
 	{
 		_runImgui = true;
@@ -639,12 +642,15 @@ void Application::Run()
 		ImGui::NewFrame();
 		
 		ImGui::Begin("Window");
-		DirectX::XMFLOAT3 positionFloat3;
-		DirectX::XMStoreFloat3(&positionFloat3, _camera._position);
-		ImGui::DragFloat3("debug", &positionFloat3.x);
+
+		ImGui::DragFloat3("model1 position", &positionFloat3.x);
+		ImGui::DragFloat3("model1 rotation", &rotationFloat3.x);
+		ImGui::DragFloat3("model1 scale", &scaleFloat3.x);
 
 		// Update _camera._position with the new values
-		_camera._position = DirectX::XMLoadFloat3(&positionFloat3);
+		_modelManager.ScaleModel(scaleFloat3, 0);
+		_modelManager.RotateModel(rotationFloat3, 0);
+		_modelManager.TranslateModel(positionFloat3, 0);
 
 		ImGui::End();
 
@@ -667,7 +673,6 @@ void Application::Render()
 {
 	std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 	std::chrono::duration<float> dt = now - _tLastTime;
-	FLOAT nowFloat = std::chrono::duration<float>(now.time_since_epoch()).count();
 	FLOAT deltaTime = dt.count();
 	_tLastTime = now;
 
@@ -678,7 +683,7 @@ void Application::Render()
 	memcpy(_mappedUniformBuffer, &_MVP, sizeof(_MVP));
 	// Record all the commands we need to render the scene into the command
 	// list.
-	_modelManager.TransformModel(DirectX::XMScalarSin(nowFloat) * 10.0f, 0);
+	//_modelManager.TransformModel(DirectX::XMScalarSin(nowFloat) * 10.0f, 0);
 
 	InitCommands();
 

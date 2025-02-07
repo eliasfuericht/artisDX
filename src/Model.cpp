@@ -9,13 +9,13 @@ Model::Model(MSWRL::ComPtr<ID3D12Device> device, std::vector<Vertex> vertices, s
 
 void Model::DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
-	_mesh.BindMeshData(commandList);
-
 	// Update model matrix buffer
 	memcpy(_mappedUniformBuffer, &_modelMatrix, sizeof(_modelMatrix));
 
 	// Bind model matrix buffer directly (instead of using descriptor heap)
 	commandList->SetGraphicsRootConstantBufferView(1, _modelMatrixBuffer->GetGPUVirtualAddress());
+
+	_mesh.BindMeshData(commandList);
 }
 
 void Model::CreateModelMatrixBuffer(MSWRL::ComPtr<ID3D12Device> device)
@@ -64,12 +64,35 @@ void Model::CreateModelMatrixBuffer(MSWRL::ComPtr<ID3D12Device> device)
 	// Map once and keep the pointer
 	D3D12_RANGE readRange = { 0, 0 };
 	ThrowIfFailed(_modelMatrixBuffer->Map(0, &readRange, reinterpret_cast<void**>(&_mappedUniformBuffer)));
-
-	// Copy initial model matrix data
 	memcpy(_mappedUniformBuffer, &_modelMatrix, sizeof(_modelMatrix));
+	_modelMatrixBuffer->Unmap(0, &readRange);
 }
 
-void Model::Transform(FLOAT x)
+void Model::Translate(DirectX::XMFLOAT3 vec)
 {
-	DirectX::XMStoreFloat4x4(&_modelMatrix, DirectX::XMMatrixTranslation(x, 0.0, 0.0));
+	DirectX::XMMATRIX translationMatrix = DirectX::XMMatrixTranslation(vec.x, vec.y, vec.z);
+	DirectX::XMMATRIX modelMatrix = DirectX::XMLoadFloat4x4(&_modelMatrix);
+	modelMatrix = DirectX::XMMatrixMultiply(translationMatrix, modelMatrix); // Translation first
+
+	DirectX::XMStoreFloat4x4(&_modelMatrix, modelMatrix);
 }
+
+void Model::Rotate(DirectX::XMFLOAT3 vec)
+{
+	DirectX::XMVECTOR quaternion = DirectX::XMQuaternionRotationRollPitchYaw(vec.x, vec.y, vec.z);
+	DirectX::XMMATRIX rotationMatrix = DirectX::XMMatrixRotationQuaternion(quaternion);
+	DirectX::XMMATRIX modelMatrix = DirectX::XMLoadFloat4x4(&_modelMatrix);
+	modelMatrix = DirectX::XMMatrixMultiply(rotationMatrix, modelMatrix); // Rotation second
+
+	DirectX::XMStoreFloat4x4(&_modelMatrix, modelMatrix);
+}
+
+void Model::Scale(DirectX::XMFLOAT3 vec)
+{
+	DirectX::XMMATRIX scalingMatrix = DirectX::XMMatrixScaling(vec.x, vec.y, vec.z);
+	DirectX::XMMATRIX modelMatrix = DirectX::XMLoadFloat4x4(&_modelMatrix);
+	modelMatrix = DirectX::XMMatrixMultiply(scalingMatrix, modelMatrix); // Scale last
+
+	DirectX::XMStoreFloat4x4(&_modelMatrix, modelMatrix);
+}
+

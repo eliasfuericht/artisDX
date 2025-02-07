@@ -13,7 +13,9 @@ public:
 
 	bool LoadModel(std::filesystem::path path);
 	void DrawAllModels();
-	void TransformModel(FLOAT x, UINT modelId);
+	void TranslateModel(DirectX::XMFLOAT3 vec, UINT modelId);
+	void RotateModel(DirectX::XMFLOAT3 vec, UINT modelId);
+	void ScaleModel(DirectX::XMFLOAT3 vec, UINT modelId);
 
 private:
 	MSWRL::ComPtr<ID3D12Device> _device;

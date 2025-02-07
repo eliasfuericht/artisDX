@@ -96,8 +96,17 @@ void ModelManager::DrawAllModels()
 	}
 }
 
-void ModelManager::TransformModel(FLOAT x, UINT modelId)
+void ModelManager::TranslateModel(DirectX::XMFLOAT3 vec, UINT modelId)
 {
-	_models[modelId].Transform(x);
+	_models[modelId].Translate(vec);
+}
 
+void ModelManager::RotateModel(DirectX::XMFLOAT3 vec, UINT modelId)
+{
+	_models[modelId].Rotate(vec);
+}
+
+void ModelManager::ScaleModel(DirectX::XMFLOAT3 vec, UINT modelId)
+{
+	_models[modelId].Scale(vec);
 }
