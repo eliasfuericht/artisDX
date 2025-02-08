@@ -3,7 +3,7 @@ Model::Model(INT id, MSWRL::ComPtr<ID3D12Device> device, std::vector<Vertex> ver
 {
 	_ID = id;
 	_mesh = Mesh(device, vertices, indices);
-	// calc aabb
+	_aabb = AABB(vertices);
 	_modelMatrix = modelMatrix;
 	CreateModelMatrixBuffer(device);
 }
@@ -69,6 +69,11 @@ void Model::CreateModelMatrixBuffer(MSWRL::ComPtr<ID3D12Device> device)
 	_modelMatrixBuffer->Unmap(0, &readRange);
 }
 
+INT Model::GetID()
+{
+	return _ID;
+}
+
 void Model::DrawModelGUI() {
 	std::string windowName = "Model Window " + std::to_string(_ID);
 
@@ -85,7 +90,10 @@ void Model::DrawModelGUI() {
 	UpdateModelMatrix();
 }
 
-void Model::UpdateModelMatrix() {
+void Model::UpdateModelMatrix() 
+{
+	//TODO: implement check if values have changed, skip if nothing changed
+
 	DirectX::XMMATRIX modelMatrix = DirectX::XMMatrixIdentity();
 
 	modelMatrix = DirectX::XMMatrixMultiply(modelMatrix, DirectX::XMMatrixScaling(_scaling.x, _scaling.y, _scaling.z));
@@ -99,6 +107,8 @@ void Model::UpdateModelMatrix() {
 	modelMatrix = DirectX::XMMatrixMultiply(modelMatrix, DirectX::XMMatrixTranslation(_translation.x, _translation.y, _translation.z));
 
 	DirectX::XMStoreFloat4x4(&_modelMatrix, modelMatrix);
+
+	//_aabb.UpdateTransform(_modelMatrix);
 }
 
 void Model::Translate(DirectX::XMFLOAT3 vec)

@@ -107,6 +107,16 @@ void ModelManager::DrawGUI()
 	}
 }
 
+INT ModelManager::CopyModel(INT id)
+{
+	//Model copy = _models[id].Copy();
+
+	//_models.push_back(copy);
+
+	//return copy.GetID();
+	return 0;
+}
+
 void ModelManager::TranslateModel(DirectX::XMFLOAT3 vec, UINT modelId)
 {
 	_models[modelId].Translate(vec);

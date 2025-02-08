@@ -43,6 +43,8 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 
 #include "Structs.h"
 
+using namespace DirectX;
+
 // Defines
 #define CHECK INT
 #define OK 0
