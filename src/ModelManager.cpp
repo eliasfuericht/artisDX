@@ -99,9 +99,11 @@ void ModelManager::DrawAllModels()
 
 void ModelManager::DrawGUI()
 {
+	// TODO: Viewpicking
+	// TODO: only call DrawModelGUI() on selected model
 	for (auto& model : _models)
 	{
-		model.Selected();
+		model.DrawModelGUI();
 	}
 }
 

@@ -7,17 +7,47 @@
 class ImGuiRenderer
 {
 public:
-	static void Init(Window window, MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12DescriptorHeap> srvHeap);
+	static void Init(Window window, MSWRL::ComPtr<ID3D12Device> device);
 	static void NewFrame();
 	static void Begin(const char* title);
 	static void PushID(INT id);
 	static void End();
 	static void PopID();
-	static void Render(MSWRL::ComPtr<ID3D12CommandList> commandList);
+	static void Render(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 	static void Shutdown();
 
-	static void DragFloat3(const char* label, DirectX::XMFLOAT3& value);
+	static void DragInt(const char* label, int& value, float speed = 1.0f);
+	static void SliderInt(const char* label, int& value, int min, int max);
+	static void InputInt(const char* label, int& value);
 
+	static void DragFloat(const char* label, float& value, float speed = 0.1f);
+	static void DragFloat2(const char* label, DirectX::XMFLOAT2& value, float speed = 0.1f);
+	static void DragFloat3(const char* label, DirectX::XMFLOAT3& value, float speed = 0.1f);
+	static void DragFloat4(const char* label, DirectX::XMFLOAT4& value, float speed = 0.1f);
+
+	static void SliderFloat(const char* label, float& value, float min, float max);
+	static void SliderFloat2(const char* label, DirectX::XMFLOAT2& value, float min, float max);
+	static void SliderFloat3(const char* label, DirectX::XMFLOAT3& value, float min, float max);
+	static void SliderFloat4(const char* label, DirectX::XMFLOAT4& value, float min, float max);
+
+	static void InputFloat(const char* label, float& value);
+	static void InputFloat2(const char* label, DirectX::XMFLOAT2& value);
+	static void InputFloat3(const char* label, DirectX::XMFLOAT3& value);
+	static void InputFloat4(const char* label, DirectX::XMFLOAT4& value);
+
+	static void Checkbox(const char* label, bool& value);
+	static void ColorEdit3(const char* label, DirectX::XMFLOAT3& color);
+	static void ColorEdit4(const char* label, DirectX::XMFLOAT4& color);
+
+	static void Text(const char* text);
+	static bool Button(const char* label);
+
+	static void SameLine();
+	static void Separator();
+	static void Spacing();
+
+	static void BeginGroup();
+	static void EndGroup();
 
 	// singleton stuff - deleting copy and assignment operator
 	ImGuiRenderer(const ImGuiRenderer&) = delete;
@@ -31,4 +61,5 @@ private:
 	// this isnt beautiful - dont like
 	static ImGuiIO* _imguiIO;
 
+	static MSWRL::ComPtr<ID3D12DescriptorHeap> _srvHeap;
 };

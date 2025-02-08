@@ -16,11 +16,12 @@ private:
 	void InitDX12();
 	void InitResources();
 	void InitSwapchain(UINT w, UINT h);
-	void InitCommands();
 	void InitIMGUI();
 	
+	void UpdateConstantBuffer();
+	void OpenCommandList();
 	void DrawGUI();
-	void Update();
+	void SetCommandList();
 	void ExecuteCommandList();
 
 	Window _window;
@@ -46,7 +47,6 @@ private:
 
 	UINT _currentBuffer;
 	MSWRL::ComPtr<ID3D12DescriptorHeap> _rtvHeap;
-	MSWRL::ComPtr<ID3D12DescriptorHeap> _srvHeap;
 	static const UINT _backBufferCount = 2;
 	D3D12_CPU_DESCRIPTOR_HANDLE  _rtvDescriptor[_backBufferCount] = {};
 	MSWRL::ComPtr<ID3D12Resource> _renderTargets[_backBufferCount];

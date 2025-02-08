@@ -69,7 +69,7 @@ void Model::CreateModelMatrixBuffer(MSWRL::ComPtr<ID3D12Device> device)
 	_modelMatrixBuffer->Unmap(0, &readRange);
 }
 
-void Model::Selected() {
+void Model::DrawModelGUI() {
 	std::string windowName = "Model Window " + std::to_string(_ID);
 
 	ImGuiRenderer::Begin(windowName.c_str());

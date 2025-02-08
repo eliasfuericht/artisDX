@@ -20,7 +20,6 @@ Application::Application(const CHAR* name, INT w, INT h)
 	_commandList = nullptr;
 
 	_rtvHeap = nullptr;
-	_srvHeap = nullptr;
 	for (size_t i = 0; i < _backBufferCount; ++i)
 	{
 		_renderTargets[i] = nullptr;
@@ -50,7 +49,7 @@ Application::Application(const CHAR* name, INT w, INT h)
 
 void Application::InitIMGUI()
 {
-	ImGuiRenderer::Init(_window, _device, _srvHeap);
+	ImGuiRenderer::Init(_window, _device);
 }
 
 void Application::InitDX12()
@@ -346,13 +345,6 @@ void Application::InitResources()
 			heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 			ThrowIfFailed(_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_uniformBufferHeap)));
 
-			// can be moved into imguirenderer
-			D3D12_DESCRIPTOR_HEAP_DESC desc = {};
-			desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-			desc.NumDescriptors = 1;
-			desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-			ThrowIfFailed(_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&_srvHeap)));
-
 			D3D12_RESOURCE_DESC uboResourceDesc;
 			uboResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 			uboResourceDesc.Alignment = 0;
@@ -533,14 +525,8 @@ void Application::InitResources()
 	}
 }
 
-void Application::InitCommands()
+void Application::SetCommandList()
 {
-	// Ensure the command allocator has finished execution before resetting.
-	ThrowIfFailed(_commandAllocator->Reset());
-
-	// Reset the command list with the command allocator and pipeline state.
-	ThrowIfFailed(_commandList->Reset(_commandAllocator.Get(), _pipelineState.Get()));
-
 	// Set necessary state.
 	_commandList->SetGraphicsRootSignature(_rootSignature.Get());
 	_commandList->RSSetViewports(1, &_viewport);
@@ -584,9 +570,15 @@ void Application::InitCommands()
 	presentBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 	presentBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	_commandList->ResourceBarrier(1, &presentBarrier);
+}
 
-	// last thing is always to collect all the imgui data
-	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), _commandList.Get());
+void Application::OpenCommandList()
+{
+	// Ensure the command allocator has finished execution before resetting.
+	ThrowIfFailed(_commandAllocator->Reset());
+
+	// Reset the command list with the command allocator and pipeline state.
+	ThrowIfFailed(_commandList->Reset(_commandAllocator.Get(), _pipelineState.Get()));
 }
 
 void Application::Run()
@@ -597,11 +589,13 @@ void Application::Run()
 
 	while (msg.message != WM_CLOSE)
 	{
+		UpdateConstantBuffer();
+
+		OpenCommandList();
+
+		SetCommandList();
+		
 		DrawGUI();
-
-		Update();
-
-		InitCommands();
 
 		ExecuteCommandList();
 
@@ -617,15 +611,15 @@ void Application::Run()
 
 void Application::DrawGUI()
 {
-	// call every GUI that should be drawn
 	ImGuiRenderer::NewFrame();
 
+	// call every GUI that should be drawn
 	_modelManager.DrawGUI();
 
 	ImGuiRenderer::Render(_commandList);
 }
 
-void Application::Update()
+void Application::UpdateConstantBuffer()
 {
 	std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 	std::chrono::duration<float> dt = now - _tLastTime;
