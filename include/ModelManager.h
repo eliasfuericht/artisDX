@@ -17,9 +17,11 @@ public:
 
 	INT CopyModel(INT id);
 
-	void TranslateModel(DirectX::XMFLOAT3 vec, UINT modelId);
-	void RotateModel(DirectX::XMFLOAT3 vec, UINT modelId);
-	void ScaleModel(DirectX::XMFLOAT3 vec, UINT modelId);
+	bool CheckAgainstFrustum(XMFLOAT4X4 viewProjection, AABB aabb);
+
+	void TranslateModel(XMFLOAT3 vec, UINT modelId);
+	void RotateModel(XMFLOAT3 vec, UINT modelId);
+	void ScaleModel(XMFLOAT3 vec, UINT modelId);
 
 private:
 	MSWRL::ComPtr<ID3D12Device> _device;

@@ -1,5 +1,5 @@
 #include "Model.h"
-Model::Model(INT id, MSWRL::ComPtr<ID3D12Device> device, std::vector<Vertex> vertices, std::vector<uint32_t> indices, DirectX::XMFLOAT4X4 modelMatrix)
+Model::Model(INT id, MSWRL::ComPtr<ID3D12Device> device, std::vector<Vertex> vertices, std::vector<uint32_t> indices, XMFLOAT4X4 modelMatrix)
 {
 	_ID = id;
 	_mesh = Mesh(device, vertices, indices);
@@ -74,6 +74,11 @@ INT Model::GetID()
 	return _ID;
 }
 
+AABB Model::GetAABB()
+{
+	return _aabb;
+}
+
 void Model::DrawModelGUI() {
 	std::string windowName = "Model Window " + std::to_string(_ID);
 
@@ -94,48 +99,48 @@ void Model::UpdateModelMatrix()
 {
 	//TODO: implement check if values have changed, skip if nothing changed
 
-	DirectX::XMMATRIX modelMatrix = DirectX::XMMatrixIdentity();
+	XMMATRIX modelMatrix = XMMatrixIdentity();
 
-	modelMatrix = DirectX::XMMatrixMultiply(modelMatrix, DirectX::XMMatrixScaling(_scaling.x, _scaling.y, _scaling.z));
+	modelMatrix = XMMatrixMultiply(modelMatrix, XMMatrixScaling(_scaling.x, _scaling.y, _scaling.z));
 
-	modelMatrix = DirectX::XMMatrixMultiply(modelMatrix, DirectX::XMMatrixRotationRollPitchYaw(
-		DirectX::XMConvertToRadians(_rotation.x),
-		DirectX::XMConvertToRadians(_rotation.y),
-		DirectX::XMConvertToRadians(_rotation.z)
+	modelMatrix = XMMatrixMultiply(modelMatrix, XMMatrixRotationRollPitchYaw(
+		XMConvertToRadians(_rotation.x),
+		XMConvertToRadians(_rotation.y),
+		XMConvertToRadians(_rotation.z)
 	));
 
-	modelMatrix = DirectX::XMMatrixMultiply(modelMatrix, DirectX::XMMatrixTranslation(_translation.x, _translation.y, _translation.z));
+	modelMatrix = XMMatrixMultiply(modelMatrix, XMMatrixTranslation(_translation.x, _translation.y, _translation.z));
 
-	DirectX::XMStoreFloat4x4(&_modelMatrix, modelMatrix);
+	XMStoreFloat4x4(&_modelMatrix, modelMatrix);
 
-	//_aabb.UpdateTransform(_modelMatrix);
+	_aabb.UpdateTransform(_modelMatrix);
 }
 
-void Model::Translate(DirectX::XMFLOAT3 vec)
+void Model::Translate(XMFLOAT3 vec)
 {
-	DirectX::XMMATRIX translationMatrix = DirectX::XMMatrixTranslation(vec.x, vec.y, vec.z);
-	DirectX::XMMATRIX modelMatrix = DirectX::XMLoadFloat4x4(&_modelMatrix);
-	modelMatrix = DirectX::XMMatrixMultiply(translationMatrix, modelMatrix); // Translation first
+	XMMATRIX translationMatrix = XMMatrixTranslation(vec.x, vec.y, vec.z);
+	XMMATRIX modelMatrix = XMLoadFloat4x4(&_modelMatrix);
+	modelMatrix = XMMatrixMultiply(translationMatrix, modelMatrix); // Translation first
 
-	DirectX::XMStoreFloat4x4(&_modelMatrix, modelMatrix);
+	XMStoreFloat4x4(&_modelMatrix, modelMatrix);
 }
 
-void Model::Rotate(DirectX::XMFLOAT3 vec)
+void Model::Rotate(XMFLOAT3 vec)
 {
-	DirectX::XMVECTOR quaternion = DirectX::XMQuaternionRotationRollPitchYaw(vec.x, vec.y, vec.z);
-	DirectX::XMMATRIX rotationMatrix = DirectX::XMMatrixRotationQuaternion(quaternion);
-	DirectX::XMMATRIX modelMatrix = DirectX::XMLoadFloat4x4(&_modelMatrix);
-	modelMatrix = DirectX::XMMatrixMultiply(rotationMatrix, modelMatrix); // Rotation second
+	XMVECTOR quaternion = XMQuaternionRotationRollPitchYaw(vec.x, vec.y, vec.z);
+	XMMATRIX rotationMatrix = XMMatrixRotationQuaternion(quaternion);
+	XMMATRIX modelMatrix = XMLoadFloat4x4(&_modelMatrix);
+	modelMatrix = XMMatrixMultiply(rotationMatrix, modelMatrix); // Rotation second
 
-	DirectX::XMStoreFloat4x4(&_modelMatrix, modelMatrix);
+	XMStoreFloat4x4(&_modelMatrix, modelMatrix);
 }
 
-void Model::Scale(DirectX::XMFLOAT3 vec)
+void Model::Scale(XMFLOAT3 vec)
 {
-	DirectX::XMMATRIX scalingMatrix = DirectX::XMMatrixScaling(vec.x, vec.y, vec.z);
-	DirectX::XMMATRIX modelMatrix = DirectX::XMLoadFloat4x4(&_modelMatrix);
-	modelMatrix = DirectX::XMMatrixMultiply(scalingMatrix, modelMatrix); // Scale last
+	XMMATRIX scalingMatrix = XMMatrixScaling(vec.x, vec.y, vec.z);
+	XMMATRIX modelMatrix = XMLoadFloat4x4(&_modelMatrix);
+	modelMatrix = XMMatrixMultiply(scalingMatrix, modelMatrix); // Scale last
 
-	DirectX::XMStoreFloat4x4(&_modelMatrix, modelMatrix);
+	XMStoreFloat4x4(&_modelMatrix, modelMatrix);
 }
 

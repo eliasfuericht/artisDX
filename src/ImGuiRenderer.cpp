@@ -99,17 +99,17 @@ void ImGuiRenderer::DragFloat(const char* label, float& value, float speed)
 	ImGui::DragFloat(label, &value, speed);
 }
 
-void ImGuiRenderer::DragFloat2(const char* label, DirectX::XMFLOAT2& value, float speed)
+void ImGuiRenderer::DragFloat2(const char* label, XMFLOAT2& value, float speed)
 {
 	ImGui::DragFloat2(label, &value.x, speed);
 }
 
-void ImGuiRenderer::DragFloat3(const char* label, DirectX::XMFLOAT3& value, float speed)
+void ImGuiRenderer::DragFloat3(const char* label, XMFLOAT3& value, float speed)
 {
 	ImGui::DragFloat3(label, &value.x, speed);
 }
 
-void ImGuiRenderer::DragFloat4(const char* label, DirectX::XMFLOAT4& value, float speed)
+void ImGuiRenderer::DragFloat4(const char* label, XMFLOAT4& value, float speed)
 {
 	ImGui::DragFloat4(label, &value.x, speed);
 }
@@ -125,17 +125,17 @@ void ImGuiRenderer::SliderFloat(const char* label, float& value, float min, floa
 	ImGui::SliderFloat(label, &value, min, max);
 }
 
-void ImGuiRenderer::SliderFloat2(const char* label, DirectX::XMFLOAT2& value, float min, float max)
+void ImGuiRenderer::SliderFloat2(const char* label, XMFLOAT2& value, float min, float max)
 {
 	ImGui::SliderFloat2(label, &value.x, min, max);
 }
 
-void ImGuiRenderer::SliderFloat3(const char* label, DirectX::XMFLOAT3& value, float min, float max)
+void ImGuiRenderer::SliderFloat3(const char* label, XMFLOAT3& value, float min, float max)
 {
 	ImGui::SliderFloat3(label, &value.x, min, max);
 }
 
-void ImGuiRenderer::SliderFloat4(const char* label, DirectX::XMFLOAT4& value, float min, float max)
+void ImGuiRenderer::SliderFloat4(const char* label, XMFLOAT4& value, float min, float max)
 {
 	ImGui::SliderFloat4(label, &value.x, min, max);
 }
@@ -155,17 +155,17 @@ void ImGuiRenderer::InputInt(const char* label, int& value)
 	ImGui::InputInt(label, &value);
 }
 
-void ImGuiRenderer::InputFloat2(const char* label, DirectX::XMFLOAT2& value)
+void ImGuiRenderer::InputFloat2(const char* label, XMFLOAT2& value)
 {
 	ImGui::InputFloat2(label, &value.x);
 }
 
-void ImGuiRenderer::InputFloat3(const char* label, DirectX::XMFLOAT3& value)
+void ImGuiRenderer::InputFloat3(const char* label, XMFLOAT3& value)
 {
 	ImGui::InputFloat3(label, &value.x);
 }
 
-void ImGuiRenderer::InputFloat4(const char* label, DirectX::XMFLOAT4& value)
+void ImGuiRenderer::InputFloat4(const char* label, XMFLOAT4& value)
 {
 	ImGui::InputFloat4(label, &value.x);
 }
@@ -175,12 +175,12 @@ void ImGuiRenderer::Checkbox(const char* label, bool& value)
 	ImGui::Checkbox(label, &value);
 }
 
-void ImGuiRenderer::ColorEdit3(const char* label, DirectX::XMFLOAT3& color)
+void ImGuiRenderer::ColorEdit3(const char* label, XMFLOAT3& color)
 {
 	ImGui::ColorEdit3(label, &color.x);
 }
 
-void ImGuiRenderer::ColorEdit4(const char* label, DirectX::XMFLOAT4& color)
+void ImGuiRenderer::ColorEdit4(const char* label, XMFLOAT4& color)
 {
 	ImGui::ColorEdit4(label, &color.x);
 }

@@ -33,8 +33,8 @@ Application::Application(const CHAR* name, INT w, INT h)
 	_fenceValue = 0;
 
 	_camera = Camera(
-		DirectX::XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f),
-		DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f),
+		XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f),
+		XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f),
 		90.0f,
 		0.0f,
 		0.5f,
@@ -380,9 +380,9 @@ void Application::InitResources()
 			readRange.End = 0;
 
 			// setup matrices
-			DirectX::XMStoreFloat4x4(&_VP.projectionMatrix,
-				DirectX::XMMatrixPerspectiveFovLH(
-					DirectX::XMConvertToRadians(45.0f),
+			XMStoreFloat4x4(&_VP.projectionMatrix,
+				XMMatrixPerspectiveFovLH(
+					XMConvertToRadians(45.0f),
 					static_cast<float>(_window.GetWidth()) / static_cast<float>(_window.GetHeight()),
 					0.1f,
 					1000.0f)

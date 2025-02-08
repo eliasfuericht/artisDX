@@ -46,7 +46,7 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 			vertices.resize(vertices.size() + positionAccessor.count);
 
 			fastgltf::iterateAccessorWithIndex<fastgltf::math::fvec3>(asset.get(), positionAccessor, [&](fastgltf::math::fvec3 pos, std::size_t idx) {
-				vertices[idx].position = DirectX::XMFLOAT3(pos.x(), pos.y(), pos.z());
+				vertices[idx].position = XMFLOAT3(pos.x(), pos.y(), pos.z());
 				});
 
 			// normals
@@ -54,7 +54,7 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 			{
 				const fastgltf::Accessor& normalAccessor = asset->accessors[primitive.findAttribute("NORMAL")->accessorIndex];
 				fastgltf::iterateAccessorWithIndex<fastgltf::math::fvec3>(asset.get(), normalAccessor, [&](fastgltf::math::fvec3 normal, std::size_t idx) {
-					vertices[idx].normal = DirectX::XMFLOAT3(normal.x(), normal.y(), normal.z());
+					vertices[idx].normal = XMFLOAT3(normal.x(), normal.y(), normal.z());
 					});
 			}
 
@@ -64,7 +64,7 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 				const fastgltf::Accessor& tangentAccessor = asset->accessors[primitive.findAttribute("TANGENT")->accessorIndex];
 
 				fastgltf::iterateAccessorWithIndex<fastgltf::math::fvec4>(asset.get(), tangentAccessor, [&](fastgltf::math::fvec4 tangent, std::size_t idx) {
-					vertices[idx].tangent = DirectX::XMFLOAT4(tangent.x(), tangent.y(), tangent.z(), tangent.w());
+					vertices[idx].tangent = XMFLOAT4(tangent.x(), tangent.y(), tangent.z(), tangent.w());
 					});
 			}
 
@@ -73,13 +73,13 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 				const fastgltf::Accessor& uvAccessor = asset->accessors[primitive.findAttribute("TEXCOORD_0")->accessorIndex];
 
 				fastgltf::iterateAccessorWithIndex<fastgltf::math::fvec2>(asset.get(), uvAccessor, [&](fastgltf::math::fvec2 uv, std::size_t idx) {
-					vertices[idx].uv = DirectX::XMFLOAT2(uv.x(), uv.y());
+					vertices[idx].uv = XMFLOAT2(uv.x(), uv.y());
 					});
 			}
 		}
 
-		DirectX::XMFLOAT4X4 modelMatrix;
-		DirectX::XMStoreFloat4x4(&modelMatrix, DirectX::XMMatrixIdentity());
+		XMFLOAT4X4 modelMatrix;
+		XMStoreFloat4x4(&modelMatrix, XMMatrixIdentity());
 		// TODO: make hashes as id
 		INT id = _models.size();
 		Model model = Model(id, _device, vertices, indices, modelMatrix);
@@ -93,8 +93,19 @@ void ModelManager::DrawAllModels()
 {
 	for (auto& model : _models)
 	{
-		model.DrawModel(_commandList);
+		// temp
+		bool draw = CheckAgainstFrustum(XMFLOAT4X4(), model.GetAABB());
+		if (draw)
+		{
+			model.DrawModel(_commandList);
+		}
 	}
+}
+
+bool ModelManager::CheckAgainstFrustum(XMFLOAT4X4 viewProjection, AABB aabb)
+{
+	// perform frustumculling here
+	return true;
 }
 
 void ModelManager::DrawGUI()
@@ -117,17 +128,17 @@ INT ModelManager::CopyModel(INT id)
 	return 0;
 }
 
-void ModelManager::TranslateModel(DirectX::XMFLOAT3 vec, UINT modelId)
+void ModelManager::TranslateModel(XMFLOAT3 vec, UINT modelId)
 {
 	_models[modelId].Translate(vec);
 }
 
-void ModelManager::RotateModel(DirectX::XMFLOAT3 vec, UINT modelId)
+void ModelManager::RotateModel(XMFLOAT3 vec, UINT modelId)
 {
 	_models[modelId].Rotate(vec);
 }
 
-void ModelManager::ScaleModel(DirectX::XMFLOAT3 vec, UINT modelId)
+void ModelManager::ScaleModel(XMFLOAT3 vec, UINT modelId)
 {
 	_models[modelId].Scale(vec);
 }

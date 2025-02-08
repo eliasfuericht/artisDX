@@ -21,23 +21,23 @@ public:
 	static void InputInt(const char* label, int& value);
 
 	static void DragFloat(const char* label, float& value, float speed = 0.1f);
-	static void DragFloat2(const char* label, DirectX::XMFLOAT2& value, float speed = 0.1f);
-	static void DragFloat3(const char* label, DirectX::XMFLOAT3& value, float speed = 0.1f);
-	static void DragFloat4(const char* label, DirectX::XMFLOAT4& value, float speed = 0.1f);
+	static void DragFloat2(const char* label, XMFLOAT2& value, float speed = 0.1f);
+	static void DragFloat3(const char* label, XMFLOAT3& value, float speed = 0.1f);
+	static void DragFloat4(const char* label, XMFLOAT4& value, float speed = 0.1f);
 
 	static void SliderFloat(const char* label, float& value, float min, float max);
-	static void SliderFloat2(const char* label, DirectX::XMFLOAT2& value, float min, float max);
-	static void SliderFloat3(const char* label, DirectX::XMFLOAT3& value, float min, float max);
-	static void SliderFloat4(const char* label, DirectX::XMFLOAT4& value, float min, float max);
+	static void SliderFloat2(const char* label, XMFLOAT2& value, float min, float max);
+	static void SliderFloat3(const char* label, XMFLOAT3& value, float min, float max);
+	static void SliderFloat4(const char* label, XMFLOAT4& value, float min, float max);
 
 	static void InputFloat(const char* label, float& value);
-	static void InputFloat2(const char* label, DirectX::XMFLOAT2& value);
-	static void InputFloat3(const char* label, DirectX::XMFLOAT3& value);
-	static void InputFloat4(const char* label, DirectX::XMFLOAT4& value);
+	static void InputFloat2(const char* label, XMFLOAT2& value);
+	static void InputFloat3(const char* label, XMFLOAT3& value);
+	static void InputFloat4(const char* label, XMFLOAT4& value);
 
 	static void Checkbox(const char* label, bool& value);
-	static void ColorEdit3(const char* label, DirectX::XMFLOAT3& color);
-	static void ColorEdit4(const char* label, DirectX::XMFLOAT4& color);
+	static void ColorEdit3(const char* label, XMFLOAT3& color);
+	static void ColorEdit4(const char* label, XMFLOAT4& color);
 
 	static void Text(const char* text);
 	static bool Button(const char* label);
