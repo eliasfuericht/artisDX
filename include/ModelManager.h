@@ -3,6 +3,7 @@
 #include "pch.h"
 
 #include "Model.h"
+#include "Culler.h"
 
 
 class ModelManager
@@ -12,12 +13,13 @@ public:
 	ModelManager(MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 
 	bool LoadModel(std::filesystem::path path);
-	void DrawAllModels();
+	void DrawAll();
+	void DrawAllCulled(XMFLOAT4X4 viewProjMatrix);
 	void DrawGUI();
 
 	INT CopyModel(INT id);
 
-	bool CheckAgainstFrustum(XMFLOAT4X4 viewProjection, AABB aabb);
+	bool FrustumCulling(XMFLOAT4X4 viewProjection, AABB aabb);
 
 	void TranslateModel(XMFLOAT3 vec, UINT modelId);
 	void RotateModel(XMFLOAT3 vec, UINT modelId);

@@ -80,12 +80,7 @@ private:
 
 	ModelManager _modelManager;
 
-	struct
-	{
-		XMFLOAT4X4 projectionMatrix;
-		XMFLOAT4X4 viewMatrix;
-	} _VP;
-
-	// IMGUI
-	BOOL _runImgui = false;
+	XMFLOAT4X4 _projectionMatrix;
+	XMFLOAT4X4 _viewMatrix;
+	XMFLOAT4X4 _viewProjectionMatrix;
 };

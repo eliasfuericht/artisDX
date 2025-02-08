@@ -89,23 +89,30 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 	return true;
 }
 
-void ModelManager::DrawAllModels()
+void ModelManager::DrawAll()
 {
 	for (auto& model : _models)
 	{
-		// temp
-		bool draw = CheckAgainstFrustum(XMFLOAT4X4(), model.GetAABB());
+		model.DrawModel(_commandList);
+	}
+}
+
+void ModelManager::DrawAllCulled(XMFLOAT4X4 viewProjMatrix)
+{
+	Culler::GetInstance().ExtractPlanes(viewProjMatrix);
+
+	for (auto& model : _models)
+	{
+		bool draw = Culler::GetInstance().CheckAABB(model.GetAABB());
 		if (draw)
 		{
 			model.DrawModel(_commandList);
 		}
+		else
+		{
+			PRINT("culled");
+		}
 	}
-}
-
-bool ModelManager::CheckAgainstFrustum(XMFLOAT4X4 viewProjection, AABB aabb)
-{
-	// perform frustumculling here
-	return true;
 }
 
 void ModelManager::DrawGUI()

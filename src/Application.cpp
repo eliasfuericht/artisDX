@@ -348,7 +348,7 @@ void Application::InitResources()
 			D3D12_RESOURCE_DESC uboResourceDesc;
 			uboResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 			uboResourceDesc.Alignment = 0;
-			uboResourceDesc.Width = (sizeof(_VP) + 255) & ~255;
+			uboResourceDesc.Width = (sizeof(_viewProjectionMatrix) + 255) & ~255;
 			uboResourceDesc.Height = 1;
 			uboResourceDesc.DepthOrArraySize = 1;
 			uboResourceDesc.MipLevels = 1;
@@ -366,7 +366,7 @@ void Application::InitResources()
 
 			D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 			cbvDesc.BufferLocation = _uniformBuffer->GetGPUVirtualAddress();
-			cbvDesc.SizeInBytes = (sizeof(_VP) + 255) & ~255; // CB size is required to be 256-byte aligned.
+			cbvDesc.SizeInBytes = (sizeof(_viewProjectionMatrix) + 255) & ~255; // CB size is required to be 256-byte aligned.
 
 			D3D12_CPU_DESCRIPTOR_HANDLE cbvHandle(_uniformBufferHeap->GetCPUDescriptorHandleForHeapStart());
 			cbvHandle.ptr = cbvHandle.ptr + _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 0;
@@ -380,7 +380,7 @@ void Application::InitResources()
 			readRange.End = 0;
 
 			// setup matrices
-			XMStoreFloat4x4(&_VP.projectionMatrix,
+			XMStoreFloat4x4(&_projectionMatrix,
 				XMMatrixPerspectiveFovLH(
 					XMConvertToRadians(45.0f),
 					static_cast<float>(_window.GetWidth()) / static_cast<float>(_window.GetHeight()),
@@ -389,7 +389,7 @@ void Application::InitResources()
 			);
 
 			ThrowIfFailed(_uniformBuffer->Map( 0, &readRange, reinterpret_cast<void**>(&_mappedUniformBuffer)));
-										memcpy(_mappedUniformBuffer, &_VP, sizeof(_VP));
+			memcpy(_mappedUniformBuffer, &_viewProjectionMatrix, sizeof(_viewProjectionMatrix));
 			_uniformBuffer->Unmap(0, &readRange);
 		}
 
@@ -535,8 +535,7 @@ void Application::SetCommandList()
 	ID3D12DescriptorHeap* pDescriptorHeaps[] = { _uniformBufferHeap.Get() };
 	_commandList->SetDescriptorHeaps(_countof(pDescriptorHeaps), pDescriptorHeaps);
 
-	D3D12_GPU_DESCRIPTOR_HANDLE srvHandle(
-		_uniformBufferHeap->GetGPUDescriptorHandleForHeapStart());
+	D3D12_GPU_DESCRIPTOR_HANDLE srvHandle(_uniformBufferHeap->GetGPUDescriptorHandleForHeapStart());
 	_commandList->SetGraphicsRootDescriptorTable(0, srvHandle);
 
 	// Transition the back buffer from present to render target state.
@@ -559,7 +558,8 @@ void Application::SetCommandList()
 	const float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
 	_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 
-	_modelManager.DrawAllModels();
+	//_modelManager.DrawAll();
+	_modelManager.DrawAllCulled(_viewProjectionMatrix);
 
 	// Transition back buffer to present state for the swap chain.
 	D3D12_RESOURCE_BARRIER presentBarrier = {};
@@ -594,7 +594,7 @@ void Application::Run()
 		OpenCommandList();
 
 		SetCommandList();
-		
+
 		DrawGUI();
 
 		ExecuteCommandList();
@@ -628,9 +628,11 @@ void Application::UpdateConstantBuffer()
 
 	_camera.ConsumeMouse(_window.GetXChange(), _window.GetYChange());
 	_camera.ConsumeKey(_window.GetKeys(), deltaTime);
-	_VP.viewMatrix = _camera.GetViewMatrix();
+	_viewMatrix = _camera.GetViewMatrix();
 
-	memcpy(_mappedUniformBuffer, &_VP, sizeof(_VP));
+	XMStoreFloat4x4(&_viewProjectionMatrix, XMMatrixMultiply(XMLoadFloat4x4(&_viewMatrix), XMLoadFloat4x4(&_projectionMatrix)));
+
+	memcpy(_mappedUniformBuffer, &_viewProjectionMatrix, sizeof(_viewProjectionMatrix));
 }
 
 void Application::ExecuteCommandList()

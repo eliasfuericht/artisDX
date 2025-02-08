@@ -7,6 +7,7 @@ AABB::AABB(const std::vector<Vertex>& vertices)
 
 void AABB::ComputeFromVertices(const std::vector<Vertex>& vertices)
 {
+
 	if (vertices.empty())
 	{
 		_min = { 0.0f, 0.0f, 0.0f };

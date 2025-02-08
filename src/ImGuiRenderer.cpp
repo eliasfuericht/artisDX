@@ -75,7 +75,7 @@ void ImGuiRenderer::Render(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 		ImGui::UpdatePlatformWindows();
 		ImGui::RenderPlatformWindowsDefault(nullptr, (void*)commandList.Get());
 	}
-
+	// this throws errors
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
 }
 
