@@ -237,7 +237,7 @@ FLOAT Window::GetYChange()
 	return changeValueY;
 }
 
-void Window::CleanUp()
+void Window::Shutdown()
 {
 	if (_hWindow)
 	{

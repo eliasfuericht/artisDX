@@ -51,31 +51,7 @@ Application::Application(const CHAR* name, INT w, INT h)
 
 void Application::InitIMGUI()
 {
-	IMGUI_CHECKVERSION();
-	ImGui::CreateContext();
-	_imguiIO = &ImGui::GetIO();
-	(void)_imguiIO;
-	_imguiIO->ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-	_imguiIO->ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-	_imguiIO->ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking
-	_imguiIO->ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;       // Enable Multi-Viewport / Platform Windows
-	//io.ConfigViewportsNoAutoMerge = true;
-	//io.ConfigViewportsNoTaskBarIcon = true;
-
-	// Setup Dear ImGui style
-	ImGui::StyleColorsDark();
-	//ImGui::StyleColorsLight();
-
-	// When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
-	ImGuiStyle& style = ImGui::GetStyle();
-	if (_imguiIO->ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-	{
-		style.WindowRounding = 0.0f;
-		style.Colors[ImGuiCol_WindowBg].w = 1.0f;
-	}
-
-	ImGui_ImplWin32_Init(_window.GetHWND());
-	ImGui_ImplDX12_Init(_device.Get(), 3, DXGI_FORMAT_R8G8B8A8_UNORM, _srvHeap.Get(), _srvHeap->GetCPUDescriptorHandleForHeapStart(), _srvHeap->GetGPUDescriptorHandleForHeapStart());
+	ImGuiRenderer::Init(_window, _device, _srvHeap);
 }
 
 void Application::InitDX12()
@@ -601,11 +577,10 @@ void Application::InitCommands()
 	// TODO: also set modelmatrix for every model!
 	_modelManager.DrawAllModels();
 
+	//ImGuiRenderer::RenderDrawData(_commandList)
 	// START IMGUI commands
 	if (_runImgui)
 	{
-		_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
-		_commandList->SetDescriptorHeaps(1, _srvHeap.GetAddressOf());
 		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), _commandList.Get());
 	}
 	// END IMGUI
@@ -630,32 +605,18 @@ void Application::Run()
 
 	MSG msg = { 0 };
 
+
 	DirectX::XMFLOAT3 positionFloat3 = { 0.0f, 0.0f, 0.0f };
-	DirectX::XMFLOAT3 rotationFloat3 = { 0.0f, 0.0f, 0.0f };
-	DirectX::XMFLOAT3 scaleFloat3 = { 1.0f, 1.0f, 1.0f };
 
 	while (msg.message != WM_CLOSE)
 	{
 		_runImgui = true;
-		ImGui_ImplDX12_NewFrame();
-		ImGui_ImplWin32_NewFrame();
-		ImGui::NewFrame();
+		ImGuiRenderer::NewFrame();
+
+		_modelManager.DrawAllGUIs();
+
+		ImGuiRenderer::Render(_commandList);
 		
-		ImGui::Begin("Window");
-
-		ImGui::DragFloat3("model1 position", &positionFloat3.x);
-		ImGui::DragFloat3("model1 rotation", &rotationFloat3.x);
-		ImGui::DragFloat3("model1 scale", &scaleFloat3.x);
-
-		// Update _camera._position with the new values
-		_modelManager.ScaleModel(scaleFloat3, 0);
-		_modelManager.RotateModel(rotationFloat3, 0);
-		_modelManager.TranslateModel(positionFloat3, 0);
-
-		ImGui::End();
-
-		ImGui::Render();
-
 		Render();
 
 		if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE))
@@ -664,9 +625,8 @@ void Application::Run()
 			DispatchMessage(&msg);
 		}
 	}
-	ImGui_ImplDX12_Shutdown();
-	ImGui_ImplWin32_Shutdown();
-	ImGui::DestroyContext();
+
+	ImGuiRenderer::Shutdown();
 }
 
 void Application::Render()
@@ -683,7 +643,6 @@ void Application::Render()
 	memcpy(_mappedUniformBuffer, &_MVP, sizeof(_MVP));
 	// Record all the commands we need to render the scene into the command
 	// list.
-	//_modelManager.TransformModel(DirectX::XMScalarSin(nowFloat) * 10.0f, 0);
 
 	InitCommands();
 
@@ -694,13 +653,6 @@ void Application::Render()
 	_swapchain->Present(1, 0);
 
 	// WAITING FOR THE FRAME TO COMPLETE BEFORE CONTINUING IS NOT BEST PRACTICE.
-
-	// Update and Render additional Platform Windows
-	if (_imguiIO->ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-	{
-		ImGui::UpdatePlatformWindows();
-		ImGui::RenderPlatformWindowsDefault(nullptr, (void*)_commandList.Get());
-	}
 
 	// Signal and increment the fence value.
 	const UINT64 fence = _fenceValue;
@@ -718,5 +670,5 @@ void Application::Render()
 
 Application::~Application()
 {
-	_window.CleanUp();
+	_window.Shutdown();
 }

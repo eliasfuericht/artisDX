@@ -19,7 +19,7 @@ public:
 	BOOL* GetKeys() { return _keys; }
 	FLOAT GetXChange();
 	FLOAT GetYChange();
-	void CleanUp();
+	void Shutdown();
 
 	BOOL _captureMouse;
 private:

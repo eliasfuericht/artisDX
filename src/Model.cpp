@@ -68,6 +68,19 @@ void Model::CreateModelMatrixBuffer(MSWRL::ComPtr<ID3D12Device> device)
 	_modelMatrixBuffer->Unmap(0, &readRange);
 }
 
+void Model::Selected()
+{
+	// everything that needs to be checked
+
+	DirectX::XMFLOAT3 rotationFloat3 = { 0.0f, 0.0f, 0.0f };
+	
+	ImGuiRenderer::Begin("Model Window");
+	
+	ImGuiRenderer::DragFloat3("temp", rotationFloat3);
+	ImGuiRenderer::End();
+	
+}
+
 void Model::Translate(DirectX::XMFLOAT3 vec)
 {
 	DirectX::XMMATRIX translationMatrix = DirectX::XMMatrixTranslation(vec.x, vec.y, vec.z);

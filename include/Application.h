@@ -85,6 +85,5 @@ private:
 	} _MVP;
 
 	// IMGUI
-	ImGuiIO* _imguiIO;
 	BOOL _runImgui = false;
 };

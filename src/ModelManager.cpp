@@ -96,6 +96,14 @@ void ModelManager::DrawAllModels()
 	}
 }
 
+void ModelManager::DrawAllGUIs()
+{
+	for (auto& model : _models)
+	{
+		model.Selected();
+	}
+}
+
 void ModelManager::TranslateModel(DirectX::XMFLOAT3 vec, UINT modelId)
 {
 	_models[modelId].Translate(vec);
