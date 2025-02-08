@@ -13,7 +13,7 @@ public:
 
 	bool LoadModel(std::filesystem::path path);
 	void DrawAllModels();
-	void DrawAllGUIs();
+	void DrawGUI();
 	void TranslateModel(DirectX::XMFLOAT3 vec, UINT modelId);
 	void RotateModel(DirectX::XMFLOAT3 vec, UINT modelId);
 	void ScaleModel(DirectX::XMFLOAT3 vec, UINT modelId);

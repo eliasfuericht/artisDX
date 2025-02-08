@@ -19,7 +19,9 @@ private:
 	void InitCommands();
 	void InitIMGUI();
 	
-	void Render();
+	void DrawGUI();
+	void Update();
+	void ExecuteCommandList();
 
 	Window _window;
 	Camera _camera;
@@ -45,7 +47,7 @@ private:
 	UINT _currentBuffer;
 	MSWRL::ComPtr<ID3D12DescriptorHeap> _rtvHeap;
 	MSWRL::ComPtr<ID3D12DescriptorHeap> _srvHeap;
-	static const UINT _backBufferCount = 2; // double buffering
+	static const UINT _backBufferCount = 2;
 	D3D12_CPU_DESCRIPTOR_HANDLE  _rtvDescriptor[_backBufferCount] = {};
 	MSWRL::ComPtr<ID3D12Resource> _renderTargets[_backBufferCount];
 	MSWRL::ComPtr<IDXGISwapChain3> _swapchain;
@@ -82,7 +84,7 @@ private:
 	{
 		DirectX::XMFLOAT4X4 projectionMatrix;
 		DirectX::XMFLOAT4X4 viewMatrix;
-	} _MVP;
+	} _VP;
 
 	// IMGUI
 	BOOL _runImgui = false;

@@ -46,7 +46,6 @@ Application::Application(const CHAR* name, INT w, INT h)
 	InitSwapchain(w, h);
 	InitResources();
 	InitIMGUI();
-	InitCommands();
 }
 
 void Application::InitIMGUI()
@@ -347,6 +346,7 @@ void Application::InitResources()
 			heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 			ThrowIfFailed(_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_uniformBufferHeap)));
 
+			// can be moved into imguirenderer
 			D3D12_DESCRIPTOR_HEAP_DESC desc = {};
 			desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 			desc.NumDescriptors = 1;
@@ -356,7 +356,7 @@ void Application::InitResources()
 			D3D12_RESOURCE_DESC uboResourceDesc;
 			uboResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 			uboResourceDesc.Alignment = 0;
-			uboResourceDesc.Width = (sizeof(_MVP) + 255) & ~255;
+			uboResourceDesc.Width = (sizeof(_VP) + 255) & ~255;
 			uboResourceDesc.Height = 1;
 			uboResourceDesc.DepthOrArraySize = 1;
 			uboResourceDesc.MipLevels = 1;
@@ -374,7 +374,7 @@ void Application::InitResources()
 
 			D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 			cbvDesc.BufferLocation = _uniformBuffer->GetGPUVirtualAddress();
-			cbvDesc.SizeInBytes = (sizeof(_MVP) + 255) & ~255; // CB size is required to be 256-byte aligned.
+			cbvDesc.SizeInBytes = (sizeof(_VP) + 255) & ~255; // CB size is required to be 256-byte aligned.
 
 			D3D12_CPU_DESCRIPTOR_HANDLE cbvHandle(_uniformBufferHeap->GetCPUDescriptorHandleForHeapStart());
 			cbvHandle.ptr = cbvHandle.ptr + _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 0;
@@ -388,7 +388,7 @@ void Application::InitResources()
 			readRange.End = 0;
 
 			// setup matrices
-			DirectX::XMStoreFloat4x4(&_MVP.projectionMatrix,
+			DirectX::XMStoreFloat4x4(&_VP.projectionMatrix,
 				DirectX::XMMatrixPerspectiveFovLH(
 					DirectX::XMConvertToRadians(45.0f),
 					static_cast<float>(_window.GetWidth()) / static_cast<float>(_window.GetHeight()),
@@ -397,7 +397,7 @@ void Application::InitResources()
 			);
 
 			ThrowIfFailed(_uniformBuffer->Map( 0, &readRange, reinterpret_cast<void**>(&_mappedUniformBuffer)));
-										memcpy(_mappedUniformBuffer, &_MVP, sizeof(_MVP));
+										memcpy(_mappedUniformBuffer, &_VP, sizeof(_VP));
 			_uniformBuffer->Unmap(0, &readRange);
 		}
 
@@ -566,7 +566,6 @@ void Application::InitCommands()
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = _rtvHeap->GetCPUDescriptorHandleForHeapStart();
 	rtvHandle.ptr += (_frameIndex * _rtvDescriptorSize);
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = _dsvHeap->GetCPUDescriptorHandleForHeapStart();
-	//_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
 	_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 	_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0.0f, 0, nullptr);
 
@@ -574,16 +573,7 @@ void Application::InitCommands()
 	const float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
 	_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 
-	// TODO: also set modelmatrix for every model!
 	_modelManager.DrawAllModels();
-
-	//ImGuiRenderer::RenderDrawData(_commandList)
-	// START IMGUI commands
-	if (_runImgui)
-	{
-		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), _commandList.Get());
-	}
-	// END IMGUI
 
 	// Transition back buffer to present state for the swap chain.
 	D3D12_RESOURCE_BARRIER presentBarrier = {};
@@ -595,8 +585,8 @@ void Application::InitCommands()
 	presentBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	_commandList->ResourceBarrier(1, &presentBarrier);
 
-	// Close the command list.
-	ThrowIfFailed(_commandList->Close());
+	// last thing is always to collect all the imgui data
+	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), _commandList.Get());
 }
 
 void Application::Run()
@@ -605,19 +595,15 @@ void Application::Run()
 
 	MSG msg = { 0 };
 
-
-	DirectX::XMFLOAT3 positionFloat3 = { 0.0f, 0.0f, 0.0f };
-
 	while (msg.message != WM_CLOSE)
 	{
-		_runImgui = true;
-		ImGuiRenderer::NewFrame();
+		DrawGUI();
 
-		_modelManager.DrawAllGUIs();
+		Update();
 
-		ImGuiRenderer::Render(_commandList);
-		
-		Render();
+		InitCommands();
+
+		ExecuteCommandList();
 
 		if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE))
 		{
@@ -629,7 +615,17 @@ void Application::Run()
 	ImGuiRenderer::Shutdown();
 }
 
-void Application::Render()
+void Application::DrawGUI()
+{
+	// call every GUI that should be drawn
+	ImGuiRenderer::NewFrame();
+
+	_modelManager.DrawGUI();
+
+	ImGuiRenderer::Render(_commandList);
+}
+
+void Application::Update()
 {
 	std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 	std::chrono::duration<float> dt = now - _tLastTime;
@@ -638,21 +634,21 @@ void Application::Render()
 
 	_camera.ConsumeMouse(_window.GetXChange(), _window.GetYChange());
 	_camera.ConsumeKey(_window.GetKeys(), deltaTime);
-	_MVP.viewMatrix = _camera.GetViewMatrix();
+	_VP.viewMatrix = _camera.GetViewMatrix();
 
-	memcpy(_mappedUniformBuffer, &_MVP, sizeof(_MVP));
-	// Record all the commands we need to render the scene into the command
-	// list.
+	memcpy(_mappedUniformBuffer, &_VP, sizeof(_VP));
+}
 
-	InitCommands();
+void Application::ExecuteCommandList()
+{
+	// Close the command list.
+	ThrowIfFailed(_commandList->Close());
 
 	// Execute the command list.
-	ID3D12CommandList* ppCommandLists[] = { _commandList.Get()};
+	ID3D12CommandList* ppCommandLists[] = { _commandList.Get() };
 	_commandQueue->ExecuteCommandLists(_countof(ppCommandLists),
 		ppCommandLists);
 	_swapchain->Present(1, 0);
-
-	// WAITING FOR THE FRAME TO COMPLETE BEFORE CONTINUING IS NOT BEST PRACTICE.
 
 	// Signal and increment the fence value.
 	const UINT64 fence = _fenceValue;

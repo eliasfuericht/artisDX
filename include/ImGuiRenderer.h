@@ -30,4 +30,5 @@ private:
 
 	// this isnt beautiful - dont like
 	static ImGuiIO* _imguiIO;
+
 };
