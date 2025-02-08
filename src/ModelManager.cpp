@@ -80,8 +80,9 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 
 		DirectX::XMFLOAT4X4 modelMatrix;
 		DirectX::XMStoreFloat4x4(&modelMatrix, DirectX::XMMatrixIdentity());
-
-		Model model = Model(_device, vertices, indices, modelMatrix);
+		//todo: make hashes as id
+		INT id = _models.size();
+		Model model = Model(id, _device, vertices, indices, modelMatrix);
 		_models.push_back(model);
 	}
 

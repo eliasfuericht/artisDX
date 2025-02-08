@@ -10,7 +10,9 @@ public:
 	static void Init(Window window, MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12DescriptorHeap> srvHeap);
 	static void NewFrame();
 	static void Begin(const char* title);
+	static void PushID(INT id);
 	static void End();
+	static void PopID();
 	static void Render(MSWRL::ComPtr<ID3D12CommandList> commandList);
 	static void Shutdown();
 

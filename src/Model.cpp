@@ -1,6 +1,7 @@
 #include "Model.h"
-Model::Model(MSWRL::ComPtr<ID3D12Device> device, std::vector<Vertex> vertices, std::vector<uint32_t> indices, DirectX::XMFLOAT4X4 modelMatrix)
+Model::Model(INT id, MSWRL::ComPtr<ID3D12Device> device, std::vector<Vertex> vertices, std::vector<uint32_t> indices, DirectX::XMFLOAT4X4 modelMatrix)
 {
+	_ID = id;
 	_mesh = Mesh(device, vertices, indices);
 	// calc aabb
 	_modelMatrix = modelMatrix;
@@ -68,17 +69,36 @@ void Model::CreateModelMatrixBuffer(MSWRL::ComPtr<ID3D12Device> device)
 	_modelMatrixBuffer->Unmap(0, &readRange);
 }
 
-void Model::Selected()
-{
-	// everything that needs to be checked
+void Model::Selected() {
+	std::string windowName = "Model Window " + std::to_string(_ID);
 
-	DirectX::XMFLOAT3 rotationFloat3 = { 0.0f, 0.0f, 0.0f };
-	
-	ImGuiRenderer::Begin("Model Window");
-	
-	ImGuiRenderer::DragFloat3("temp", rotationFloat3);
+	ImGuiRenderer::Begin(windowName.c_str());
+	ImGuiRenderer::PushID(_ID);
+
+	ImGuiRenderer::DragFloat3("Translation", _translation);
+	ImGuiRenderer::DragFloat3("Rotation", _rotation);
+	ImGuiRenderer::DragFloat3("Scaling", _scaling);
+
+	ImGuiRenderer::PopID();
 	ImGuiRenderer::End();
-	
+
+	UpdateModelMatrix();
+}
+
+void Model::UpdateModelMatrix() {
+	DirectX::XMMATRIX modelMatrix = DirectX::XMMatrixIdentity();
+
+	modelMatrix = DirectX::XMMatrixMultiply(modelMatrix, DirectX::XMMatrixScaling(_scaling.x, _scaling.y, _scaling.z));
+
+	modelMatrix = DirectX::XMMatrixMultiply(modelMatrix, DirectX::XMMatrixRotationRollPitchYaw(
+		DirectX::XMConvertToRadians(_rotation.x),
+		DirectX::XMConvertToRadians(_rotation.y),
+		DirectX::XMConvertToRadians(_rotation.z)
+	));
+
+	modelMatrix = DirectX::XMMatrixMultiply(modelMatrix, DirectX::XMMatrixTranslation(_translation.x, _translation.y, _translation.z));
+
+	DirectX::XMStoreFloat4x4(&_modelMatrix, modelMatrix);
 }
 
 void Model::Translate(DirectX::XMFLOAT3 vec)

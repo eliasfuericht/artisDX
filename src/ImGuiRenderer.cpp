@@ -51,9 +51,19 @@ void ImGuiRenderer::Begin(const char* title)
 	ImGui::Begin(title);
 }
 
+void ImGuiRenderer::PushID(INT id)
+{
+	ImGui::PushID(id);
+}
+
 void ImGuiRenderer::End()
 {
 	ImGui::End();
+}
+
+void ImGuiRenderer::PopID()
+{
+	ImGui::PopID();
 }
 
 void ImGuiRenderer::Render(MSWRL::ComPtr<ID3D12CommandList> commandList)
