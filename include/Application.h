@@ -19,10 +19,10 @@ private:
 	void InitIMGUI();
 	
 	void UpdateConstantBuffer();
-	void OpenCommandList();
-	void DrawGUI();
 	void SetCommandList();
+	void DrawGUI();
 	void ExecuteCommandList();
+	void Present();
 
 	Window _window;
 	Camera _camera;

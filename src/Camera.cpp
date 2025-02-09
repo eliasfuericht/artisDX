@@ -28,12 +28,23 @@ void Camera::ConsumeMouse(FLOAT xChange, FLOAT yChange)
 	Update();
 }
 
+void Camera::DrawGUI()
+{
+	ImGuiRenderer::Begin("Camera Window");
+
+	XMFLOAT3 temp = { 0.0f, 0.0f, 0.0f };
+
+	ImGuiRenderer::SliderFloat3("position", temp, -100.0f, 100.0f);
+
+	ImGuiRenderer::End();
+}
+
 void Camera::ConsumeKey(BOOL* keys, FLOAT deltaTime)
 {
 	FLOAT multiplier = 1.0f;
 	if (keys[KEYCODES::SHIFT])
 	{
-		multiplier = 100.0f;
+		multiplier = 50.0f;
 	}
 
 	FLOAT velocity = _moveSpeed * deltaTime * multiplier;

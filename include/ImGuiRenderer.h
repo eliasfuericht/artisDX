@@ -13,7 +13,7 @@ public:
 	static void PushID(INT id);
 	static void End();
 	static void PopID();
-	static void Render(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
+	static void Render(MSWRL::ComPtr<ID3D12CommandQueue> commandQueue, MSWRL::ComPtr<ID3D12Resource> currentBackBuffer, D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle);
 	static void Shutdown();
 
 	static void DragInt(const char* label, int& value, float speed = 1.0f);
@@ -62,4 +62,6 @@ private:
 	static ImGuiIO* _imguiIO;
 
 	static MSWRL::ComPtr<ID3D12DescriptorHeap> _srvHeap;
+	static MSWRL::ComPtr<ID3D12GraphicsCommandList> _commandList;
+	static MSWRL::ComPtr<ID3D12CommandAllocator> _commandAllocator;
 };

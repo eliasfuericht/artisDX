@@ -2,6 +2,8 @@
 
 #include "pch.h"
 
+#include "ImGuiRenderer.h"
+
 class Camera
 {
 public:
@@ -10,6 +12,8 @@ public:
 
 	void ConsumeMouse(FLOAT xChange, FLOAT yChange);
 	void ConsumeKey(BOOL* keys, FLOAT deltaTime);
+
+	void DrawGUI();
 
 	XMFLOAT4X4 GetViewMatrix() { return _viewMatrix; };
 	FLOAT _yaw;

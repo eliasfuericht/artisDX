@@ -527,6 +527,11 @@ void Application::InitResources()
 
 void Application::SetCommandList()
 {
+	// Ensure the command allocator has finished execution before resetting.
+	ThrowIfFailed(_commandAllocator->Reset());
+
+	// Reset the command list with the command allocator and pipeline state.
+	ThrowIfFailed(_commandList->Reset(_commandAllocator.Get(), _pipelineState.Get()));
 	// Set necessary state.
 	_commandList->SetGraphicsRootSignature(_rootSignature.Get());
 	_commandList->RSSetViewports(1, &_viewport);
@@ -570,15 +575,9 @@ void Application::SetCommandList()
 	presentBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 	presentBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	_commandList->ResourceBarrier(1, &presentBarrier);
-}
 
-void Application::OpenCommandList()
-{
-	// Ensure the command allocator has finished execution before resetting.
-	ThrowIfFailed(_commandAllocator->Reset());
-
-	// Reset the command list with the command allocator and pipeline state.
-	ThrowIfFailed(_commandList->Reset(_commandAllocator.Get(), _pipelineState.Get()));
+	// Close the command list.
+	ThrowIfFailed(_commandList->Close());
 }
 
 void Application::Run()
@@ -591,13 +590,11 @@ void Application::Run()
 	{
 		UpdateConstantBuffer();
 
-		OpenCommandList();
-
 		SetCommandList();
-
-		DrawGUI();
-
+		
 		ExecuteCommandList();
+
+		Present();
 
 		if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE))
 		{
@@ -613,10 +610,22 @@ void Application::DrawGUI()
 {
 	ImGuiRenderer::NewFrame();
 
-	// call every GUI that should be drawn
+	// make global gui class where everyone can register a window if they want
+	// gets called once GUI::Draw();
+	/*
+	GUI::AddGUI(templateClass class)
+		GUI::Draw()
+	{
+		// itterates over all addedGUIs and calls the DrawGUI() function
+	}*/
+
 	_modelManager.DrawGUI();
 
-	ImGuiRenderer::Render(_commandList);
+	_camera.DrawGUI();
+
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = _rtvHeap->GetCPUDescriptorHandleForHeapStart();
+	rtvHandle.ptr += (_frameIndex * _rtvDescriptorSize);
+	ImGuiRenderer::Render(_commandQueue, _renderTargets[_frameIndex], rtvHandle);
 }
 
 void Application::UpdateConstantBuffer()
@@ -637,13 +646,16 @@ void Application::UpdateConstantBuffer()
 
 void Application::ExecuteCommandList()
 {
-	// Close the command list.
-	ThrowIfFailed(_commandList->Close());
-
 	// Execute the command list.
 	ID3D12CommandList* ppCommandLists[] = { _commandList.Get() };
-	_commandQueue->ExecuteCommandLists(_countof(ppCommandLists),
-		ppCommandLists);
+	_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+}
+
+void Application::Present()
+{
+	// this always has to be called last (adds gui to final image)
+	DrawGUI();
+
 	_swapchain->Present(1, 0);
 
 	// Signal and increment the fence value.
