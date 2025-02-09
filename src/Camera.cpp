@@ -30,13 +30,13 @@ void Camera::ConsumeMouse(FLOAT xChange, FLOAT yChange)
 
 void Camera::DrawGUI()
 {
-	ImGuiRenderer::Begin("Camera Window");
+	GUI::Begin("Camera Window");
 
 	XMFLOAT3 temp = { 0.0f, 0.0f, 0.0f };
 
-	ImGuiRenderer::SliderFloat3("position", temp, -100.0f, 100.0f);
+	GUI::SliderFloat3("position", temp, -100.0f, 100.0f);
 
-	ImGuiRenderer::End();
+	GUI::End();
 }
 
 void Camera::ConsumeKey(BOOL* keys, FLOAT deltaTime)

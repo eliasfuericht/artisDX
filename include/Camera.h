@@ -2,7 +2,7 @@
 
 #include "pch.h"
 
-#include "ImGuiRenderer.h"
+#include "GUI.h"
 
 class Camera
 {

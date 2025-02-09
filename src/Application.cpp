@@ -49,7 +49,7 @@ Application::Application(const CHAR* name, INT w, INT h)
 
 void Application::InitIMGUI()
 {
-	ImGuiRenderer::Init(_window, _device);
+	GUI::Init(_window, _device);
 }
 
 void Application::InitDX12()
@@ -492,8 +492,8 @@ void Application::InitResources()
 	// MODELLOADING
 	_modelManager = ModelManager(_device, _commandList);
 	_modelManager.LoadModel("../assets/movedcube.glb");
-	_modelManager.LoadModel("../assets/cube.glb");
 	_modelManager.LoadModel("../assets/elicube.glb");
+	_modelManager.LoadModel("../assets/cube.glb");
 
 	// Create synchronization objects and wait until assets have been uploaded
 	// to the GPU.
@@ -604,12 +604,12 @@ void Application::Run()
 		}
 	}
 
-	ImGuiRenderer::Shutdown();
+	GUI::Shutdown();
 }
 
 void Application::DrawGUI()
 {
-	ImGuiRenderer::NewFrame();
+	GUI::NewFrame();
 
 	/* TODO: GUI Class
 	// make global gui class where everyone can register a window if they want
@@ -625,7 +625,7 @@ void Application::DrawGUI()
 
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = _rtvHeap->GetCPUDescriptorHandleForHeapStart();
 	rtvHandle.ptr += (_frameIndex * _rtvDescriptorSize);
-	ImGuiRenderer::Render(_commandQueue, _renderTargets[_frameIndex], rtvHandle);
+	GUI::Render(_commandQueue, _renderTargets[_frameIndex], rtvHandle);
 }
 
 void Application::UpdateConstantBuffer()
@@ -654,7 +654,7 @@ void Application::ExecuteCommandList()
 void Application::Present()
 {
 	// this always has to be called last (adds gui to final image)
-	DrawGUI();
+	//DrawGUI();
 
 	_swapchain->Present(1, 0);
 

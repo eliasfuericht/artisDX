@@ -4,7 +4,7 @@
 
 #include "Window.h"
 
-class ImGuiRenderer
+class GUI
 {
 public:
 	static void Init(Window window, MSWRL::ComPtr<ID3D12Device> device);
@@ -50,13 +50,13 @@ public:
 	static void EndGroup();
 
 	// singleton stuff - deleting copy and assignment operator
-	ImGuiRenderer(const ImGuiRenderer&) = delete;
-	ImGuiRenderer& operator=(const ImGuiRenderer&) = delete;
+	GUI(const GUI&) = delete;
+	GUI& operator=(const GUI&) = delete;
 
 private:
 	// singleton stuff - setting constructor and destructor private
-	ImGuiRenderer() = default;
-	~ImGuiRenderer() = default;
+	GUI() = default;
+	~GUI() = default;
 
 	// this isnt beautiful - dont like
 	static ImGuiIO* _imguiIO;

@@ -4,7 +4,7 @@
 
 #include "Mesh.h"
 #include "AABB.h"
-#include "ImGuiRenderer.h"
+#include "GUI.h"
 
 class Model
 {

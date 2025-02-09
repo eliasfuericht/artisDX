@@ -82,15 +82,15 @@ AABB Model::GetAABB()
 void Model::DrawModelGUI() {
 	std::string windowName = "Model Window " + std::to_string(_ID);
 
-	ImGuiRenderer::Begin(windowName.c_str());
-	ImGuiRenderer::PushID(_ID);
+	GUI::Begin(windowName.c_str());
+	GUI::PushID(_ID);
 
-	ImGuiRenderer::DragFloat3("Translation", _translation);
-	ImGuiRenderer::DragFloat3("Rotation", _rotation);
-	ImGuiRenderer::DragFloat3("Scaling", _scaling);
+	GUI::DragFloat3("Translation", _translation);
+	GUI::DragFloat3("Rotation", _rotation);
+	GUI::DragFloat3("Scaling", _scaling);
 
-	ImGuiRenderer::PopID();
-	ImGuiRenderer::End();
+	GUI::PopID();
+	GUI::End();
 
 	UpdateModelMatrix();
 }
