@@ -626,8 +626,8 @@ void Application::UpdateConstantBuffer()
 	FLOAT deltaTime = dt.count();
 	_tLastTime = now;
 
-	_camera.ConsumeMouse(_window.GetXChange(), _window.GetYChange());
 	_camera.ConsumeKey(_window.GetKeys(), deltaTime);
+	_camera.ConsumeMouse(_window.GetXChange(), _window.GetYChange());
 	_viewMatrix = _camera.GetViewMatrix();
 
 	XMStoreFloat4x4(&_viewProjectionMatrix, XMMatrixMultiply(XMLoadFloat4x4(&_viewMatrix), XMLoadFloat4x4(&_projectionMatrix)));

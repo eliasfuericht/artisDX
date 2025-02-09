@@ -63,14 +63,11 @@ void Camera::ConsumeKey(BOOL* keys, FLOAT deltaTime)
 		_position = XMVectorSubtract(_position, XMVectorScale(_up, velocity));
 	}
 
+	Update();
 }
-
-#include <DirectXMath.h>
 
 void Camera::Update()
 {
-	using namespace DirectX;
-
 	// Convert angles to radians
 	float yawRad = XMConvertToRadians(_yaw);
 	float pitchRad = XMConvertToRadians(_pitch);

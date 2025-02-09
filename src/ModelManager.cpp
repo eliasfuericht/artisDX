@@ -110,7 +110,7 @@ void ModelManager::DrawAllCulled(XMFLOAT4X4 viewProjMatrix)
 		}
 		else
 		{
-			PRINT("culled");
+			std::cout << "culled model" << std::endl;
 		}
 	}
 }
