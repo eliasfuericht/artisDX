@@ -78,6 +78,7 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 			}
 		}
 
+		// transform vectors are in asset->nodes->transform
 		XMFLOAT4X4 modelMatrix;
 		XMStoreFloat4x4(&modelMatrix, XMMatrixIdentity());
 		// TODO: make hashes as id
@@ -125,6 +126,7 @@ void ModelManager::DrawGUI()
 	}
 }
 
+// TODO: CopyModel()
 INT ModelManager::CopyModel(INT id)
 {
 	//Model copy = _models[id].Copy();

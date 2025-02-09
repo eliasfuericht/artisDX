@@ -19,8 +19,6 @@ public:
 
 	INT CopyModel(INT id);
 
-	bool FrustumCulling(XMFLOAT4X4 viewProjection, AABB aabb);
-
 	void TranslateModel(XMFLOAT3 vec, UINT modelId);
 	void RotateModel(XMFLOAT3 vec, UINT modelId);
 	void ScaleModel(XMFLOAT3 vec, UINT modelId);

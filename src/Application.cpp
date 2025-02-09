@@ -491,6 +491,7 @@ void Application::InitResources()
 
 	// MODELLOADING
 	_modelManager = ModelManager(_device, _commandList);
+	_modelManager.LoadModel("../assets/movedcube.glb");
 	_modelManager.LoadModel("../assets/cube.glb");
 	_modelManager.LoadModel("../assets/elicube.glb");
 
@@ -610,18 +611,17 @@ void Application::DrawGUI()
 {
 	ImGuiRenderer::NewFrame();
 
+	/* TODO: GUI Class
 	// make global gui class where everyone can register a window if they want
 	// gets called once GUI::Draw();
-	/*
 	GUI::AddGUI(templateClass class)
 		GUI::Draw()
 	{
 		// itterates over all addedGUIs and calls the DrawGUI() function
-	}*/
+	}
+	*/
 
 	_modelManager.DrawGUI();
-
-	_camera.DrawGUI();
 
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = _rtvHeap->GetCPUDescriptorHandleForHeapStart();
 	rtvHandle.ptr += (_frameIndex * _rtvDescriptorSize);
