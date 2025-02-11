@@ -5,7 +5,31 @@ Model::Model(INT id, MSWRL::ComPtr<ID3D12Device> device, std::vector<Vertex> ver
 	_mesh = Mesh(device, vertices, indices);
 	_aabb = AABB(vertices);
 	_modelMatrix = modelMatrix;
+	ExtractTransformsFromMatrix();
 	CreateModelMatrixBuffer(device);
+}
+
+void Model::ExtractTransformsFromMatrix()
+{
+	XMMATRIX M = XMLoadFloat4x4(&_modelMatrix);
+
+	XMVECTOR translation, rotation, scale;
+	XMMatrixDecompose(&scale, &rotation, &translation, M);
+
+	XMStoreFloat3(&_translation, translation);
+
+	XMStoreFloat3(&_scaling, scale);
+
+	XMFLOAT4 quat;
+	XMStoreFloat4(&quat, rotation);
+
+	XMMATRIX rotationMatrix = XMMatrixRotationQuaternion(rotation);
+
+	_rotation.x = atan2(rotationMatrix.r[1].m128_f32[2], rotationMatrix.r[2].m128_f32[2]); // Pitch
+	_rotation.y = atan2(-rotationMatrix.r[0].m128_f32[2],
+		sqrt(rotationMatrix.r[0].m128_f32[0] * rotationMatrix.r[0].m128_f32[0] +
+			rotationMatrix.r[0].m128_f32[1] * rotationMatrix.r[0].m128_f32[1])); // Yaw
+	_rotation.z = atan2(rotationMatrix.r[0].m128_f32[1], rotationMatrix.r[0].m128_f32[0]); // Roll
 }
 
 void Model::DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)

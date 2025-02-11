@@ -654,7 +654,7 @@ void Application::ExecuteCommandList()
 void Application::Present()
 {
 	// this always has to be called last (adds gui to final image)
-	//DrawGUI();
+	DrawGUI();
 
 	_swapchain->Present(1, 0);
 

@@ -24,6 +24,7 @@ public:
 
 private:
 	void CreateModelMatrixBuffer(MSWRL::ComPtr<ID3D12Device> device);
+	void ExtractTransformsFromMatrix();
 	void UpdateModelMatrix();
 
 	INT _ID;

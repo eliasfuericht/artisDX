@@ -78,9 +78,27 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 			}
 		}
 
+
 		// transform vectors are in asset->nodes->transform
 		XMFLOAT4X4 modelMatrix;
 		XMStoreFloat4x4(&modelMatrix, XMMatrixIdentity());
+
+		auto& transform = asset->nodes[0].transform;
+		
+		if (std::holds_alternative<fastgltf::TRS>(transform)) {
+			const auto& trs = std::get<fastgltf::TRS>(transform);
+
+			DirectX::XMVECTOR translation = DirectX::XMVectorSet(trs.translation[0], trs.translation[1], trs.translation[2], 1.0f);
+			DirectX::XMVECTOR rotation = DirectX::XMVectorSet(trs.rotation[0], trs.rotation[1], trs.rotation[2], trs.rotation[3]);
+			DirectX::XMVECTOR scale = DirectX::XMVectorSet(trs.scale[0], trs.scale[1], trs.scale[2], 1.0f);
+
+			DirectX::XMMATRIX transformMatrix = DirectX::XMMatrixScalingFromVector(scale) *
+				DirectX::XMMatrixRotationQuaternion(rotation) *
+				DirectX::XMMatrixTranslationFromVector(translation);
+
+			XMStoreFloat4x4(&modelMatrix, transformMatrix);
+		}
+
 		// TODO: make hashes as id
 		INT id = _models.size();
 		Model model = Model(id, _device, vertices, indices, modelMatrix);
