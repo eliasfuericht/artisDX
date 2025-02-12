@@ -15,7 +15,6 @@ public:
 	bool LoadModel(std::filesystem::path path);
 	void DrawAll();
 	void DrawAllCulled(XMFLOAT4X4 viewProjMatrix);
-	void DrawGUI();
 
 	INT CopyModel(INT id);
 

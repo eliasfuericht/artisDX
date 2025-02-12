@@ -6,7 +6,13 @@ Model::Model(INT id, MSWRL::ComPtr<ID3D12Device> device, std::vector<Vertex> ver
 	_aabb = AABB(vertices);
 	_modelMatrix = modelMatrix;
 	ExtractTransformsFromMatrix();
+	_aabb.UpdateTransform(_modelMatrix);
 	CreateModelMatrixBuffer(device);
+}
+
+void Model::RegisterSelf() 
+{
+	GUI::RegisterComponent(std::shared_ptr<Model>(this));
 }
 
 void Model::ExtractTransformsFromMatrix()
@@ -36,6 +42,8 @@ void Model::DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
 	// Update model matrix buffer
 	memcpy(_mappedUniformBuffer, &_modelMatrix, sizeof(_modelMatrix));
+
+	auto temp = _aabb;
 
 	// Bind model matrix buffer directly (instead of using descriptor heap)
 	commandList->SetGraphicsRootConstantBufferView(1, _modelMatrixBuffer->GetGPUVirtualAddress());
@@ -103,7 +111,12 @@ AABB Model::GetAABB()
 	return _aabb;
 }
 
-void Model::DrawModelGUI() {
+XMFLOAT4X4 Model::GetModelMatrix()
+{
+	return _modelMatrix;
+}
+
+void Model::DrawGUI() {
 	std::string windowName = "Model Window " + std::to_string(_ID);
 
 	GUI::Begin(windowName.c_str());
@@ -168,3 +181,4 @@ void Model::Scale(XMFLOAT3 vec)
 	XMStoreFloat4x4(&_modelMatrix, modelMatrix);
 }
 
+// TODO: Model Destructor

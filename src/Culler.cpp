@@ -8,103 +8,56 @@ Culler& Culler::GetInstance()
 
 void Culler::ExtractPlanes(const XMFLOAT4X4& viewProj)
 {
-	_frustumPlanes[0] = XMFLOAT4(
-		viewProj.m[3][0] + viewProj.m[0][0],
-		viewProj.m[3][1] + viewProj.m[0][1],
-		viewProj.m[3][2] + viewProj.m[0][2],
-		viewProj.m[3][3] + viewProj.m[0][3] 
-	);
+	// Load the matrix
+	XMMATRIX m = XMLoadFloat4x4(&viewProj);
 
-	// Right plane
-	_frustumPlanes[1] = XMFLOAT4(
-		viewProj.m[3][0] - viewProj.m[0][0],
-		viewProj.m[3][1] - viewProj.m[0][1],
-		viewProj.m[3][2] - viewProj.m[0][2],
-		viewProj.m[3][3] - viewProj.m[0][3]
-	);
+	// Extract planes (left-handed coordinate system)
+	XMVECTOR row1 = m.r[0];
+	XMVECTOR row2 = m.r[1];
+	XMVECTOR row3 = m.r[2];
+	XMVECTOR row4 = m.r[3];
 
-	// Top plane
-	_frustumPlanes[2] = XMFLOAT4(
-		viewProj.m[3][0] - viewProj.m[1][0],
-		viewProj.m[3][1] - viewProj.m[1][1],
-		viewProj.m[3][2] - viewProj.m[1][2],
-		viewProj.m[3][3] - viewProj.m[1][3]
-	);
-
-	// Bottom plane
-	_frustumPlanes[3] = XMFLOAT4(
-		viewProj.m[3][0] + viewProj.m[1][0],
-		viewProj.m[3][1] + viewProj.m[1][1],
-		viewProj.m[3][2] + viewProj.m[1][2],
-		viewProj.m[3][3] + viewProj.m[1][3]
-	);
-
-	// Near plane
-	_frustumPlanes[4] = XMFLOAT4(
-		viewProj.m[3][0] + viewProj.m[2][0],
-		viewProj.m[3][1] + viewProj.m[2][1],
-		viewProj.m[3][2] + viewProj.m[2][2],
-		viewProj.m[3][3] + viewProj.m[2][3]
-	);
-
-	// Far plane
-	_frustumPlanes[5] = XMFLOAT4(
-		viewProj.m[3][0] - viewProj.m[2][0],
-		viewProj.m[3][1] - viewProj.m[2][1],
-		viewProj.m[3][2] - viewProj.m[2][2],
-		viewProj.m[3][3] - viewProj.m[2][3]
-	);
-
-	// Normalize all planes
-	for (auto& plane : _frustumPlanes)
-	{
-		XMVECTOR planeVec = XMLoadFloat4(&plane);
-		planeVec = XMVector3Normalize(planeVec);
-		XMStoreFloat4(&plane, planeVec);
-	}
+	// Left plane: row4 + row1
+	XMStoreFloat4(&_planes[0], XMPlaneNormalize(row4 + row1));
+	// Right plane: row4 - row1
+	XMStoreFloat4(&_planes[1], XMPlaneNormalize(row4 - row1));
+	// Bottom plane: row4 + row2
+	XMStoreFloat4(&_planes[2], XMPlaneNormalize(row4 + row2));
+	// Top plane: row4 - row2
+	XMStoreFloat4(&_planes[3], XMPlaneNormalize(row4 - row2));
+	// Near plane: row4 + row3
+	XMStoreFloat4(&_planes[4], XMPlaneNormalize(row4 + row3));
+	// Far plane: row4 - row3
+	XMStoreFloat4(&_planes[5], XMPlaneNormalize(row4 - row3));
 }
 
 bool Culler::CheckAABB(const AABB& aabb)
 {
-	// Test all 6 planes of the frustum
-	for (const auto& plane : _frustumPlanes)
+	XMFLOAT3 min = aabb.GetMin();
+	XMFLOAT3 max = aabb.GetMax();
+
+	for (const auto& plane : _planes)
 	{
-		// Transform AABB min/max to check against the plane
-		XMFLOAT3 min = aabb.GetMin();
-		XMFLOAT3 max = aabb.GetMax();
+		XMVECTOR normal = XMLoadFloat3(reinterpret_cast<const XMFLOAT3*>(&plane));
+		float d = plane.w;
 
-		XMVECTOR planeNormal = XMLoadFloat4(&plane);
-		XMFLOAT3 vertices[8] = {
-				{ min.x, min.y, min.z },
-				{ max.x, min.y, min.z },
-				{ min.x, max.y, min.z },
-				{ max.x, max.y, min.z },
-				{ min.x, min.y, max.z },
-				{ max.x, min.y, max.z },
-				{ min.x, max.y, max.z },
-				{ max.x, max.y, max.z }
-		};
+		// Compute positive and negative vertex of the AABB relative to the plane normal
+		XMFLOAT3 positive, negative;
 
-		bool inside = false;
+		positive.x = (plane.x >= 0.0f) ? max.x : min.x;
+		positive.y = (plane.y >= 0.0f) ? max.y : min.y;
+		positive.z = (plane.z >= 0.0f) ? max.z : min.z;
 
-		// Test if at least one vertex is inside the plane
-		for (const auto& vertex : vertices)
+		negative.x = (plane.x >= 0.0f) ? min.x : max.x;
+		negative.y = (plane.y >= 0.0f) ? min.y : max.y;
+		negative.z = (plane.z >= 0.0f) ? min.z : max.z;
+
+		// Check if the AABB is completely outside the plane
+		if (XMVectorGetX(XMVector3Dot(XMLoadFloat3(&positive), normal)) + d < 0.0f)
 		{
-			XMVECTOR point = XMLoadFloat3(&vertex);
-			float distance = XMVectorGetX(XMPlaneDotCoord(planeNormal, point));
-
-			if (distance >= 0)
-			{
-				inside = true;
-				break; // At least one point is inside
-			}
-		}
-
-		if (!inside)
-		{
-			return false; // If no points are inside, the AABB is outside
+			return false; // AABB is completely outside this plane
 		}
 	}
 
-	return true; // AABB is inside the frustum
+	return true; // AABB is at least partially inside the frustum
 }

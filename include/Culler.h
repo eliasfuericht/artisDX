@@ -19,5 +19,5 @@ private:
 	Culler() = default;
 	~Culler() = default;
 
-	XMFLOAT4 _frustumPlanes[6];
+	std::array<XMFLOAT4, 6> _planes;
 };

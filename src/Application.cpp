@@ -44,12 +44,12 @@ Application::Application(const CHAR* name, INT w, INT h)
 	InitDX12();
 	InitSwapchain(w, h);
 	InitResources();
-	InitIMGUI();
+	InitGUI();
 }
 
-void Application::InitIMGUI()
+void Application::InitGUI()
 {
-	GUI::Init(_window, _device);
+	GUI::Init(_window, _device, _commandQueue, _swapchain, _rtvHeap, _renderTargets, _rtvDescriptorSize);
 }
 
 void Application::InitDX12()
@@ -197,7 +197,6 @@ void Application::InitSwapchain(UINT w, UINT h)
 		_device->CreateRenderTargetView(_renderTargets[i].Get(), nullptr, rtvHandle);
 		rtvHandle.ptr += _rtvDescriptorSize;
 		_rtvDescriptor[i] = rtvHandle;
-
 	}
 }
 
@@ -491,8 +490,8 @@ void Application::InitResources()
 
 	// MODELLOADING
 	_modelManager = ModelManager(_device, _commandList);
-	_modelManager.LoadModel("../assets/movedcube.glb");
-	_modelManager.LoadModel("../assets/elicube.glb");
+	//_modelManager.LoadModel("../assets/movedcube.glb");
+	//_modelManager.LoadModel("../assets/elicube.glb");
 	_modelManager.LoadModel("../assets/cube.glb");
 
 	// Create synchronization objects and wait until assets have been uploaded
@@ -595,6 +594,8 @@ void Application::Run()
 		
 		ExecuteCommandList();
 
+		GUI::Draw();
+
 		Present();
 
 		if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE))
@@ -605,27 +606,6 @@ void Application::Run()
 	}
 
 	GUI::Shutdown();
-}
-
-void Application::DrawGUI()
-{
-	GUI::NewFrame();
-
-	/* TODO: GUI Class
-	// make global gui class where everyone can register a window if they want
-	// gets called once GUI::Draw();
-	GUI::AddGUI(templateClass class)
-		GUI::Draw()
-	{
-		// itterates over all addedGUIs and calls the DrawGUI() function
-	}
-	*/
-
-	_modelManager.DrawGUI();
-
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = _rtvHeap->GetCPUDescriptorHandleForHeapStart();
-	rtvHandle.ptr += (_frameIndex * _rtvDescriptorSize);
-	GUI::Render(_commandQueue, _renderTargets[_frameIndex], rtvHandle);
 }
 
 void Application::UpdateConstantBuffer()
@@ -653,9 +633,6 @@ void Application::ExecuteCommandList()
 
 void Application::Present()
 {
-	// this always has to be called last (adds gui to final image)
-	DrawGUI();
-
 	_swapchain->Present(1, 0);
 
 	// Signal and increment the fence value.
@@ -664,11 +641,14 @@ void Application::Present()
 	_fenceValue++;
 
 	// Wait until the previous frame is finished.
+	// TODO: fix "The thread 123456 has exited with code 0 (0x0)."
+	// this leads to this message: The thread 13196 has exited with code 0 (0x0).
 	if (_fence->GetCompletedValue() < fence)
 	{
 		ThrowIfFailed(_fence->SetEventOnCompletion(fence, _fenceEvent));
 		WaitForSingleObject(_fenceEvent, INFINITE);
 	}
+
 	_frameIndex = _swapchain->GetCurrentBackBufferIndex();
 }
 

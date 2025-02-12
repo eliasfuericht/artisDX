@@ -103,6 +103,7 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 		INT id = _models.size();
 		Model model = Model(id, _device, vertices, indices, modelMatrix);
 		_models.push_back(model);
+		_models[id].RegisterSelf();
 	}
 
 	return true;
@@ -129,18 +130,8 @@ void ModelManager::DrawAllCulled(XMFLOAT4X4 viewProjMatrix)
 		}
 		else
 		{
-			std::cout << "culled model" << std::endl;
+			PRINT("Culled");
 		}
-	}
-}
-
-void ModelManager::DrawGUI()
-{
-	// TODO: Viewpicking
-	// TODO: only call DrawModelGUI() on selected model
-	for (auto& model : _models)
-	{
-		model.DrawModelGUI();
 	}
 }
 

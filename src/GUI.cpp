@@ -5,9 +5,25 @@ ImGuiIO* GUI::_imguiIO = nullptr;
 MSWRL::ComPtr<ID3D12GraphicsCommandList> GUI::_commandList;
 MSWRL::ComPtr<ID3D12CommandAllocator> GUI::_commandAllocator;
 MSWRL::ComPtr<ID3D12DescriptorHeap> GUI::_srvHeap;
+MSWRL::ComPtr<ID3D12CommandQueue> GUI::_commandQueue;
+MSWRL::ComPtr<IDXGISwapChain3> GUI::_swapchain;
+MSWRL::ComPtr<ID3D12DescriptorHeap> GUI::_rtvHeap;
+MSWRL::ComPtr<ID3D12Resource> GUI::_renderTargets[2];
+UINT GUI::_rtvDescriptorSize;
 
-void GUI::Init(Window window, MSWRL::ComPtr<ID3D12Device> device)
+std::vector<std::shared_ptr<IGUIComponent>> GUI::_guiComponents;
+
+void GUI::Init(Window window, MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12CommandQueue> commandQueue, MSWRL::ComPtr<IDXGISwapChain3> swapchain, MSWRL::ComPtr<ID3D12DescriptorHeap> rtvHeap, MSWRL::ComPtr<ID3D12Resource>* renderTargets, UINT rtvDescriptorSize)
 {
+	_commandQueue = commandQueue;
+	_swapchain = swapchain;
+	_rtvHeap = rtvHeap;
+	for (UINT n = 0; n < 2; n++)
+	{
+		_renderTargets[n] = renderTargets[n];
+	}
+	_rtvDescriptorSize = rtvDescriptorSize;
+
 	// init imgui
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -73,7 +89,24 @@ void GUI::PopID()
 	ImGui::PopID();
 }
 
-void GUI::Render(MSWRL::ComPtr<ID3D12CommandQueue> commandQueue, MSWRL::ComPtr<ID3D12Resource> currentBackBuffer, D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle)
+void GUI::RegisterComponent(std::shared_ptr<IGUIComponent> component)
+{
+	GUI::_guiComponents.push_back(component);
+}
+
+void GUI::Draw()
+{
+	GUI::NewFrame();
+
+	for (int i = 0; i < GUI::_guiComponents.size(); i++)
+	{
+		GUI::_guiComponents[i]->DrawGUI();
+	}
+
+	GUI::Render();
+}
+
+void GUI::Render()
 {
 	ImGui::Render();
 	
@@ -90,12 +123,17 @@ void GUI::Render(MSWRL::ComPtr<ID3D12CommandQueue> commandQueue, MSWRL::ComPtr<I
 	// Set Descriptor Heap
 	ID3D12DescriptorHeap* heaps[] = { _srvHeap.Get() };
 	_commandList->SetDescriptorHeaps(1, heaps);
+
+	UINT frameIndex = _swapchain->GetCurrentBackBufferIndex();
+
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = _rtvHeap->GetCPUDescriptorHandleForHeapStart();
+	rtvHandle.ptr += (frameIndex * _rtvDescriptorSize);
 	
 	// Transition backbuffer from PRESENT -> RENDER_TARGET
 	D3D12_RESOURCE_BARRIER renderTargetBarrier = {};
 	renderTargetBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	renderTargetBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	renderTargetBarrier.Transition.pResource = currentBackBuffer.Get();
+	renderTargetBarrier.Transition.pResource = _renderTargets[frameIndex].Get();
 	renderTargetBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
 	renderTargetBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	renderTargetBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
@@ -115,7 +153,7 @@ void GUI::Render(MSWRL::ComPtr<ID3D12CommandQueue> commandQueue, MSWRL::ComPtr<I
 	D3D12_RESOURCE_BARRIER presentBarrier = {};
 	presentBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	presentBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	presentBarrier.Transition.pResource = currentBackBuffer.Get();
+	presentBarrier.Transition.pResource = _renderTargets[frameIndex].Get();
 	presentBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	presentBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 	presentBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
@@ -124,16 +162,25 @@ void GUI::Render(MSWRL::ComPtr<ID3D12CommandQueue> commandQueue, MSWRL::ComPtr<I
 	// Close & Execute
 	ThrowIfFailed(_commandList->Close());
 	ID3D12CommandList* lists[] = { _commandList.Get() };
-	commandQueue->ExecuteCommandLists(_countof(lists), lists);
+	_commandQueue->ExecuteCommandLists(_countof(lists), lists);
 }
 
 void GUI::Shutdown()
 {
 	_imguiIO = nullptr;
+	_commandList = nullptr;
+	_commandAllocator = nullptr;
+	_srvHeap = nullptr;
+	_rtvHeap = nullptr;
+	_swapchain = nullptr;
+
 	ImGui_ImplDX12_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
+
+	_guiComponents.clear();
 }
+
 
 // ----------------------------------------------------//
 // 																										 //

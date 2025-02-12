@@ -5,22 +5,24 @@
 #include "Mesh.h"
 #include "AABB.h"
 #include "GUI.h"
+#include "IGUIComponent.h"
 
-class Model
+class Model : public IGUIComponent
 {
 public:
 	Model() {};
 	Model(INT id, MSWRL::ComPtr<ID3D12Device> device, std::vector<Vertex> vertices, std::vector<uint32_t> indices, XMFLOAT4X4 modelMatrix);
 	void DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
-	void DrawModelGUI();
+	void DrawGUI();
+	void RegisterSelf();
 
 	INT GetID();
 	AABB GetAABB();
+	XMFLOAT4X4 GetModelMatrix();
 
 	void Translate(XMFLOAT3 vec);
 	void Rotate(XMFLOAT3 vec);
 	void Scale(XMFLOAT3 vec);
-
 
 private:
 	void CreateModelMatrixBuffer(MSWRL::ComPtr<ID3D12Device> device);

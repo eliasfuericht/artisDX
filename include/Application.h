@@ -16,11 +16,10 @@ private:
 	void InitDX12();
 	void InitResources();
 	void InitSwapchain(UINT w, UINT h);
-	void InitIMGUI();
+	void InitGUI();
 	
 	void UpdateConstantBuffer();
 	void SetCommandList();
-	void DrawGUI();
 	void ExecuteCommandList();
 	void Present();
 

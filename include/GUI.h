@@ -3,18 +3,25 @@
 #include "pch.h"
 
 #include "Window.h"
+#include "IGUIComponent.h"
 
 class GUI
 {
 public:
-	static void Init(Window window, MSWRL::ComPtr<ID3D12Device> device);
+	static void Init(	Window window, MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12CommandQueue> commandQueue, 
+										MSWRL::ComPtr<IDXGISwapChain3> swapchain, MSWRL::ComPtr<ID3D12DescriptorHeap> rtvHeap, 
+										MSWRL::ComPtr<ID3D12Resource>* renderTargets, UINT rtvDescriptorSize);
+	static void Draw();
+	static void Render();
+	static void Shutdown();
+
+	static void RegisterComponent(std::shared_ptr<IGUIComponent> component);
+
 	static void NewFrame();
 	static void Begin(const char* title);
 	static void PushID(INT id);
 	static void End();
 	static void PopID();
-	static void Render(MSWRL::ComPtr<ID3D12CommandQueue> commandQueue, MSWRL::ComPtr<ID3D12Resource> currentBackBuffer, D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle);
-	static void Shutdown();
 
 	static void DragInt(const char* label, int& value, float speed = 1.0f);
 	static void SliderInt(const char* label, int& value, int min, int max);
@@ -64,4 +71,11 @@ private:
 	static MSWRL::ComPtr<ID3D12DescriptorHeap> _srvHeap;
 	static MSWRL::ComPtr<ID3D12GraphicsCommandList> _commandList;
 	static MSWRL::ComPtr<ID3D12CommandAllocator> _commandAllocator;
+	static MSWRL::ComPtr<ID3D12CommandQueue> _commandQueue;
+	static MSWRL::ComPtr<IDXGISwapChain3> _swapchain;
+	static MSWRL::ComPtr<ID3D12DescriptorHeap> _rtvHeap;
+	static UINT _rtvDescriptorSize;
+	static MSWRL::ComPtr<ID3D12Resource> _renderTargets[2];
+
+	static std::vector<std::shared_ptr<IGUIComponent>> _guiComponents;
 };
