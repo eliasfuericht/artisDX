@@ -26,6 +26,6 @@ private:
 	MSWRL::ComPtr<ID3D12Device> _device;
 	MSWRL::ComPtr<ID3D12GraphicsCommandList> _commandList;
 	fastgltf::Parser _parser;
-	std::vector<Model> _models;
+	std::vector<Model*> _models;
 
 };

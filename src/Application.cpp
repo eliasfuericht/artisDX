@@ -33,7 +33,7 @@ Application::Application(const CHAR* name, INT w, INT h)
 	_fenceValue = 0;
 
 	_camera = Camera(
-		XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f),
+		XMVectorSet(0.0f, 0.0f, 5.0f, 0.0f),
 		XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f),
 		90.0f,
 		0.0f,
@@ -492,7 +492,8 @@ void Application::InitResources()
 	_modelManager = ModelManager(_device, _commandList);
 	//_modelManager.LoadModel("../assets/movedcube.glb");
 	//_modelManager.LoadModel("../assets/elicube.glb");
-	_modelManager.LoadModel("../assets/cube.glb");
+	//_modelManager.LoadModel("../assets/cube.glb");
+	_modelManager.LoadModel("../assets/cuberotated.glb");
 
 	// Create synchronization objects and wait until assets have been uploaded
 	// to the GPU.

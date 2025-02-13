@@ -78,7 +78,6 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 			}
 		}
 
-
 		// transform vectors are in asset->nodes->transform
 		XMFLOAT4X4 modelMatrix;
 		XMStoreFloat4x4(&modelMatrix, XMMatrixIdentity());
@@ -101,9 +100,9 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 
 		// TODO: make hashes as id
 		INT id = _models.size();
-		Model model = Model(id, _device, vertices, indices, modelMatrix);
+		Model* model = new Model(id, _device, vertices, indices, modelMatrix);
 		_models.push_back(model);
-		_models[id].RegisterSelf();
+		_models[id]->RegisterWithGUI();
 	}
 
 	return true;
@@ -113,7 +112,7 @@ void ModelManager::DrawAll()
 {
 	for (auto& model : _models)
 	{
-		model.DrawModel(_commandList);
+		model->DrawModel(_commandList);
 	}
 }
 
@@ -123,16 +122,31 @@ void ModelManager::DrawAllCulled(XMFLOAT4X4 viewProjMatrix)
 
 	for (auto& model : _models)
 	{
-		bool draw = Culler::GetInstance().CheckAABB(model.GetAABB());
+		bool draw = Culler::GetInstance().CheckAABB(model->GetAABB());
 		if (draw)
 		{
-			model.DrawModel(_commandList);
+			model->DrawModel(_commandList);
 		}
 		else
 		{
 			PRINT("Culled");
 		}
 	}
+}
+
+void ModelManager::TranslateModel(XMFLOAT3 vec, UINT modelId)
+{
+	_models[modelId]->Translate(vec);
+}
+
+void ModelManager::RotateModel(XMFLOAT3 vec, UINT modelId)
+{
+	_models[modelId]->Rotate(vec);
+}
+
+void ModelManager::ScaleModel(XMFLOAT3 vec, UINT modelId)
+{
+	_models[modelId]->Scale(vec);
 }
 
 // TODO: CopyModel()
@@ -144,19 +158,4 @@ INT ModelManager::CopyModel(INT id)
 
 	//return copy.GetID();
 	return 0;
-}
-
-void ModelManager::TranslateModel(XMFLOAT3 vec, UINT modelId)
-{
-	_models[modelId].Translate(vec);
-}
-
-void ModelManager::RotateModel(XMFLOAT3 vec, UINT modelId)
-{
-	_models[modelId].Rotate(vec);
-}
-
-void ModelManager::ScaleModel(XMFLOAT3 vec, UINT modelId)
-{
-	_models[modelId].Scale(vec);
 }

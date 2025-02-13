@@ -10,7 +10,7 @@ Model::Model(INT id, MSWRL::ComPtr<ID3D12Device> device, std::vector<Vertex> ver
 	CreateModelMatrixBuffer(device);
 }
 
-void Model::RegisterSelf() 
+void Model::RegisterWithGUI()
 {
 	GUI::RegisterComponent(std::shared_ptr<Model>(this));
 }
@@ -180,5 +180,3 @@ void Model::Scale(XMFLOAT3 vec)
 
 	XMStoreFloat4x4(&_modelMatrix, modelMatrix);
 }
-
-// TODO: Model Destructor

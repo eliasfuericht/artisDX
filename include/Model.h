@@ -14,7 +14,7 @@ public:
 	Model(INT id, MSWRL::ComPtr<ID3D12Device> device, std::vector<Vertex> vertices, std::vector<uint32_t> indices, XMFLOAT4X4 modelMatrix);
 	void DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 	void DrawGUI();
-	void RegisterSelf();
+	void RegisterWithGUI();
 
 	INT GetID();
 	AABB GetAABB();
@@ -28,6 +28,7 @@ private:
 	void CreateModelMatrixBuffer(MSWRL::ComPtr<ID3D12Device> device);
 	void ExtractTransformsFromMatrix();
 	void UpdateModelMatrix();
+
 
 	INT _ID;
 
