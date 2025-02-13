@@ -90,7 +90,7 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 			DirectX::XMVECTOR translation = DirectX::XMVectorSet(trs.translation[0], trs.translation[1], trs.translation[2], 1.0f);
 			DirectX::XMVECTOR rotation = DirectX::XMVectorSet(trs.rotation[0], trs.rotation[1], trs.rotation[2], trs.rotation[3]);
 			DirectX::XMVECTOR scale = DirectX::XMVectorSet(trs.scale[0], trs.scale[1], trs.scale[2], 1.0f);
-
+			
 			DirectX::XMMATRIX transformMatrix = DirectX::XMMatrixScalingFromVector(scale) *
 				DirectX::XMMatrixRotationQuaternion(rotation) *
 				DirectX::XMMatrixTranslationFromVector(translation);
@@ -100,10 +100,9 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 
 		// TODO: make hashes as id
 		INT id = _models.size();
-		auto model = std::make_shared<Model>(id, _device, vertices, indices, modelMatrix);
+		std::shared_ptr<Model> model = std::make_shared<Model>(id, _device, vertices, indices, modelMatrix);
+		model->RegisterWithGUI();
 		_models.push_back(std::move(model));
-
-		_models[id]->RegisterWithGUI();
 	}
 
 	return true;
@@ -111,14 +110,30 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 
 void ModelManager::DrawAll()
 {
+	UpdateModels();
+
 	for (auto& model : _models)
 	{
 		model->DrawModel(_commandList);
 	}
 }
 
+void ModelManager::UpdateModels()
+{
+	for (auto& model : _models)
+	{
+		if (model->_markedForDeletion)
+		{
+			// TODO: Make model deletion possible
+			//_models.erase(model->GetID());
+		}
+	}
+}
+
 void ModelManager::DrawAllCulled(XMFLOAT4X4 viewProjMatrix)
 {
+	UpdateModels();
+
 	Culler::GetInstance().ExtractPlanes(viewProjMatrix);
 
 	for (auto& model : _models)
@@ -148,15 +163,4 @@ void ModelManager::RotateModel(XMFLOAT3 vec, UINT modelId)
 void ModelManager::ScaleModel(XMFLOAT3 vec, UINT modelId)
 {
 	_models[modelId]->Scale(vec);
-}
-
-// TODO: CopyModel()
-INT ModelManager::CopyModel(INT id)
-{
-	//Model copy = _models[id].Copy();
-
-	//_models.push_back(copy);
-
-	//return copy.GetID();
-	return 0;
 }

@@ -482,7 +482,7 @@ void Application::InitResources()
 	}
 
 	ThrowIfFailed(_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _commandAllocator.Get(), _pipelineState.Get(), IID_PPV_ARGS(&_commandList)));
-	_commandList->SetName(L"artisDX CommandList");
+	_commandList->SetName(L"artisDX CommandList"); // DID NOT GET RELEASED
 
 	// Command lists are created in the recording state, but there is nothing
 	// to record yet. The main loop expects it to be closed, so close it now.
@@ -564,8 +564,8 @@ void Application::SetCommandList()
 	const float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
 	_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 
-	//_modelManager.DrawAll();
-	_modelManager.DrawAllCulled(_viewProjectionMatrix);
+	_modelManager.DrawAll();
+	//_modelManager.DrawAllCulled(_viewProjectionMatrix);
 
 	// Transition back buffer to present state for the swap chain.
 	D3D12_RESOURCE_BARRIER presentBarrier = {};
@@ -656,4 +656,56 @@ void Application::Present()
 Application::~Application()
 {
 	_window.Shutdown();
+	// Ensure GPU has finished executing commands before releasing resources
+	_fenceValue++;
+	_commandQueue->Signal(_fence.Get(), _fenceValue);
+
+	if (_fence->GetCompletedValue() < _fenceValue)
+	{
+		_fence->SetEventOnCompletion(_fenceValue, _fenceEvent);
+		WaitForSingleObject(_fenceEvent, INFINITE);
+	}
+
+	// Close event handle
+	if (_fenceEvent)
+	{
+		CloseHandle(_fenceEvent);
+		_fenceEvent = nullptr;
+	}
+
+	// Explicitly release all DX12 objects
+	_commandList.Reset();
+	_commandAllocator.Reset();
+	_commandQueue.Reset();
+	_swapchain.Reset();
+	_device.Reset();
+	_factory.Reset();
+	_adapter.Reset();
+
+	_rtvHeap.Reset();
+	_rootSignature.Reset();
+	_pipelineState.Reset();
+	_dsvHeap.Reset();
+
+	for (UINT i = 0; i < _backBufferCount; i++)
+	{
+		_renderTargets[i].Reset();
+	}
+	_depthStencilBuffer.Reset();
+
+	_uniformBuffer.Reset();
+	_uniformBufferHeap.Reset();
+
+	_fence.Reset();
+
+	// Clean up other objects
+	_mappedUniformBuffer = nullptr;
+
+	// Cleanup GUI
+#if defined(_DEBUG)
+	_debugDevice->ReportLiveDeviceObjects(D3D12_RLDO_DETAIL);
+	if (_debugDevice) _debugDevice.Reset();
+	if (_debugController) _debugController.Reset();
+#endif
+	PRINT("SHUTDOWN");
 }

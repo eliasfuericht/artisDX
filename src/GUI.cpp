@@ -173,17 +173,24 @@ void GUI::Render()
 void GUI::Shutdown()
 {
 	_imguiIO = nullptr;
-	_commandList = nullptr;
-	_commandAllocator = nullptr;
-	_srvHeap = nullptr;
-	_rtvHeap = nullptr;
-	_swapchain = nullptr;
-
 	ImGui_ImplDX12_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
 
+	// Clear all components
 	_guiComponents.clear();
+
+	// Explicitly release D3D12 objects
+	_commandList.Reset();
+	_commandAllocator.Reset();
+	_srvHeap.Reset();
+	_commandQueue.Reset();
+	_swapchain.Reset();
+	_rtvHeap.Reset();
+
+	for (auto& target : _renderTargets) {
+		target.Reset();
+	}
 }
 
 

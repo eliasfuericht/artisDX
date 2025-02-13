@@ -16,7 +16,7 @@ public:
 	void DrawAll();
 	void DrawAllCulled(XMFLOAT4X4 viewProjMatrix);
 
-	INT CopyModel(INT id);
+	void UpdateModels();
 
 	void TranslateModel(XMFLOAT3 vec, UINT modelId);
 	void RotateModel(XMFLOAT3 vec, UINT modelId);

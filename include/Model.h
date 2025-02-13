@@ -4,14 +4,15 @@
 
 #include "Mesh.h"
 #include "AABB.h"
-#include "GUI.h"
 #include "IGUIComponent.h"
+#include "GUI.h"
 
-class Model : public IGUIComponent, public std::enable_shared_from_this<Model>
+class Model : public IGUIComponent
 {
 public:
 	Model() {};
 	Model(INT id, MSWRL::ComPtr<ID3D12Device> device, std::vector<Vertex> vertices, std::vector<uint32_t> indices, XMFLOAT4X4 modelMatrix);
+	
 	void DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 	void DrawGUI();
 	void RegisterWithGUI();
@@ -24,11 +25,14 @@ public:
 	void Rotate(XMFLOAT3 vec);
 	void Scale(XMFLOAT3 vec);
 
+	bool _markedForDeletion = false;
+
+	~Model();
+
 private:
 	void CreateModelMatrixBuffer(MSWRL::ComPtr<ID3D12Device> device);
 	void ExtractTransformsFromMatrix();
 	void UpdateModelMatrix();
-
 
 	INT _ID;
 

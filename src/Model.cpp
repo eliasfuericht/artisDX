@@ -6,7 +6,7 @@ Model::Model(INT id, MSWRL::ComPtr<ID3D12Device> device, std::vector<Vertex> ver
 	_aabb = AABB(vertices);
 	_modelMatrix = modelMatrix;
 	ExtractTransformsFromMatrix();
-	_aabb.UpdateTransform(_modelMatrix);
+	UpdateModelMatrix();
 	CreateModelMatrixBuffer(device);
 }
 
@@ -31,21 +31,18 @@ void Model::ExtractTransformsFromMatrix()
 
 	XMMATRIX rotationMatrix = XMMatrixRotationQuaternion(rotation);
 
-	_rotation.x = atan2(rotationMatrix.r[1].m128_f32[2], rotationMatrix.r[2].m128_f32[2]); // Pitch
-	_rotation.y = atan2(-rotationMatrix.r[0].m128_f32[2],
-		sqrt(rotationMatrix.r[0].m128_f32[0] * rotationMatrix.r[0].m128_f32[0] +
-			rotationMatrix.r[0].m128_f32[1] * rotationMatrix.r[0].m128_f32[1])); // Yaw
-	_rotation.z = atan2(rotationMatrix.r[0].m128_f32[1], rotationMatrix.r[0].m128_f32[0]); // Roll
+	_rotation.x = XMConvertToDegrees(atan2(rotationMatrix.r[1].m128_f32[2], rotationMatrix.r[2].m128_f32[2])); // Pitch
+	_rotation.y = XMConvertToDegrees(	atan2(-rotationMatrix.r[0].m128_f32[2],
+																		sqrt(rotationMatrix.r[0].m128_f32[0] * rotationMatrix.r[0].m128_f32[0] +
+																		rotationMatrix.r[0].m128_f32[1] * rotationMatrix.r[0].m128_f32[1]))); // Yaw
+	_rotation.z = XMConvertToDegrees(atan2(rotationMatrix.r[0].m128_f32[1], rotationMatrix.r[0].m128_f32[0])); // Roll
+
 }
 
 void Model::DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
-	// Update model matrix buffer
 	memcpy(_mappedUniformBuffer, &_modelMatrix, sizeof(_modelMatrix));
 
-	auto temp = _aabb;
-
-	// Bind model matrix buffer directly (instead of using descriptor heap)
 	commandList->SetGraphicsRootConstantBufferView(1, _modelMatrixBuffer->GetGPUVirtualAddress());
 
 	_mesh.BindMeshData(commandList);
@@ -126,6 +123,8 @@ void Model::DrawGUI() {
 	GUI::DragFloat3("Rotation", _rotation);
 	GUI::DragFloat3("Scaling", _scaling);
 
+	//_markedForDeletion = GUI::Button("Delete");
+
 	GUI::PopID();
 	GUI::End();
 
@@ -179,4 +178,19 @@ void Model::Scale(XMFLOAT3 vec)
 	modelMatrix = XMMatrixMultiply(scalingMatrix, modelMatrix); // Scale last
 
 	XMStoreFloat4x4(&_modelMatrix, modelMatrix);
+}
+
+Model::~Model()
+{
+	if (_modelMatrixBuffer)
+	{
+		_modelMatrixBuffer.Reset();
+	}
+
+	if (_modelMatrixBufferHeap)
+	{
+		_modelMatrixBufferHeap.Reset();
+	}
+
+	_mappedUniformBuffer = nullptr;
 }

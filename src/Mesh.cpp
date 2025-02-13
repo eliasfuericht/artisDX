@@ -80,3 +80,9 @@ void Mesh::BindMeshData(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	commandList->DrawIndexedInstanced(_indicesSize, 1, 0, 0, 0);
 }
+
+Mesh::~Mesh()
+{
+	_vertexBuffer.Reset();
+	_indexBuffer.Reset();
+}
