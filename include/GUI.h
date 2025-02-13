@@ -15,7 +15,7 @@ public:
 	static void Render();
 	static void Shutdown();
 
-	static void RegisterComponent(std::shared_ptr<IGUIComponent> component);
+	static void RegisterComponent(std::weak_ptr<IGUIComponent> component);
 
 	static void NewFrame();
 	static void Begin(const char* title);
@@ -77,5 +77,6 @@ private:
 	static UINT _rtvDescriptorSize;
 	static MSWRL::ComPtr<ID3D12Resource> _renderTargets[2];
 
-	static std::vector<std::shared_ptr<IGUIComponent>> _guiComponents;
+	//static std::vector<std::shared_ptr<IGUIComponent>> _guiComponents;
+	static std::vector<std::weak_ptr<IGUIComponent>> _guiComponents;
 };

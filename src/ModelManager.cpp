@@ -100,8 +100,9 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 
 		// TODO: make hashes as id
 		INT id = _models.size();
-		Model* model = new Model(id, _device, vertices, indices, modelMatrix);
-		_models.push_back(model);
+		auto model = std::make_shared<Model>(id, _device, vertices, indices, modelMatrix);
+		_models.push_back(std::move(model));
+
 		_models[id]->RegisterWithGUI();
 	}
 

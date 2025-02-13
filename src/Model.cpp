@@ -12,7 +12,7 @@ Model::Model(INT id, MSWRL::ComPtr<ID3D12Device> device, std::vector<Vertex> ver
 
 void Model::RegisterWithGUI()
 {
-	GUI::RegisterComponent(std::shared_ptr<Model>(this));
+	GUI::RegisterComponent(weak_from_this());
 }
 
 void Model::ExtractTransformsFromMatrix()

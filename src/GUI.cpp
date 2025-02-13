@@ -11,7 +11,7 @@ MSWRL::ComPtr<ID3D12DescriptorHeap> GUI::_rtvHeap;
 MSWRL::ComPtr<ID3D12Resource> GUI::_renderTargets[2];
 UINT GUI::_rtvDescriptorSize;
 
-std::vector<std::shared_ptr<IGUIComponent>> GUI::_guiComponents;
+std::vector<std::weak_ptr<IGUIComponent>> GUI::_guiComponents;
 
 void GUI::Init(Window window, MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12CommandQueue> commandQueue, MSWRL::ComPtr<IDXGISwapChain3> swapchain, MSWRL::ComPtr<ID3D12DescriptorHeap> rtvHeap, MSWRL::ComPtr<ID3D12Resource>* renderTargets, UINT rtvDescriptorSize)
 {
@@ -89,18 +89,23 @@ void GUI::PopID()
 	ImGui::PopID();
 }
 
-void GUI::RegisterComponent(std::shared_ptr<IGUIComponent> component)
+void GUI::RegisterComponent(std::weak_ptr<IGUIComponent> component)
 {
-	GUI::_guiComponents.push_back(component);
+	_guiComponents.push_back(component);
 }
 
 void GUI::Draw()
 {
 	GUI::NewFrame();
 
-	for (int i = 0; i < GUI::_guiComponents.size(); i++)
+	for (auto it = _guiComponents.begin(); it != _guiComponents.end(); )
 	{
-		GUI::_guiComponents[i]->DrawGUI();
+		auto component = it->lock();
+		if (component)
+		{
+			component->DrawGUI();
+			++it;
+		}
 	}
 
 	GUI::Render();

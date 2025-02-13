@@ -7,7 +7,7 @@
 #include "GUI.h"
 #include "IGUIComponent.h"
 
-class Model : public IGUIComponent
+class Model : public IGUIComponent, public std::enable_shared_from_this<Model>
 {
 public:
 	Model() {};

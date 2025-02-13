@@ -490,9 +490,9 @@ void Application::InitResources()
 
 	// MODELLOADING
 	_modelManager = ModelManager(_device, _commandList);
-	//_modelManager.LoadModel("../assets/movedcube.glb");
-	//_modelManager.LoadModel("../assets/elicube.glb");
-	//_modelManager.LoadModel("../assets/cube.glb");
+	_modelManager.LoadModel("../assets/movedcube.glb");
+	_modelManager.LoadModel("../assets/elicube.glb");
+	_modelManager.LoadModel("../assets/cube.glb");
 	_modelManager.LoadModel("../assets/cuberotated.glb");
 
 	// Create synchronization objects and wait until assets have been uploaded
