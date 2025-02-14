@@ -3,8 +3,8 @@ Model::Model(INT id, MSWRL::ComPtr<ID3D12Device> device, std::vector<Vertex> ver
 {
 	_ID = id;
 	_mesh = Mesh(device, vertices, indices);
-	_aabb = AABB(vertices);
 	_modelMatrix = modelMatrix;
+	_aabb = AABB(device, vertices);
 	ExtractTransformsFromMatrix();
 	UpdateModelMatrix();
 	CreateModelMatrixBuffer(device);
@@ -46,6 +46,9 @@ void Model::DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 	commandList->SetGraphicsRootConstantBufferView(1, _modelMatrixBuffer->GetGPUVirtualAddress());
 
 	_mesh.BindMeshData(commandList);
+
+	// debug draw aabb
+	_aabb.BindMeshData(commandList);
 }
 
 void Model::CreateModelMatrixBuffer(MSWRL::ComPtr<ID3D12Device> device)
@@ -149,7 +152,7 @@ void Model::UpdateModelMatrix()
 
 	XMStoreFloat4x4(&_modelMatrix, modelMatrix);
 
-	_aabb.UpdateTransform(_modelMatrix);
+	//_aabb.UpdateTransform(_modelMatrix);
 }
 
 void Model::Translate(XMFLOAT3 vec)

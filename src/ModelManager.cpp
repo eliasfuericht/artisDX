@@ -138,7 +138,7 @@ void ModelManager::DrawAllCulled(XMFLOAT4X4 viewProjMatrix)
 
 	for (auto& model : _models)
 	{
-		bool draw = Culler::GetInstance().CheckAABB(model->GetAABB());
+		bool draw = Culler::GetInstance().CheckAABB(model->GetAABB(), model->GetModelMatrix());
 		if (draw)
 		{
 			model->DrawModel(_commandList);

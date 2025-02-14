@@ -23,7 +23,6 @@ Mesh::Mesh(MSWRL::ComPtr<ID3D12Device> device, std::vector<Vertex> vertices, std
 
 MSWRL::ComPtr<ID3D12Resource> Mesh::CreateBuffer(ID3D12Device* device, UINT64 size, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES initialState)
 {
-	ID3D12Resource* buffer = nullptr;
 
 	D3D12_HEAP_PROPERTIES heapProps = {};
 	heapProps.Type = heapType;
@@ -44,6 +43,8 @@ MSWRL::ComPtr<ID3D12Resource> Mesh::CreateBuffer(ID3D12Device* device, UINT64 si
 	resourceDesc.SampleDesc.Quality = 0;
 	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 	resourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+	MSWRL::ComPtr<ID3D12Resource> buffer;
 
 	ThrowIfFailed(device->CreateCommittedResource(
 		&heapProps,

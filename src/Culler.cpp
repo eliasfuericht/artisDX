@@ -31,17 +31,45 @@ void Culler::ExtractPlanes(const XMFLOAT4X4& viewProj)
 	XMStoreFloat4(&_planes[5], XMPlaneNormalize(row4 - row3));
 }
 
-bool Culler::CheckAABB(const AABB& aabb)
+bool Culler::CheckAABB(const AABB& aabb, const XMFLOAT4X4& modelMatrix)
 {
-	XMFLOAT3 min = aabb.GetMin();
-	XMFLOAT3 max = aabb.GetMax();
+	// Transform AABB to world space
+	XMFLOAT3 localMin = aabb.GetMin();
+	XMFLOAT3 localMax = aabb.GetMax();
 
+	XMVECTOR corners[8] = {
+			XMVectorSet(localMin.x, localMin.y, localMin.z, 1.0f),
+			XMVectorSet(localMax.x, localMin.y, localMin.z, 1.0f),
+			XMVectorSet(localMin.x, localMax.y, localMin.z, 1.0f),
+			XMVectorSet(localMax.x, localMax.y, localMin.z, 1.0f),
+			XMVectorSet(localMin.x, localMin.y, localMax.z, 1.0f),
+			XMVectorSet(localMax.x, localMin.y, localMax.z, 1.0f),
+			XMVectorSet(localMin.x, localMax.y, localMax.z, 1.0f),
+			XMVectorSet(localMax.x, localMax.y, localMax.z, 1.0f)
+	};
+
+	XMMATRIX transform = XMLoadFloat4x4(&modelMatrix);
+	XMVECTOR worldMin = XMVector3Transform(corners[0], transform);
+	XMVECTOR worldMax = worldMin;
+
+	for (int i = 1; i < 8; ++i)
+	{
+		XMVECTOR transformedCorner = XMVector3Transform(corners[i], transform);
+		worldMin = XMVectorMin(worldMin, transformedCorner);
+		worldMax = XMVectorMax(worldMax, transformedCorner);
+	}
+
+	XMFLOAT3 min, max;
+	XMStoreFloat3(&min, worldMin);
+	XMStoreFloat3(&max, worldMax);
+
+	// Perform frustum check in world space
 	for (const auto& plane : _planes)
 	{
 		XMVECTOR normal = XMLoadFloat3(reinterpret_cast<const XMFLOAT3*>(&plane));
 		float d = plane.w;
 
-		// Compute positive and negative vertex of the AABB relative to the plane normal
+		// Compute positive and negative vertex of the transformed AABB relative to the plane normal
 		XMFLOAT3 positive, negative;
 
 		positive.x = (plane.x >= 0.0f) ? max.x : min.x;
