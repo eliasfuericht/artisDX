@@ -178,19 +178,7 @@ void GUI::Shutdown()
 	ImGui::DestroyContext();
 
 	// Clear all components
-	_guiComponents.clear();
-
-	// Explicitly release D3D12 objects
-	_commandList.Reset();
-	_commandAllocator.Reset();
-	_srvHeap.Reset();
-	_commandQueue.Reset();
-	_swapchain.Reset();
-	_rtvHeap.Reset();
-
-	for (auto& target : _renderTargets) {
-		target.Reset();
-	}
+	//_guiComponents.clear();
 }
 
 

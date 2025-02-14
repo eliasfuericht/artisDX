@@ -182,18 +182,3 @@ void Model::Scale(XMFLOAT3 vec)
 
 	XMStoreFloat4x4(&_modelMatrix, modelMatrix);
 }
-
-Model::~Model()
-{
-	if (_modelMatrixBuffer)
-	{
-		_modelMatrixBuffer.Reset();
-	}
-
-	if (_modelMatrixBufferHeap)
-	{
-		_modelMatrixBufferHeap.Reset();
-	}
-
-	_mappedUniformBuffer = nullptr;
-}

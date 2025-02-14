@@ -44,6 +44,8 @@ MSWRL::ComPtr<ID3D12Resource> Mesh::CreateBuffer(ID3D12Device* device, UINT64 si
 	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 	resourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
+	// this caused the objects staying alive
+	// was: ID3D12Resource* buffer;
 	MSWRL::ComPtr<ID3D12Resource> buffer;
 
 	ThrowIfFailed(device->CreateCommittedResource(
@@ -80,10 +82,4 @@ void Mesh::BindMeshData(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 	commandList->IASetIndexBuffer(&_indexBufferView);
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	commandList->DrawIndexedInstanced(_indicesSize, 1, 0, 0, 0);
-}
-
-Mesh::~Mesh()
-{
-	_vertexBuffer.Reset();
-	_indexBuffer.Reset();
 }

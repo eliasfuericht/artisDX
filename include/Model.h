@@ -27,8 +27,6 @@ public:
 
 	bool _markedForDeletion = false;
 
-	~Model();
-
 private:
 	void CreateModelMatrixBuffer(MSWRL::ComPtr<ID3D12Device> device);
 	void ExtractTransformsFromMatrix();
