@@ -8,6 +8,7 @@ endif()
 
 include(${CMAKE_BINARY_DIR}/cmake/CPM.cmake)
 
+include(glm.cmake)
 include(imgui.cmake)
 include(fastgltf.cmake)
 include(d3dx12.cmake)
