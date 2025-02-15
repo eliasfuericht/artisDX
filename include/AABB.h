@@ -20,8 +20,6 @@ public:
 	const XMFLOAT3& GetMax() const;
 
 private:
-	XMFLOAT3 _localMin;
-	XMFLOAT3 _localMax;
 	XMFLOAT3 _min;
 	XMFLOAT3 _max;
 
