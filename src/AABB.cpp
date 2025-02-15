@@ -2,12 +2,47 @@
 
 AABB::AABB(MSWRL::ComPtr<ID3D12Device> device, const std::vector<Vertex>& vertices)
 {
-	//ComputeFromVertices(device, vertices);
+	ComputeFromVertices(device, vertices);
 }
 
 void AABB::ComputeFromVertices(MSWRL::ComPtr<ID3D12Device> device, const std::vector<Vertex>& vertices)
 {
 	// TODO: Compute AABB from vertices
+	
+	XMFLOAT3 min = vertices[0].position;
+	XMFLOAT3 max = vertices[0].position;
+
+	for (size_t i = 1; i < vertices.size(); ++i) {
+		const XMFLOAT3& current = vertices[i].position;
+		min.x = std::min(min.x, current.x);
+		min.y = std::min(min.y, current.y);
+		min.z = std::min(min.z, current.z);
+
+		max.x = std::max(max.x, current.x);
+		max.y = std::max(max.y, current.y);
+		max.z = std::max(max.z, current.z);
+	}
+
+	_min = min;
+	_max = max;
+
+	_aabbVertices = {
+			{{_min.x, _min.y, _min.z}, {0, 1, 0}, {1, 0, 0, 1}, {0, 0}}, // 0
+			{{_min.x, _max.y, _min.z}, {0, 1, 0}, {1, 0, 0, 1}, {1, 1}}, // 1
+			{{_min.x, _min.y, _max.z}, {0, 1, 0}, {1, 0, 0, 1}, {0, 1}}, // 2
+			{{_min.x, _max.y, _max.z}, {0, 1, 0}, {1, 0, 0, 1}, {1, 0}}, // 3
+			{{_max.x, _min.y, _min.z}, {0, 1, 0}, {1, 0, 0, 1}, {0, 0}}, // 4
+			{{_max.x, _max.y, _min.z}, {0, 1, 0}, {1, 0, 0, 1}, {1, 1}}, // 5
+			{{_max.x, _min.y, _max.z}, {0, 1, 0}, {1, 0, 0, 1}, {0, 1}}, // 6
+			{{_max.x, _max.y, _max.z}, {0, 1, 0}, {1, 0, 0, 1}, {1, 0}}	 // 7
+	};
+
+	// indices still wrong :|
+	_aabbIndices = {
+		0,1,2,3,4,5,6,7,
+		0,2,1,3,4,6,5,7,
+		0,4,1,5,2,6,3,7
+	};
 
 	UINT vertexBufferSize = _aabbVertices.size() * sizeof(Vertex);
 	_vertexBuffer = CreateBuffer(device.Get(), vertexBufferSize, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
@@ -25,6 +60,46 @@ void AABB::ComputeFromVertices(MSWRL::ComPtr<ID3D12Device> device, const std::ve
 	_indexBufferView.BufferLocation = _indexBuffer->GetGPUVirtualAddress();
 	_indexBufferView.SizeInBytes = indexBufferSize;
 	_indexBufferView.Format = DXGI_FORMAT_R32_UINT;
+}
+
+void AABB::Recompute(const XMFLOAT4X4& matrix)
+{
+	XMFLOAT3 corners[8];
+
+	XMMATRIX matTransform = XMLoadFloat4x4(&matrix);
+
+	XMVECTOR points[8] = {
+			XMVectorSet(_min.x, _min.y, _min.z, 1.0f),
+			XMVectorSet(_min.x, _max.y, _min.z, 1.0f),
+			XMVectorSet(_min.x, _min.y, _max.z, 1.0f),
+			XMVectorSet(_min.x, _max.y, _max.z, 1.0f),
+			XMVectorSet(_max.x, _min.y, _min.z, 1.0f),
+			XMVectorSet(_max.x, _max.y, _min.z, 1.0f),
+			XMVectorSet(_max.x, _min.y, _max.z, 1.0f),
+			XMVectorSet(_max.x, _max.y, _max.z, 1.0f),
+	};
+
+	for (int i = 0; i < 8; ++i) {
+		XMVECTOR transformed = XMVector4Transform(points[i], matTransform);
+		XMStoreFloat3(&corners[i], transformed);
+	}
+
+	XMFLOAT3 newMin = corners[0];
+	XMFLOAT3 newMax = corners[0];
+
+	for (size_t i = 1; i < 8; ++i) {
+		const XMFLOAT3& current = corners[i];
+		newMin.x = std::min(newMin.x, current.x);
+		newMin.y = std::min(newMin.y, current.y);
+		newMin.z = std::min(newMin.z, current.z);
+		
+		newMax.x = std::max(newMax.x, current.x);
+		newMax.y = std::max(newMax.y, current.y);
+		newMax.z = std::max(newMax.z, current.z);
+	}
+
+	_min = newMin;
+	_max = newMax;
 }
 
 MSWRL::ComPtr<ID3D12Resource> AABB::CreateBuffer(ID3D12Device* device, UINT64 size, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES initialState)
@@ -80,11 +155,6 @@ void AABB::UploadBuffers()
 	_indexBuffer->Unmap(0, nullptr);
 }
 
-
-void AABB::UpdateTransform(const XMFLOAT4X4& matrix)
-{
-    // TODO: Update AABB if model was transformed
-}
 
 const XMFLOAT3& AABB::GetMin() const 
 { 

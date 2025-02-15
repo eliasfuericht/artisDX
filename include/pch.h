@@ -32,7 +32,7 @@
 #include "../build/_deps/imgui-src/imgui.h"
 #include "../build/_deps/imgui-src/backends/imgui_impl_win32.h"
 
-// fastgltf
+// fastgltf (apparently depends on glm - cant remove it)
 #include "../build/_deps/fastgltf-src/include/fastgltf/core.hpp"
 #include "../build/_deps/fastgltf-src/include/fastgltf/types.hpp"
 #include "../build/_deps/fastgltf-src/include/fastgltf/tools.hpp"

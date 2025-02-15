@@ -9,7 +9,7 @@ public:
 	AABB(MSWRL::ComPtr<ID3D12Device> device, const std::vector<Vertex>& vertices);
 
 	void ComputeFromVertices(MSWRL::ComPtr<ID3D12Device> device, const std::vector<Vertex>& vertices);
-	void UpdateTransform(const XMFLOAT4X4& matrix);
+	void Recompute(const XMFLOAT4X4& matrix);
 
 	MSWRL::ComPtr<ID3D12Resource> CreateBuffer(ID3D12Device* device, UINT64 size, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES initialState);
 	void UploadBuffers();
