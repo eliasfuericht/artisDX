@@ -409,7 +409,7 @@ void Application::InitResources()
 		psoDesc.PS = psBytecode;
 
 		psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-		psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+		psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
 		psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 		psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 		psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
@@ -444,7 +444,6 @@ void Application::InitResources()
 		heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
 		heapProps.CreationNodeMask = 1;
 		heapProps.VisibleNodeMask = 1;
-
 		// Create Depth-Stencil Resource (Texture2D)
 		D3D12_RESOURCE_DESC depthResourceDesc = {};
 		depthResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;

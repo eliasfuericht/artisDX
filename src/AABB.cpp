@@ -39,9 +39,12 @@ void AABB::ComputeFromVertices(MSWRL::ComPtr<ID3D12Device> device, const std::ve
 
 	// indices still wrong :|
 	_aabbIndices = {
-		0,1,2,3,4,5,6,7,
-		0,2,1,3,4,6,5,7,
-		0,4,1,5,2,6,3,7
+		0, 1, 2, 1, 3, 2, // Front face
+		4, 5, 6, 5, 7, 6, // Back face
+		0, 2, 4, 2, 6, 4, // Left face
+		1, 5, 3, 5, 7, 3, // Right face
+		0, 4, 1, 4, 5, 1, // Bottom face
+		2, 3, 6, 3, 7, 6  // Top face
 	};
 
 	UINT vertexBufferSize = _aabbVertices.size() * sizeof(Vertex);
