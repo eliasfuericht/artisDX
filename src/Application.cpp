@@ -326,11 +326,6 @@ void Application::InitResources()
 
 		// Create the UBO.
 		{
-			// Note: using upload heaps to transfer static data like vert
-			// buffers is not recommended. Every time the GPU needs it, the
-			// upload heap will be marshalled over. Please read up on Default
-			// Heap usage. An upload heap is used here for code simplicity and
-			// because there are very few verts to actually transfer.
 			D3D12_HEAP_PROPERTIES heapProps;
 			heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
 			heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
@@ -409,7 +404,7 @@ void Application::InitResources()
 		psoDesc.PS = psBytecode;
 
 		psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-		psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
+		psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
 		psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 		psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 		psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
@@ -448,11 +443,11 @@ void Application::InitResources()
 		D3D12_RESOURCE_DESC depthResourceDesc = {};
 		depthResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 		depthResourceDesc.Alignment = 0;
-		depthResourceDesc.Width = _width;       // Width of the texture
-		depthResourceDesc.Height = _height;      // Height of the texture
+		depthResourceDesc.Width = _width;       
+		depthResourceDesc.Height = _height;     
 		depthResourceDesc.DepthOrArraySize = 1;
 		depthResourceDesc.MipLevels = 1;
-		depthResourceDesc.Format = DXGI_FORMAT_D32_FLOAT;  // Depth format (could also be D24_UNORM_S8_UINT)
+		depthResourceDesc.Format = DXGI_FORMAT_D32_FLOAT; 
 		depthResourceDesc.SampleDesc.Count = 1;
 		depthResourceDesc.SampleDesc.Quality = 0;
 		depthResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
@@ -460,8 +455,8 @@ void Application::InitResources()
 
 		D3D12_CLEAR_VALUE depthOptimizedClearValue = {};
 		depthOptimizedClearValue.Format = DXGI_FORMAT_D32_FLOAT;
-		depthOptimizedClearValue.DepthStencil.Depth = 1.0f; // Default clear depth
-		depthOptimizedClearValue.DepthStencil.Stencil = 0;  // Default clear stencil
+		depthOptimizedClearValue.DepthStencil.Depth = 1.0f;
+		depthOptimizedClearValue.DepthStencil.Stencil = 0; 
 
 		ThrowIfFailed(_device->CreateCommittedResource(
 			&heapProps,
@@ -482,18 +477,16 @@ void Application::InitResources()
 	}
 
 	ThrowIfFailed(_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _commandAllocator.Get(), _pipelineState.Get(), IID_PPV_ARGS(&_commandList)));
-	_commandList->SetName(L"artisDX CommandList"); // DID NOT GET RELEASED
+	_commandList->SetName(L"artisDX CommandList");
 
-	// Command lists are created in the recording state, but there is nothing
-	// to record yet. The main loop expects it to be closed, so close it now.
 	ThrowIfFailed(_commandList->Close());
 
 	// MODELLOADING
 	_modelManager = ModelManager(_device, _commandList);
 	_modelManager.LoadModel("../assets/cube.glb");
-	//_modelManager.LoadModel("../assets/movedcube.glb");
-	//_modelManager.LoadModel("../assets/elicube.glb");
-	//_modelManager.LoadModel("../assets/cuberotated.glb");
+	_modelManager.LoadModel("../assets/movedcube.glb");
+	_modelManager.LoadModel("../assets/elicube.glb");
+	_modelManager.LoadModel("../assets/cuberotated.glb");
 
 	// Create synchronization objects and wait until assets have been uploaded
 	// to the GPU.
@@ -566,6 +559,9 @@ void Application::SetCommandList()
 
 	//_modelManager.DrawAll();
 	
+	// Culling agains the frustum works, but whenever you pass in the _viewProjectionMatrix, it behaves in unexpected ways. 
+	// Somehow the planes get all messed up and I cannot find the problem - its related to the viewmatrix but I cannot find the exact problem.
+	// I've tried so many different things, I just don't understand whats wrong...
 	_modelManager.DrawAllCulled(_projectionMatrix);
 
 	// Transition back buffer to present state for the swap chain.
@@ -584,20 +580,18 @@ void Application::SetCommandList()
 
 void Application::Run()
 {
+	_lastTime = std::chrono::high_resolution_clock::now(); // Initialize timing
 	_window.Show();
-
 	MSG msg = { 0 };
 
 	while (msg.message != WM_CLOSE)
 	{
+		UpdateFPS(); // Calculate FPS
+
 		UpdateConstantBuffer();
-
 		SetCommandList();
-		
 		ExecuteCommandList();
-		
 		GUI::Draw();
-
 		Present();
 
 		if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE))
@@ -609,6 +603,30 @@ void Application::Run()
 
 	GUI::Shutdown();
 }
+
+
+void Application::UpdateFPS()
+{
+	using namespace std::chrono;
+
+	auto now = high_resolution_clock::now();
+	double deltaTime = duration<double>(now - _lastTime).count();
+	_lastTime = now;
+
+	_elapsedTime += deltaTime;
+	_frameCount++;
+
+	if (_elapsedTime >= 1.0)
+	{
+		_fps = _frameCount / _elapsedTime; 
+		_frameCount = 0;
+		_elapsedTime = 0.0;
+		char title[256];
+		sprintf_s(title, "artisDX - FPS: %.2f", _fps);
+		SetWindowTextA(_window.GetHWND(), title);
+	}
+}
+
 
 void Application::UpdateConstantBuffer()
 {
@@ -642,9 +660,6 @@ void Application::Present()
 	ThrowIfFailed(_commandQueue->Signal(_fence.Get(), fence));
 	_fenceValue++;
 
-	// Wait until the previous frame is finished.
-	// TODO: fix "The thread 123456 has exited with code 0 (0x0)."
-	// this leads to this message: The thread 13196 has exited with code 0 (0x0).
 	if (_fence->GetCompletedValue() < fence)
 	{
 		ThrowIfFailed(_fence->SetEventOnCompletion(fence, _fenceEvent));

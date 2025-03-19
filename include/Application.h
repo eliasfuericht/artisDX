@@ -23,11 +23,19 @@ private:
 	void ExecuteCommandList();
 	void Present();
 
+	void UpdateFPS();
+
 	Window _window;
 	Camera _camera;
 	INT _width, _height;
 
 	std::chrono::steady_clock::time_point _tLastTime = std::chrono::steady_clock::now();
+
+	std::chrono::high_resolution_clock::time_point _startTime;
+	std::chrono::high_resolution_clock::time_point _lastTime;
+	double _elapsedTime = 0.0;
+	int _frameCount = 0;
+	double _fps = 0.0;
 
 	// DX12 Specific
 	// Initialization
