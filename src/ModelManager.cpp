@@ -5,6 +5,7 @@ ModelManager::ModelManager(MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3
 	// instantiate all the necessary gltf loaders and stuff
 	_device = device;
 	_commandList = commandList;
+	Culler::GetInstance().CreateModelMatrixBuffer(device);
 }
 
 bool ModelManager::LoadModel(std::filesystem::path path)
@@ -134,7 +135,8 @@ void ModelManager::DrawAllCulled(XMFLOAT4X4 viewProjMatrix)
 {
 	UpdateModels();
 
-	Culler::GetInstance().ExtractPlanes(viewProjMatrix);
+	Culler::GetInstance().ExtractPlanes(viewProjMatrix, _device);
+	Culler::GetInstance().BindMeshData(_commandList);
 
 	for (auto& model : _models)
 	{
@@ -148,6 +150,7 @@ void ModelManager::DrawAllCulled(XMFLOAT4X4 viewProjMatrix)
 			PRINT("Culled");
 		}
 	}
+
 }
 
 void ModelManager::TranslateModel(XMFLOAT3 vec, UINT modelId)

@@ -48,7 +48,7 @@ void Model::DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 	_mesh.BindMeshData(commandList);
 
 	// debug draw aabb
-	_aabb.BindMeshData(commandList);
+	//_aabb.BindMeshData(commandList);
 }
 
 void Model::CreateModelMatrixBuffer(MSWRL::ComPtr<ID3D12Device> device)
