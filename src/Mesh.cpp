@@ -13,11 +13,11 @@ Mesh::Mesh(MSWRL::ComPtr<ID3D12Device> device, std::vector<Vertex> vertices, std
 
 	_vertexBufferView.BufferLocation = _vertexBuffer->GetGPUVirtualAddress();
 	_vertexBufferView.SizeInBytes = vertexBufferSize;
-	_vertexBufferView.StrideInBytes = sizeof(Vertex); // Replace with your vertex stride (e.g., sizeof(Vertex))
+	_vertexBufferView.StrideInBytes = sizeof(Vertex);
 
 	_indexBufferView.BufferLocation = _indexBuffer->GetGPUVirtualAddress();
 	_indexBufferView.SizeInBytes = indexBufferSize;
-	_indexBufferView.Format = DXGI_FORMAT_R32_UINT; // Use R16_UINT for 16-bit indices
+	_indexBufferView.Format = DXGI_FORMAT_R32_UINT;
 }
 
 
@@ -44,8 +44,6 @@ MSWRL::ComPtr<ID3D12Resource> Mesh::CreateBuffer(ID3D12Device* device, UINT64 si
 	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 	resourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
-	// this caused the objects staying alive
-	// was: ID3D12Resource* buffer;
 	MSWRL::ComPtr<ID3D12Resource> buffer;
 
 	ThrowIfFailed(device->CreateCommittedResource(
@@ -78,7 +76,7 @@ void Mesh::UploadBuffers(std::vector<Vertex> vertices, UINT vertexBufferSize, st
 
 void Mesh::BindMeshData(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
-	commandList->IASetVertexBuffers(0, 1, &_vertexBufferView); // Slot 0, 1 buffer
+	commandList->IASetVertexBuffers(0, 1, &_vertexBufferView);
 	commandList->IASetIndexBuffer(&_indexBufferView);
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	commandList->DrawIndexedInstanced(_indicesSize, 1, 0, 0, 0);

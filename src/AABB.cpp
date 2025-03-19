@@ -7,8 +7,6 @@ AABB::AABB(MSWRL::ComPtr<ID3D12Device> device, const std::vector<Vertex>& vertic
 
 void AABB::ComputeFromVertices(MSWRL::ComPtr<ID3D12Device> device, const std::vector<Vertex>& vertices)
 {
-	// TODO: Compute AABB from vertices
-	
 	XMFLOAT3 min = vertices[0].position;
 	XMFLOAT3 max = vertices[0].position;
 
@@ -27,24 +25,23 @@ void AABB::ComputeFromVertices(MSWRL::ComPtr<ID3D12Device> device, const std::ve
 	_max = max;
 
 	_aabbVertices = {
-			{{_min.x, _min.y, _min.z}, {0, 1, 0}, {1, 0, 0, 1}, {0, 0}}, // 0
-			{{_min.x, _max.y, _min.z}, {0, 1, 0}, {1, 0, 0, 1}, {1, 1}}, // 1
-			{{_min.x, _min.y, _max.z}, {0, 1, 0}, {1, 0, 0, 1}, {0, 1}}, // 2
-			{{_min.x, _max.y, _max.z}, {0, 1, 0}, {1, 0, 0, 1}, {1, 0}}, // 3
-			{{_max.x, _min.y, _min.z}, {0, 1, 0}, {1, 0, 0, 1}, {0, 0}}, // 4
-			{{_max.x, _max.y, _min.z}, {0, 1, 0}, {1, 0, 0, 1}, {1, 1}}, // 5
-			{{_max.x, _min.y, _max.z}, {0, 1, 0}, {1, 0, 0, 1}, {0, 1}}, // 6
-			{{_max.x, _max.y, _max.z}, {0, 1, 0}, {1, 0, 0, 1}, {1, 0}}	 // 7
+			{{_min.x, _min.y, _min.z}, {0, 1, 0}, {1, 0, 0, 1}, {0, 0}}, 
+			{{_min.x, _max.y, _min.z}, {0, 1, 0}, {1, 0, 0, 1}, {1, 1}}, 
+			{{_min.x, _min.y, _max.z}, {0, 1, 0}, {1, 0, 0, 1}, {0, 1}}, 
+			{{_min.x, _max.y, _max.z}, {0, 1, 0}, {1, 0, 0, 1}, {1, 0}}, 
+			{{_max.x, _min.y, _min.z}, {0, 1, 0}, {1, 0, 0, 1}, {0, 0}}, 
+			{{_max.x, _max.y, _min.z}, {0, 1, 0}, {1, 0, 0, 1}, {1, 1}}, 
+			{{_max.x, _min.y, _max.z}, {0, 1, 0}, {1, 0, 0, 1}, {0, 1}}, 
+			{{_max.x, _max.y, _max.z}, {0, 1, 0}, {1, 0, 0, 1}, {1, 0}}	 
 	};
 
-	// indices still wrong :|
 	_aabbIndices = {
-		0, 1, 2, 1, 3, 2, // Front face
-		4, 5, 6, 5, 7, 6, // Back face
-		0, 2, 4, 2, 6, 4, // Left face
-		1, 5, 3, 5, 7, 3, // Right face
-		0, 4, 1, 4, 5, 1, // Bottom face
-		2, 3, 6, 3, 7, 6  // Top face
+		0, 1, 2, 1, 3, 2, 
+		4, 5, 6, 5, 7, 6, 
+		0, 2, 4, 2, 6, 4, 
+		1, 5, 3, 5, 7, 3, 
+		0, 4, 1, 4, 5, 1, 
+		2, 3, 6, 3, 7, 6  
 	};
 
 	UINT vertexBufferSize = _aabbVertices.size() * sizeof(Vertex);
@@ -171,7 +168,7 @@ const XMFLOAT3& AABB::GetMax() const
 
 void AABB::BindMeshData(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
-	commandList->IASetVertexBuffers(0, 1, &_vertexBufferView); // Slot 0, 1 buffer
+	commandList->IASetVertexBuffers(0, 1, &_vertexBufferView);
 	commandList->IASetIndexBuffer(&_indexBufferView);
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	commandList->DrawIndexedInstanced(_indicesSize, 1, 0, 0, 0);

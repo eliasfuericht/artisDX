@@ -33,16 +33,12 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 
 		for (auto& primitive : mesh.primitives) 
 		{
-			// indices
 			const fastgltf::Accessor& indexAccessor = asset->accessors[primitive.indicesAccessor.value()];
 			indices.reserve(indices.size() + indexAccessor.count);
-			// Extract the actual asset
 			fastgltf::iterateAccessor<std::uint32_t>(asset.get(), indexAccessor, [&](std::uint32_t idx) {
 				indices.push_back(idx);
 				});
 
-			// vertices
-			// position
 			const fastgltf::Accessor& positionAccessor = asset->accessors[primitive.findAttribute("POSITION")->accessorIndex];
 			vertices.resize(vertices.size() + positionAccessor.count);
 
@@ -50,7 +46,6 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 				vertices[idx].position = XMFLOAT3(pos.x(), pos.y(), pos.z());
 				});
 
-			// normals
 			if (primitive.findAttribute("NORMAL") != primitive.attributes.end())
 			{
 				const fastgltf::Accessor& normalAccessor = asset->accessors[primitive.findAttribute("NORMAL")->accessorIndex];
@@ -59,7 +54,6 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 					});
 			}
 
-			// tangents
 			if (primitive.findAttribute("TANGENT") != primitive.attributes.end())
 			{
 				const fastgltf::Accessor& tangentAccessor = asset->accessors[primitive.findAttribute("TANGENT")->accessorIndex];

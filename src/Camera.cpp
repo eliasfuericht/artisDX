@@ -79,11 +79,9 @@ void Camera::ConsumeKey(BOOL* keys, FLOAT deltaTime)
 
 void Camera::Update()
 {
-	// Convert angles to radians
 	float yawRad = XMConvertToRadians(_yaw);
 	float pitchRad = XMConvertToRadians(_pitch);
 
-	// Compute front vector
 	_front = XMVector3Normalize(XMVectorSet(
 		cosf(yawRad) * cosf(pitchRad),
 		sinf(pitchRad),
@@ -91,10 +89,8 @@ void Camera::Update()
 		0.0f
 	));
 
-	// Compute right and up vectors
 	_right = XMVector3Normalize(XMVector3Cross(_front, _worldUp));
 	_up = XMVector3Normalize(XMVector3Cross(_right, _front));
 
-	// Compute view matrix
 	XMStoreFloat4x4(&_viewMatrix, XMMatrixLookAtLH(_position, XMVectorAdd(_position, _front), _up));
 }

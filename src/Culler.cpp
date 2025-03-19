@@ -17,12 +17,12 @@ void Culler::ExtractPlanes(const XMFLOAT4X4& viewProj, MSWRL::ComPtr<ID3D12Devic
 	XMVECTOR row3 = matViewProj.r[3];
 
 	// Extract frustum planes
-	XMStoreFloat4(&_planes[0], XMPlaneNormalize(row3 + row2)); // Near
-	XMStoreFloat4(&_planes[1], XMPlaneNormalize(row3 - row2)); // Far
-	XMStoreFloat4(&_planes[2], XMPlaneNormalize(row3 + row0)); // Left
-	XMStoreFloat4(&_planes[3], XMPlaneNormalize(row3 - row0)); // Right
-	XMStoreFloat4(&_planes[4], XMPlaneNormalize(row3 + row1)); // Top   
-	XMStoreFloat4(&_planes[5], XMPlaneNormalize(row3 - row1)); // Bottom
+	XMStoreFloat4(&_planes[0], XMPlaneNormalize(row3 + row2));
+	XMStoreFloat4(&_planes[1], XMPlaneNormalize(row3 - row2));
+	XMStoreFloat4(&_planes[2], XMPlaneNormalize(row3 + row0));
+	XMStoreFloat4(&_planes[3], XMPlaneNormalize(row3 - row0));
+	XMStoreFloat4(&_planes[4], XMPlaneNormalize(row3 + row1));
+	XMStoreFloat4(&_planes[5], XMPlaneNormalize(row3 - row1));
 
 	ExtractFrustumVertices();
 
@@ -46,7 +46,7 @@ void Culler::ExtractPlanes(const XMFLOAT4X4& viewProj, MSWRL::ComPtr<ID3D12Devic
 
 void Culler::ExtractFrustumVertices()
 {
-	// Function to find the intersection of three planes
+	// lambda to extract intersectionpoints
 	auto IntersectPlanes = [](const XMFLOAT4& p1, const XMFLOAT4& p2, const XMFLOAT4& p3) -> XMFLOAT3 {
 		XMVECTOR p1v = XMLoadFloat4(&p1);
 		XMVECTOR p2v = XMLoadFloat4(&p2);
@@ -72,30 +72,23 @@ void Culler::ExtractFrustumVertices()
 		return result;
 		};
 
-	// Compute the 8 vertices of the frustum
 	_frustumVertices.resize(8);
-	_frustumVertices[0] = { IntersectPlanes(_planes[0], _planes[2], _planes[4]), {0, 1, 0}, {1, 0, 0, 1}, {0, 0} }; // Near Top Left
-	_frustumVertices[1] = { IntersectPlanes(_planes[0], _planes[3], _planes[4]), {0, 1, 0}, {1, 0, 0, 1}, {1, 1} }; // Near Top Right
-	_frustumVertices[2] = { IntersectPlanes(_planes[0], _planes[2], _planes[5]), {0, 1, 0}, {1, 0, 0, 1}, {0, 1} }; // Near Bottom Left
-	_frustumVertices[3] = { IntersectPlanes(_planes[0], _planes[3], _planes[5]), {0, 1, 0}, {1, 0, 0, 1}, {1, 0} }; // Near Bottom Right
-	_frustumVertices[4] = { IntersectPlanes(_planes[1], _planes[2], _planes[4]), {0, 1, 0}, {1, 0, 0, 1}, {0, 0} }; // Far Top Left
-	_frustumVertices[5] = { IntersectPlanes(_planes[1], _planes[3], _planes[4]), {0, 1, 0}, {1, 0, 0, 1}, {1, 1} }; // Far Top Right
-	_frustumVertices[6] = { IntersectPlanes(_planes[1], _planes[2], _planes[5]), {0, 1, 0}, {1, 0, 0, 1}, {0, 1} }; // Far Bottom Left
-	_frustumVertices[7] = { IntersectPlanes(_planes[1], _planes[3], _planes[5]), {0, 1, 0}, {1, 0, 0, 1}, {1, 0} }; // Far Bottom Right
+	_frustumVertices[0] = { IntersectPlanes(_planes[0], _planes[2], _planes[4]), {0, 1, 0}, {1, 0, 0, 1}, {0, 0} };
+	_frustumVertices[1] = { IntersectPlanes(_planes[0], _planes[3], _planes[4]), {0, 1, 0}, {1, 0, 0, 1}, {1, 1} };
+	_frustumVertices[2] = { IntersectPlanes(_planes[0], _planes[2], _planes[5]), {0, 1, 0}, {1, 0, 0, 1}, {0, 1} };
+	_frustumVertices[3] = { IntersectPlanes(_planes[0], _planes[3], _planes[5]), {0, 1, 0}, {1, 0, 0, 1}, {1, 0} };
+	_frustumVertices[4] = { IntersectPlanes(_planes[1], _planes[2], _planes[4]), {0, 1, 0}, {1, 0, 0, 1}, {0, 0} };
+	_frustumVertices[5] = { IntersectPlanes(_planes[1], _planes[3], _planes[4]), {0, 1, 0}, {1, 0, 0, 1}, {1, 1} };
+	_frustumVertices[6] = { IntersectPlanes(_planes[1], _planes[2], _planes[5]), {0, 1, 0}, {1, 0, 0, 1}, {0, 1} };
+	_frustumVertices[7] = { IntersectPlanes(_planes[1], _planes[3], _planes[5]), {0, 1, 0}, {1, 0, 0, 1}, {1, 0} };
 
-	// Define the indices to draw the frustum as a set of lines
+	// indices (thank you deepseek)
 	_frustumIndices = {
-		// Near plane
 		0, 1, 2, 2, 1, 3,
-		// Far plane
 		4, 5, 6, 6, 5, 7,
-		// Left plane
 		0, 2, 4, 4, 2, 6,
-		// Right plane
 		1, 3, 5, 5, 3, 7,
-		// Top plane
 		0, 4, 1, 1, 4, 5,
-		// Bottom plane
 		2, 6, 3, 3, 6, 7
 	};
 }
@@ -211,7 +204,7 @@ void Culler::BindMeshData(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 
 	commandList->SetGraphicsRootConstantBufferView(1, _modelMatrixBuffer->GetGPUVirtualAddress());
 
-	commandList->IASetVertexBuffers(0, 1, &_vertexBufferView); // Slot 0, 1 buffer
+	commandList->IASetVertexBuffers(0, 1, &_vertexBufferView);
 	commandList->IASetIndexBuffer(&_indexBufferView);
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	commandList->DrawIndexedInstanced(_indicesSize, 1, 0, 0, 0);
