@@ -82,9 +82,4 @@ private:
 	XMFLOAT4X4 _projectionMatrix;
 	XMFLOAT4X4 _viewMatrix;
 	XMFLOAT4X4 _viewProjectionMatrix;
-
-	XMFLOAT4X4 _cullingViewProjectionMatrix;
-	XMFLOAT4X4 _debugProjectionMatrix;
-	XMFLOAT4X4 _debugViewProjectionMatrix;
-	BOOL _once = true;
 };

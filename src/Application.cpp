@@ -409,7 +409,7 @@ void Application::InitResources()
 		psoDesc.PS = psBytecode;
 
 		psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-		psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+		psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
 		psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 		psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 		psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
@@ -490,9 +490,9 @@ void Application::InitResources()
 
 	// MODELLOADING
 	_modelManager = ModelManager(_device, _commandList);
+	_modelManager.LoadModel("../assets/cube.glb");
 	//_modelManager.LoadModel("../assets/movedcube.glb");
 	//_modelManager.LoadModel("../assets/elicube.glb");
-	_modelManager.LoadModel("../assets/cube.glb");
 	//_modelManager.LoadModel("../assets/cuberotated.glb");
 
 	// Create synchronization objects and wait until assets have been uploaded
@@ -566,7 +566,7 @@ void Application::SetCommandList()
 
 	//_modelManager.DrawAll();
 	
-	_modelManager.DrawAllCulled(_debugProjectionMatrix);
+	_modelManager.DrawAllCulled(_projectionMatrix);
 
 	// Transition back buffer to present state for the swap chain.
 	D3D12_RESOURCE_BARRIER presentBarrier = {};
@@ -621,25 +621,7 @@ void Application::UpdateConstantBuffer()
 	_camera.ConsumeMouse(_window.GetXChange(), _window.GetYChange());
 	_viewMatrix = _camera.GetViewMatrix();
 
-	if (_once)
-	{
-		_once = false;
-		auto debugViewMatrix = _camera.GetViewMatrix();
-
-		XMStoreFloat4x4(&_debugProjectionMatrix,
-			XMMatrixPerspectiveFovLH(
-				XMConvertToRadians(45.0f),
-				static_cast<float>(_window.GetWidth()) / static_cast<float>(_window.GetHeight()),
-				0.1f,
-				10000.0f)
-		);
-
-		XMStoreFloat4x4(&_debugViewProjectionMatrix, XMMatrixMultiply(XMLoadFloat4x4(&_debugProjectionMatrix), XMLoadFloat4x4(&debugViewMatrix)));
-	}
-
 	XMStoreFloat4x4(&_viewProjectionMatrix, XMMatrixMultiply(XMLoadFloat4x4(&_viewMatrix), XMLoadFloat4x4(&_projectionMatrix)));
-	XMStoreFloat4x4(&_cullingViewProjectionMatrix, XMMatrixMultiply(XMLoadFloat4x4(&_projectionMatrix), XMLoadFloat4x4(&_viewMatrix)));
-
 
 	memcpy(_mappedUniformBuffer, &_viewProjectionMatrix, sizeof(_viewProjectionMatrix));
 }
