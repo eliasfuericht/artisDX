@@ -5,18 +5,18 @@
 #include "AABB.h"
 #include "Model.h"
 
-class Culler
+class FrustumCuller
 {
 public:
-	static Culler& GetInstance();
+	static FrustumCuller& GetInstance();
 
 	void ExtractPlanes(const XMFLOAT4X4& viewProj, MSWRL::ComPtr<ID3D12Device> device);
 	bool CheckAABB(const AABB& aabb, const XMFLOAT4X4& modelMatrix);
 	void BindMeshData(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 	void CreateModelMatrixBuffer(MSWRL::ComPtr<ID3D12Device> device);
 
-	Culler(const Culler&) = delete;
-	Culler& operator=(const Culler&) = delete;
+	FrustumCuller(const FrustumCuller&) = delete;
+	FrustumCuller& operator=(const FrustumCuller&) = delete;
 
 private:
 	XMVECTOR IntersectPlanes(const XMFLOAT4& p1, const XMFLOAT4& p2, const XMFLOAT4& p3);
@@ -27,8 +27,8 @@ private:
 	void UploadBuffers();
 
 
-	Culler() = default;
-	~Culler() = default;
+	FrustumCuller() = default;
+	~FrustumCuller() = default;
 
 	std::array<XMFLOAT4, 6> _planes;
 

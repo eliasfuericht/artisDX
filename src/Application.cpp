@@ -37,7 +37,7 @@ Application::Application(const CHAR* name, INT w, INT h)
 		XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f),
 		90.0f,
 		0.0f,
-		0.5f,
+		2.5f,
 		0.1f
 	);
 
@@ -557,12 +557,12 @@ void Application::SetCommandList()
 	const float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
 	_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 
-	//_modelManager.DrawAll();
+	_modelManager.DrawAll();
 	
 	// Culling agains the frustum works, but whenever you pass in the _viewProjectionMatrix, it behaves in unexpected ways. 
 	// Somehow the planes get all messed up and I cannot find the problem - its related to the viewmatrix but I cannot find the exact problem.
 	// I've tried so many different things, I just don't understand whats wrong...
-	_modelManager.DrawAllCulled(_projectionMatrix);
+	// _modelManager.DrawAllCulled(_projectionMatrix);
 
 	// Transition back buffer to present state for the swap chain.
 	D3D12_RESOURCE_BARRIER presentBarrier = {};

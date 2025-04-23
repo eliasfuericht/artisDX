@@ -1,12 +1,12 @@
-#include "Culler.h"
+#include "FrustumCuller.h"
 
-Culler& Culler::GetInstance()
+FrustumCuller& FrustumCuller::GetInstance()
 {
-	static Culler instance;
+	static FrustumCuller instance;
 	return instance;
 }
 
-void Culler::ExtractPlanes(const XMFLOAT4X4& viewProj, MSWRL::ComPtr<ID3D12Device> device)
+void FrustumCuller::ExtractPlanes(const XMFLOAT4X4& viewProj, MSWRL::ComPtr<ID3D12Device> device)
 {
 	XMMATRIX matViewProj = XMLoadFloat4x4(&viewProj);
 
@@ -44,7 +44,7 @@ void Culler::ExtractPlanes(const XMFLOAT4X4& viewProj, MSWRL::ComPtr<ID3D12Devic
 	_indexBufferView.Format = DXGI_FORMAT_R32_UINT;
 }
 
-void Culler::ExtractFrustumVertices()
+void FrustumCuller::ExtractFrustumVertices()
 {
 	// lambda to extract intersectionpoints
 	auto IntersectPlanes = [](const XMFLOAT4& p1, const XMFLOAT4& p2, const XMFLOAT4& p3) -> XMFLOAT3 {
@@ -93,7 +93,7 @@ void Culler::ExtractFrustumVertices()
 	};
 }
 
-MSWRL::ComPtr<ID3D12Resource> Culler::CreateBuffer(ID3D12Device* device, UINT64 size, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES initialState)
+MSWRL::ComPtr<ID3D12Resource> FrustumCuller::CreateBuffer(ID3D12Device* device, UINT64 size, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES initialState)
 {
 	D3D12_HEAP_PROPERTIES heapProps = {};
 	heapProps.Type = heapType;
@@ -129,7 +129,7 @@ MSWRL::ComPtr<ID3D12Resource> Culler::CreateBuffer(ID3D12Device* device, UINT64 
 	return buffer;
 }
 
-void Culler::CreateModelMatrixBuffer(MSWRL::ComPtr<ID3D12Device> device)
+void FrustumCuller::CreateModelMatrixBuffer(MSWRL::ComPtr<ID3D12Device> device)
 {
 	D3D12_HEAP_PROPERTIES heapProps;
 	heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
@@ -179,7 +179,7 @@ void Culler::CreateModelMatrixBuffer(MSWRL::ComPtr<ID3D12Device> device)
 	_modelMatrixBuffer->Unmap(0, &readRange);
 }
 
-void Culler::UploadBuffers()
+void FrustumCuller::UploadBuffers()
 {
 	// Map vertex buffer and copy data
 	void* mappedData = nullptr;
@@ -196,7 +196,7 @@ void Culler::UploadBuffers()
 	_indexBuffer->Unmap(0, nullptr);
 }
 
-void Culler::BindMeshData(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
+void FrustumCuller::BindMeshData(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
 	// identity matrix
 	auto identityMatrix = XMMatrixIdentity();
@@ -210,7 +210,7 @@ void Culler::BindMeshData(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 	commandList->DrawIndexedInstanced(_indicesSize, 1, 0, 0, 0);
 }
 
-bool Culler::CheckAABB(const AABB& aabb, const XMFLOAT4X4& modelMatrix)
+bool FrustumCuller::CheckAABB(const AABB& aabb, const XMFLOAT4X4& modelMatrix)
 {
 	const XMFLOAT3& min = aabb.GetMin();
 	const XMFLOAT3& max = aabb.GetMax();

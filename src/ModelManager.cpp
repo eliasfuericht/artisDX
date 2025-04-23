@@ -2,10 +2,9 @@
 
 ModelManager::ModelManager(MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
-	// instantiate all the necessary gltf loaders and stuff
 	_device = device;
 	_commandList = commandList;
-	Culler::GetInstance().CreateModelMatrixBuffer(device);
+	// FrustumCuller::GetInstance().CreateModelMatrixBuffer(device);
 }
 
 bool ModelManager::LoadModel(std::filesystem::path path)
@@ -129,12 +128,12 @@ void ModelManager::DrawAllCulled(XMFLOAT4X4 viewProjMatrix)
 {
 	UpdateModels();
 
-	Culler::GetInstance().ExtractPlanes(viewProjMatrix, _device);
-	Culler::GetInstance().BindMeshData(_commandList);
+	FrustumCuller::GetInstance().ExtractPlanes(viewProjMatrix, _device);
+	FrustumCuller::GetInstance().BindMeshData(_commandList);
 
 	for (auto& model : _models)
 	{
-		bool draw = Culler::GetInstance().CheckAABB(model->GetAABB(), model->GetModelMatrix());
+		bool draw = FrustumCuller::GetInstance().CheckAABB(model->GetAABB(), model->GetModelMatrix());
 		if (draw)
 		{
 			model->DrawModel(_commandList);
