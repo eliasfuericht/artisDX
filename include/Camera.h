@@ -1,6 +1,6 @@
 #pragma once
 
-#include "pch.h"
+#include "precompiled/pch.h"
 
 #include "GUI.h"
 

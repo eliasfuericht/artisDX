@@ -1,10 +1,13 @@
 #include "Model.h"
-Model::Model(INT id, MSWRL::ComPtr<ID3D12Device> device, std::vector<Vertex> vertices, std::vector<uint32_t> indices, XMFLOAT4X4 modelMatrix)
+Model::Model(INT id, MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, std::vector<Vertex> vertices, std::vector<uint32_t> indices, XMFLOAT4X4 modelMatrix, std::vector<DirectX::ScratchImage> textures)
 {
 	_ID = id;
 	_mesh = Mesh(device, vertices, indices);
 	_modelMatrix = modelMatrix;
 	_aabb = AABB(device, vertices);
+	for (DirectX::ScratchImage& texture : textures) {
+		_textures.push_back(Texture(device, commandList, texture));
+	}
 	ExtractTransformsFromMatrix();
 	UpdateModelMatrix();
 	CreateModelMatrixBuffer(device);
@@ -13,6 +16,14 @@ Model::Model(INT id, MSWRL::ComPtr<ID3D12Device> device, std::vector<Vertex> ver
 void Model::RegisterWithGUI()
 {
 	GUI::RegisterComponent(weak_from_this());
+}
+
+void Model::CreateTextureGPUHandles(MSWRL::ComPtr<ID3D12Device> device)
+{
+	for (Texture& texture : _textures)
+	{
+		texture.CreateGPUHandle(device);
+	}
 }
 
 void Model::ExtractTransformsFromMatrix()
@@ -46,6 +57,11 @@ void Model::DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 	commandList->SetGraphicsRootConstantBufferView(1, _modelMatrixBuffer->GetGPUVirtualAddress());
 
 	_mesh.BindMeshData(commandList);
+
+	for (auto& texture : _textures)
+	{
+		texture.BindTexture(commandList);
+	}
 
 	// debug draw aabb
 	//_aabb.BindMeshData(commandList);

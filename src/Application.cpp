@@ -1,5 +1,8 @@
 #include "Application.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "../extern/stb/stb_image.h" 
+
 Application::Application(const CHAR* name, INT w, INT h)
 	: _window(name, w, h)
 {
@@ -214,22 +217,30 @@ void Application::InitResources()
 		if (FAILED(_device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData,sizeof(featureData))))
 			featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
 
-		D3D12_DESCRIPTOR_RANGE1 ranges[1];
-		ranges[0].BaseShaderRegister = 0;
-		ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-		ranges[0].NumDescriptors = 1;
-		ranges[0].RegisterSpace = 0;
-		ranges[0].OffsetInDescriptorsFromTableStart = 0;
-		ranges[0].Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
+		D3D12_DESCRIPTOR_RANGE1 cbvRange = {};
+		cbvRange.BaseShaderRegister = 0;
+		cbvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+		cbvRange.NumDescriptors = 1;
+		cbvRange.RegisterSpace = 0;
+		cbvRange.OffsetInDescriptorsFromTableStart = 0;
+		cbvRange.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
+
+		D3D12_DESCRIPTOR_RANGE1 srvRange = {};
+		srvRange.BaseShaderRegister = 0; // t0 in shader
+		srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+		srvRange.NumDescriptors = 1;
+		srvRange.RegisterSpace = 0;
+		srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+		srvRange.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
 
 		// constant buffers
-		D3D12_ROOT_PARAMETER1 rootParameters[2] = {};
+		D3D12_ROOT_PARAMETER1 rootParameters[3] = {};
 
 		// View Projection Buffer
 		rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 		rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 		rootParameters[0].DescriptorTable.NumDescriptorRanges = 1;
-		rootParameters[0].DescriptorTable.pDescriptorRanges = ranges;
+		rootParameters[0].DescriptorTable.pDescriptorRanges = &cbvRange;
 
 		// Model Matrix Buffer
 		rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
@@ -237,13 +248,21 @@ void Application::InitResources()
 		rootParameters[1].Descriptor.RegisterSpace = 0;
 		rootParameters[1].Descriptor.ShaderRegister = 1;
 
+		// SRV table for texture
+		rootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+		rootParameters[2].DescriptorTable.NumDescriptorRanges = 1;
+		rootParameters[2].DescriptorTable.pDescriptorRanges = &srvRange;
+
+		CD3DX12_STATIC_SAMPLER_DESC staticSampler{ 0, D3D12_FILTER_MIN_MAG_MIP_LINEAR };
+
 		D3D12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
 		rootSignatureDesc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
 		rootSignatureDesc.Desc_1_1.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 		rootSignatureDesc.Desc_1_1.NumParameters = _countof(rootParameters);
 		rootSignatureDesc.Desc_1_1.pParameters = rootParameters;
-		rootSignatureDesc.Desc_1_1.NumStaticSamplers = 0;
-		rootSignatureDesc.Desc_1_1.pStaticSamplers = nullptr;
+		rootSignatureDesc.Desc_1_1.NumStaticSamplers = 1;
+		rootSignatureDesc.Desc_1_1.pStaticSamplers = &staticSampler;
 
 		MSWRL::ComPtr<ID3DBlob> signature;
 		MSWRL::ComPtr<ID3DBlob> error;
@@ -481,13 +500,6 @@ void Application::InitResources()
 
 	ThrowIfFailed(_commandList->Close());
 
-	// MODELLOADING
-	_modelManager = ModelManager(_device, _commandList);
-	_modelManager.LoadModel("../assets/cube.glb");
-	_modelManager.LoadModel("../assets/movedcube.glb");
-	_modelManager.LoadModel("../assets/elicube.glb");
-	_modelManager.LoadModel("../assets/cuberotated.glb");
-
 	// Create synchronization objects and wait until assets have been uploaded
 	// to the GPU.
 	{
@@ -517,6 +529,35 @@ void Application::InitResources()
 
 		_frameIndex = _swapchain->GetCurrentBackBufferIndex();
 	}
+
+	// MODELLOADING
+	_modelManager = ModelManager(_device, _commandList);
+
+	// reset commandallocator and commandlist for uploading textures before renderloop
+	ThrowIfFailed(_commandAllocator->Reset());
+	ThrowIfFailed(_commandList->Reset(_commandAllocator.Get(), _pipelineState.Get()));
+
+	//_modelManager.LoadModel("../assets/cube.glb");
+	//_modelManager.LoadModel("../assets/movedcube.glb");
+	//_modelManager.LoadModel("../assets/elicube.glb");
+	//_modelManager.LoadModel("../assets/cuberotated.glb");
+	_modelManager.LoadModel("../assets/uv_debug.glb");
+
+	ThrowIfFailed(_commandList->Close());
+	ExecuteCommandList();
+	// Signal and increment the fence value.
+	const UINT64 fence = _fenceValue;
+	ThrowIfFailed(_commandQueue->Signal(_fence.Get(), fence));
+	_fenceValue++;
+
+	if (_fence->GetCompletedValue() < fence)
+	{
+		ThrowIfFailed(_fence->SetEventOnCompletion(fence, _fenceEvent));
+		WaitForSingleObject(_fenceEvent, INFINITE);
+	}
+
+	// after upload is done, get GPU handles
+	_modelManager.CreateTextureGPUHandles();
 }
 
 void Application::SetCommandList()

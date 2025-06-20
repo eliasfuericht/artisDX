@@ -9,15 +9,20 @@ ModelManager::ModelManager(MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3
 
 bool ModelManager::LoadModel(std::filesystem::path path)
 {
-	auto data = fastgltf::GltfDataBuffer::FromPath(path);
-	if (data.error() != fastgltf::Error::None) 
-	{
-		// The file couldn't be loaded, or the buffer could not be allocated.
-		std::cout << "Failed to find " << path << '\n';
+	constexpr auto gltfOptions =
+		fastgltf::Options::DontRequireValidAssetMember |
+		fastgltf::Options::AllowDouble |
+		fastgltf::Options::LoadExternalBuffers |
+		fastgltf::Options::LoadExternalImages |
+		fastgltf::Options::GenerateMeshIndices;
+
+	auto data = fastgltf::MappedGltfFile::FromPath(path);
+	if (!bool(data)) {
+		std::cerr << "Failed to open glTF file: " << fastgltf::getErrorMessage(data.error()) << '\n';
 		return false;
 	}
 
-	auto asset = _parser.loadGltf(data.get(), path.parent_path(), fastgltf::Options::None);
+	auto asset = _parser.loadGltf(data.get(), path.parent_path(), gltfOptions);
 	if (auto error = asset.error(); error != fastgltf::Error::None) 
 	{
 		// Some error occurred while reading the buffer, parsing the JSON, or validating the data.
@@ -72,7 +77,7 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 			}
 		}
 
-		// transform vectors are in asset->nodes->transform
+		// extract modelmatrix
 		XMFLOAT4X4 modelMatrix;
 		XMStoreFloat4x4(&modelMatrix, XMMatrixIdentity());
 
@@ -92,19 +97,96 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 			XMStoreFloat4x4(&modelMatrix, transformMatrix);
 		}
 
+		std::vector<DirectX::ScratchImage> textures;
+
+		for (const fastgltf::Image& image : asset->images) {
+			const uint8_t* pixelData = nullptr;
+			size_t pixelSize = 0;
+
+			int width = 0;
+			int height = 0;
+			int channels = 0;
+
+			// Extract encoded image bytes (e.g. PNG, JPEG)
+			if (auto bufferViewPtr = std::get_if<fastgltf::sources::BufferView>(&image.data)) {
+				const fastgltf::sources::BufferView& view = *bufferViewPtr;
+				const auto& bufferViewMeta = asset->bufferViews[view.bufferViewIndex];
+				const auto& buffer = asset->buffers[bufferViewMeta.bufferIndex];
+
+				if (auto arrayPtr = std::get_if<fastgltf::sources::Array>(&buffer.data)) {
+					pixelData = reinterpret_cast<const uint8_t*>(arrayPtr->bytes.data()) + bufferViewMeta.byteOffset;
+					pixelSize = bufferViewMeta.byteLength;
+				}
+			}
+
+			if (!pixelData || pixelSize == 0)
+				continue;
+
+			// Decode image using stb_image
+			unsigned char* decodedPixels = stbi_load_from_memory(
+				reinterpret_cast<const stbi_uc*>(pixelData),
+				static_cast<int>(pixelSize),
+				&width,
+				&height,
+				&channels,
+				STBI_rgb_alpha // Force RGBA8
+			);
+
+			if (!decodedPixels) {
+				std::cout << "stb_image failed to decode image\n";
+				continue;
+			}
+
+			// Create metadata
+			DirectX::TexMetadata metadata = {};
+			metadata.width = width;
+			metadata.height = height;
+			metadata.mipLevels = 1;
+			metadata.arraySize = 1;
+			metadata.dimension = DirectX::TEX_DIMENSION_TEXTURE2D;
+			metadata.format = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+			// Prepare image
+			DirectX::ScratchImage scratch;
+			HRESULT hr = scratch.Initialize2D(metadata.format, width, height, 1, 1);
+			if (FAILED(hr)) {
+				stbi_image_free(decodedPixels);
+				std::cout << "Failed to initialize ScratchImage\n";
+				continue;
+			}
+
+			// Copy pixels
+			memcpy(
+				scratch.GetImage(0, 0, 0)->pixels,
+				decodedPixels,
+				static_cast<size_t>(width) * height * 4 // 4 = RGBA
+			);
+
+			stbi_image_free(decodedPixels);
+			textures.push_back(std::move(scratch));
+		}
+
 		// TODO: make hashes as id
 		INT id = _models.size();
-		std::shared_ptr<Model> model = std::make_shared<Model>(id, _device, vertices, indices, modelMatrix);
+		std::shared_ptr<Model> model = std::make_shared<Model>(id, _device, _commandList, vertices, indices, modelMatrix, std::move(textures));
 		model->RegisterWithGUI();
-		_models.push_back(std::move(model));
+		_models.push_back(std::move(model)); 
 	}
 
 	return true;
 }
 
+void ModelManager::CreateTextureGPUHandles()
+{
+	for (auto& model : _models)
+	{
+		model->CreateTextureGPUHandles(_device);
+	}
+}
+
 void ModelManager::DrawAll()
 {
-	UpdateModels();
+	// UpdateModels();
 
 	for (auto& model : _models)
 	{
@@ -124,6 +206,7 @@ void ModelManager::UpdateModels()
 	}
 }
 
+// doesnt really work
 void ModelManager::DrawAllCulled(XMFLOAT4X4 viewProjMatrix)
 {
 	UpdateModels();

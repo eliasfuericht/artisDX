@@ -22,6 +22,7 @@
 #include <chrono>
 #include <comdef.h>  // For _com_error
 #include <sstream>
+#include <numeric>
 
 // GLM
 #include <../build/_deps/glm-src/glm/glm.hpp>

@@ -1,10 +1,11 @@
 #pragma once
 
-#include "pch.h"
+#include "precompiled/pch.h"
+
+#include "../extern/stb/stb_image.h"
 
 #include "Model.h"
 #include "FrustumCuller.h"
-
 
 class ModelManager
 {
@@ -13,6 +14,7 @@ public:
 	ModelManager(MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 
 	bool LoadModel(std::filesystem::path path);
+	void CreateTextureGPUHandles();
 	void DrawAll();
 	void DrawAllCulled(XMFLOAT4X4 viewProjMatrix);
 

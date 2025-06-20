@@ -11,6 +11,9 @@ file(GLOB_RECURSE ARTISDX_HEADERS "include/*.h")
 
 add_executable(${APPLICATION_NAME} ${ARTISDX_SOURCES} ${ARTISDX_HEADERS})
 
+# doesnt work as wanted for some reason
+# target_precompile_headers(${APPLICATION_NAME} PRIVATE include/precompiled/pch.h)
+
 message(STATUS "Configuring external libraries...")
 
 if(NOT EXISTS ${CMAKE_BINARY_DIR}/cmake/CPM.cmake)
@@ -25,6 +28,7 @@ include(extern/glm.cmake)
 include(extern/imgui.cmake)
 include(extern/fastgltf.cmake)
 include(extern/d3dx12.cmake)
+include(extern/directxtex.cmake)
 
 message(STATUS "External libraries configured successfully.")
 
@@ -32,13 +36,14 @@ message(STATUS "External libraries configured successfully.")
 target_include_directories(${APPLICATION_NAME} PRIVATE include)
 
 target_link_libraries(
-  ${APPLICATION_NAME}     # main application
-  d3d12       # DirectX 12 core library
-  dxgi        # DirectX Graphics Infrastructure
-  dxguid      # DirectX GUID (for interfaces)
-  D3DCompiler    # D3DCompiler for shader compilation functions
+  ${APPLICATION_NAME}    
+  d3d12       
+  dxgi        
+  dxguid      
+  D3DCompiler 
   DearImGui
   fastgltf
+  DirectXTex
 )
 
 ### Organization in VS ###
