@@ -17,11 +17,12 @@ SPIRV_Cross_Output main(SPIRV_Cross_Input stage_input)
 {
     SPIRV_Cross_Output stage_output;
 
-    // Sample the texture using interpolated UV coordinates
-    float4 texColor = myTexture.Sample(mySampler, stage_input.inUV);
+    //float4 texColor = myTexture.Sample(mySampler, stage_input.inUV);
+    //stage_output.outFragColor = texColor;
 
-    // You can output the color directly or modify it
-    stage_output.outFragColor = texColor;
+    float2 uv = stage_input.inUV;
+    stage_output.outFragColor = float4(uv.x, uv.y, 1.0f - uv.x, 1.0f);
+
 
     return stage_output;
 }

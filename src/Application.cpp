@@ -225,16 +225,8 @@ void Application::InitResources()
 		cbvRange.OffsetInDescriptorsFromTableStart = 0;
 		cbvRange.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
 
-		D3D12_DESCRIPTOR_RANGE1 srvRange = {};
-		srvRange.BaseShaderRegister = 0; // t0 in shader
-		srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-		srvRange.NumDescriptors = 1;
-		srvRange.RegisterSpace = 0;
-		srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-		srvRange.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
-
 		// constant buffers
-		D3D12_ROOT_PARAMETER1 rootParameters[3] = {};
+		D3D12_ROOT_PARAMETER1 rootParameters[2] = {};
 
 		// View Projection Buffer
 		rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
@@ -248,21 +240,12 @@ void Application::InitResources()
 		rootParameters[1].Descriptor.RegisterSpace = 0;
 		rootParameters[1].Descriptor.ShaderRegister = 1;
 
-		// SRV table for texture
-		rootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-		rootParameters[2].DescriptorTable.NumDescriptorRanges = 1;
-		rootParameters[2].DescriptorTable.pDescriptorRanges = &srvRange;
-
-		CD3DX12_STATIC_SAMPLER_DESC staticSampler{ 0, D3D12_FILTER_MIN_MAG_MIP_LINEAR };
-
 		D3D12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
 		rootSignatureDesc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
 		rootSignatureDesc.Desc_1_1.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 		rootSignatureDesc.Desc_1_1.NumParameters = _countof(rootParameters);
 		rootSignatureDesc.Desc_1_1.pParameters = rootParameters;
-		rootSignatureDesc.Desc_1_1.NumStaticSamplers = 1;
-		rootSignatureDesc.Desc_1_1.pStaticSamplers = &staticSampler;
+		rootSignatureDesc.Desc_1_1.NumStaticSamplers = 0;
 
 		MSWRL::ComPtr<ID3DBlob> signature;
 		MSWRL::ComPtr<ID3DBlob> error;
@@ -458,6 +441,7 @@ void Application::InitResources()
 		heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
 		heapProps.CreationNodeMask = 1;
 		heapProps.VisibleNodeMask = 1;
+
 		// Create Depth-Stencil Resource (Texture2D)
 		D3D12_RESOURCE_DESC depthResourceDesc = {};
 		depthResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
