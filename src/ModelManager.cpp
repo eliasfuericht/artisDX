@@ -122,23 +122,8 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 			if (!pixelData || pixelSize == 0)
 				continue;
 
-			// Decode image using stb_image
-			unsigned char* decodedPixels = stbi_load_from_memory(
-				reinterpret_cast<const stbi_uc*>(pixelData),
-				static_cast<int>(pixelSize),
-				&width,
-				&height,
-				&channels,
-				STBI_rgb_alpha // Force RGBA8
-			);
-
-			if (!decodedPixels) {
-				std::cout << "stb_image failed to decode image\n";
-				continue;
-			}
-
-			// Create metadata
-			DirectX::TexMetadata metadata = {};
+			ScratchImage image;
+			TexMetadata metadata = {};
 			metadata.width = width;
 			metadata.height = height;
 			metadata.mipLevels = 1;
@@ -146,24 +131,9 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 			metadata.dimension = DirectX::TEX_DIMENSION_TEXTURE2D;
 			metadata.format = DXGI_FORMAT_R8G8B8A8_UNORM;
 
-			// Prepare image
-			DirectX::ScratchImage scratch;
-			HRESULT hr = scratch.Initialize2D(metadata.format, width, height, 1, 1);
-			if (FAILED(hr)) {
-				stbi_image_free(decodedPixels);
-				std::cout << "Failed to initialize ScratchImage\n";
-				continue;
-			}
+			ThrowIfFailed(LoadFromWICMemory(pixelData, pixelSize, WIC_FLAGS_NONE, &metadata, image));
 
-			// Copy pixels
-			memcpy(
-				scratch.GetImage(0, 0, 0)->pixels,
-				decodedPixels,
-				static_cast<size_t>(width) * height * 4 // 4 = RGBA
-			);
-
-			stbi_image_free(decodedPixels);
-			textures.push_back(std::move(scratch));
+			textures.push_back(std::move(image));
 		}
 
 		// TODO: make hashes as id

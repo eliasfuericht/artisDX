@@ -57,6 +57,7 @@ void Application::InitGUI()
 
 void Application::InitDX12()
 {
+	CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 	// Create Factory
 	UINT dxgiFactoryFlags = 0;
 
@@ -225,8 +226,16 @@ void Application::InitResources()
 		cbvRange.OffsetInDescriptorsFromTableStart = 0;
 		cbvRange.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
 
+		D3D12_DESCRIPTOR_RANGE1 srvRange = {};
+		srvRange.BaseShaderRegister = 0; // t0 in HLSL
+		srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+		srvRange.NumDescriptors = 1;
+		srvRange.RegisterSpace = 0;
+		srvRange.OffsetInDescriptorsFromTableStart = 0;
+		srvRange.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
+
 		// constant buffers
-		D3D12_ROOT_PARAMETER1 rootParameters[2] = {};
+		D3D12_ROOT_PARAMETER1 rootParameters[3] = {};
 
 		// View Projection Buffer
 		rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
@@ -240,12 +249,21 @@ void Application::InitResources()
 		rootParameters[1].Descriptor.RegisterSpace = 0;
 		rootParameters[1].Descriptor.ShaderRegister = 1;
 
+		// texture
+		rootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+		rootParameters[2].DescriptorTable.NumDescriptorRanges = 1;
+		rootParameters[2].DescriptorTable.pDescriptorRanges = &srvRange;
+
+		CD3DX12_STATIC_SAMPLER_DESC staticSampler{ 0, D3D12_FILTER_MIN_MAG_MIP_LINEAR };
+
 		D3D12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
 		rootSignatureDesc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
 		rootSignatureDesc.Desc_1_1.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 		rootSignatureDesc.Desc_1_1.NumParameters = _countof(rootParameters);
 		rootSignatureDesc.Desc_1_1.pParameters = rootParameters;
-		rootSignatureDesc.Desc_1_1.NumStaticSamplers = 0;
+		rootSignatureDesc.Desc_1_1.NumStaticSamplers = 1;
+		rootSignatureDesc.Desc_1_1.pStaticSamplers = &staticSampler;
 
 		MSWRL::ComPtr<ID3DBlob> signature;
 		MSWRL::ComPtr<ID3DBlob> error;
@@ -482,8 +500,6 @@ void Application::InitResources()
 	ThrowIfFailed(_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _commandAllocator.Get(), _pipelineState.Get(), IID_PPV_ARGS(&_commandList)));
 	_commandList->SetName(L"artisDX CommandList");
 
-	ThrowIfFailed(_commandList->Close());
-
 	// Create synchronization objects and wait until assets have been uploaded
 	// to the GPU.
 	{
@@ -517,30 +533,16 @@ void Application::InitResources()
 	// MODELLOADING
 	_modelManager = ModelManager(_device, _commandList);
 
-	// reset commandallocator and commandlist for uploading textures before renderloop
-	ThrowIfFailed(_commandAllocator->Reset());
-	ThrowIfFailed(_commandList->Reset(_commandAllocator.Get(), _pipelineState.Get()));
-
 	//_modelManager.LoadModel("../assets/cube.glb");
 	//_modelManager.LoadModel("../assets/movedcube.glb");
 	//_modelManager.LoadModel("../assets/elicube.glb");
 	//_modelManager.LoadModel("../assets/cuberotated.glb");
 	_modelManager.LoadModel("../assets/uv_debug.glb");
 
+	// upload all textures from models
 	ThrowIfFailed(_commandList->Close());
 	ExecuteCommandList();
-	// Signal and increment the fence value.
-	const UINT64 fence = _fenceValue;
-	ThrowIfFailed(_commandQueue->Signal(_fence.Get(), fence));
-	_fenceValue++;
 
-	if (_fence->GetCompletedValue() < fence)
-	{
-		ThrowIfFailed(_fence->SetEventOnCompletion(fence, _fenceEvent));
-		WaitForSingleObject(_fenceEvent, INFINITE);
-	}
-
-	// after upload is done, get GPU handles
 	_modelManager.CreateTextureGPUHandles();
 }
 
@@ -652,7 +654,6 @@ void Application::UpdateFPS()
 	}
 }
 
-
 void Application::UpdateConstantBuffer()
 {
 	std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
@@ -674,12 +675,21 @@ void Application::ExecuteCommandList()
 	// Execute the command list.
 	ID3D12CommandList* ppCommandLists[] = { _commandList.Get() };
 	_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+	WaitForFence();
 }
 
 void Application::Present()
 {
 	_swapchain->Present(1, 0);
 
+	WaitForFence();
+
+	_frameIndex = _swapchain->GetCurrentBackBufferIndex();
+}
+
+void Application::WaitForFence()
+{
 	// Signal and increment the fence value.
 	const UINT64 fence = _fenceValue;
 	ThrowIfFailed(_commandQueue->Signal(_fence.Get(), fence));
@@ -690,12 +700,11 @@ void Application::Present()
 		ThrowIfFailed(_fence->SetEventOnCompletion(fence, _fenceEvent));
 		WaitForSingleObject(_fenceEvent, INFINITE);
 	}
-
-	_frameIndex = _swapchain->GetCurrentBackBufferIndex();
 }
 
 Application::~Application()
 {
+	CoUninitialize();
 	_window.Shutdown();
 	// Ensure GPU has finished executing commands before releasing resources
 	_fenceValue++;

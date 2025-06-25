@@ -5,12 +5,10 @@ Model::Model(INT id, MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12Gra
 	_mesh = Mesh(device, vertices, indices);
 	_modelMatrix = modelMatrix;
 	_aabb = AABB(device, vertices);
-#if 0
 	for (DirectX::ScratchImage& texture : textures) {
 		Texture modelTexture = Texture(device, commandList, texture);
 		_textures.push_back(std::move(modelTexture));
 	}
-#endif
 	ExtractTransformsFromMatrix();
 	UpdateModelMatrix();
 	CreateModelMatrixBuffer(device);
@@ -63,7 +61,7 @@ void Model::DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 
 	for (auto& texture : _textures)
 	{
-		//texture.BindTexture(commandList);
+		texture.BindTexture(commandList);
 	}
 
 	// debug draw aabb

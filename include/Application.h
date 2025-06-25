@@ -21,6 +21,7 @@ private:
 	void UpdateConstantBuffer();
 	void SetCommandList();
 	void ExecuteCommandList();
+	void WaitForFence();
 	void Present();
 
 	void UpdateFPS();
@@ -36,6 +37,13 @@ private:
 	double _elapsedTime = 0.0;
 	int _frameCount = 0;
 	double _fps = 0.0;
+
+
+
+	MSWRL::ComPtr<ID3D12DescriptorHeap> _srvHeap;
+
+
+
 
 	// DX12 Specific
 	// Initialization

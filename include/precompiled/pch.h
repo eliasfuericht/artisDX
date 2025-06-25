@@ -71,12 +71,11 @@ inline void ThrowIfFailed(HRESULT hr, const std::string& errorMsg = "")
 	{
 		_com_error err(hr);  // Convert HRESULT to readable error message
 		std::string fullError;
-		errorMsg == "" ? fullError = "" : fullError = "Error: ";
 		if (!errorMsg.empty())
 		{
 			fullError += errorMsg + " | ";
 		}
-		fullError += "HRESULT: " + std::to_string(hr) + " | Error Message: " + err.ErrorMessage();
+		fullError += "HRESULT: " + std::to_string(hr) + " | Error Message: " + err.ErrorMessage() + " | ";
 
 		OutputDebugStringA(fullError.c_str());
 		throw std::runtime_error(fullError);
