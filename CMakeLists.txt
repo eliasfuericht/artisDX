@@ -47,6 +47,10 @@ target_link_libraries(
 )
 
 ### Organization in VS ###
+file(GLOB_RECURSE ARTISDX_SHADERS "shaders/*.fx")
+set_source_files_properties(${ARTISDX_SHADERS} PROPERTIES HEADER_FILE_ONLY TRUE)
+target_sources(${APPLICATION_NAME} PRIVATE ${ARTISDX_SHADERS})
+source_group(TREE "${CMAKE_SOURCE_DIR}/shaders" PREFIX "shaders" FILES ${ARTISDX_SHADERS})
 
 # Create filters
 source_group(TREE "${CMAKE_SOURCE_DIR}/src" PREFIX "src" FILES ${ARTISDX_SOURCES})

@@ -1,8 +1,5 @@
 #include "Application.h"
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "../extern/stb/stb_image.h" 
-
 Application::Application(const CHAR* name, INT w, INT h)
 	: _window(name, w, h)
 {
@@ -296,13 +293,13 @@ void Application::InitResources()
 
 		std::filesystem::create_directories(path + "shaders\\compiled");
 
-		std::string vertCompiledPath = path + "shaders\\compiled\\triangle.vert.dxbc";
-		std::string fragCompiledPath = path + "shaders\\compiled\\triangle.frag.dxbc";
+		std::string vertCompiledPath = path + "shaders\\compiled\\vert.dxbc";
+		std::string fragCompiledPath = path + "shaders\\compiled\\frag.dxbc";
 
 #define COMPILESHADERS
 #ifdef COMPILESHADERS
-		std::wstring vertPath = wpath + L"shaders\\triangle.vert.hlsl";
-		std::wstring fragPath = wpath + L"shaders\\triangle.frag.hlsl";
+		std::wstring vertPath = wpath + L"shaders\\vert.fx";
+		std::wstring fragPath = wpath + L"shaders\\frag.fx";
 				
 		try
 		{
@@ -316,7 +313,7 @@ void Application::InitResources()
 		catch (std::exception e)
 		{
 			const char* errStr = (const char*)errors->GetBufferPointer();
-			std::cout << errStr;
+			OutputDebugStringA(errStr);
 			errors->Release();
 			errors = nullptr;
 		}

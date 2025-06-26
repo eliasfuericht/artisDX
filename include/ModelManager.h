@@ -2,8 +2,6 @@
 
 #include "precompiled/pch.h"
 
-#include "../extern/stb/stb_image.h"
-
 #include "Model.h"
 #include "FrustumCuller.h"
 
