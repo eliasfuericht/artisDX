@@ -13,7 +13,6 @@ public:
 
 	bool LoadModel(std::filesystem::path path);
 	void DrawAll();
-	void BindTextures();
 	void DrawAllCulled(XMFLOAT4X4 viewProjMatrix);
 
 	void UpdateModels();

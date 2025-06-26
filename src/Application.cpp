@@ -215,16 +215,25 @@ void Application::InitResources()
 		if (FAILED(_device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData,sizeof(featureData))))
 			featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
 
-		D3D12_DESCRIPTOR_RANGE1 cbvRange = {};
-		cbvRange.BaseShaderRegister = 0;
-		cbvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-		cbvRange.NumDescriptors = 1;
-		cbvRange.RegisterSpace = 0;
-		cbvRange.OffsetInDescriptorsFromTableStart = 0;
-		cbvRange.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
+		D3D12_DESCRIPTOR_RANGE1 cbvRangeViewProj = {};
+		cbvRangeViewProj.BaseShaderRegister = 0; // b0
+		cbvRangeViewProj.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+		cbvRangeViewProj.NumDescriptors = 1;
+		cbvRangeViewProj.RegisterSpace = 0;
+		cbvRangeViewProj.OffsetInDescriptorsFromTableStart = 0;
+		cbvRangeViewProj.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
 
+		D3D12_DESCRIPTOR_RANGE1 cbvRangeModel = {};
+		cbvRangeModel.BaseShaderRegister = 1; // b1 — DIFFERENT from b0!
+		cbvRangeModel.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+		cbvRangeModel.NumDescriptors = 1;
+		cbvRangeModel.RegisterSpace = 0;
+		cbvRangeModel.OffsetInDescriptorsFromTableStart = 0;
+		cbvRangeModel.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
+
+		// Texture SRV (t0)
 		D3D12_DESCRIPTOR_RANGE1 srvRange = {};
-		srvRange.BaseShaderRegister = 0;
+		srvRange.BaseShaderRegister = 0; // t0
 		srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 		srvRange.NumDescriptors = 1;
 		srvRange.RegisterSpace = 0;
@@ -238,13 +247,13 @@ void Application::InitResources()
 		rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 		rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 		rootParameters[0].DescriptorTable.NumDescriptorRanges = 1;
-		rootParameters[0].DescriptorTable.pDescriptorRanges = &cbvRange;
+		rootParameters[0].DescriptorTable.pDescriptorRanges = &cbvRangeViewProj;
 
 		// Model Matrix Buffer
-		rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+		rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 		rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-		rootParameters[1].Descriptor.RegisterSpace = 0;
-		rootParameters[1].Descriptor.ShaderRegister = 1;
+		rootParameters[1].DescriptorTable.NumDescriptorRanges = 1;
+		rootParameters[1].DescriptorTable.pDescriptorRanges = &cbvRangeModel;
 
 		// texture
 		rootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
@@ -341,6 +350,8 @@ void Application::InitResources()
 					D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
 		};
 
+		DescriptorAllocator::Instance().Initialize(_device.Get(), NUM_MAX_DESCRIPTORS);
+
 		// Create the UBO.
 		{
 			D3D12_HEAP_PROPERTIES heapProps;
@@ -379,16 +390,14 @@ void Application::InitResources()
 			cbvDesc.BufferLocation = _uniformBuffer->GetGPUVirtualAddress();
 			cbvDesc.SizeInBytes = (sizeof(_viewProjectionMatrix) + 255) & ~255; // CB size is required to be 256-byte aligned.
 
-			D3D12_CPU_DESCRIPTOR_HANDLE cbvHandle(_uniformBufferHeap->GetCPUDescriptorHandleForHeapStart());
-			cbvHandle.ptr = cbvHandle.ptr + _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 0;
+			D3D12_CPU_DESCRIPTOR_HANDLE cbvCpuHandle = DescriptorAllocator::Instance().Allocate();
+			_device->CreateConstantBufferView(&cbvDesc, cbvCpuHandle);
 
-			_device->CreateConstantBufferView(&cbvDesc, cbvHandle);
+			_uniformBufferDescriptor = cbvCpuHandle; // Save this for binding later
 
 			// We do not intend to read from this resource on the CPU. (End is
 			// less than or equal to begin)
-			D3D12_RANGE readRange;
-			readRange.Begin = 0;
-			readRange.End = 0;
+			D3D12_RANGE readRange = { 0, 0 };
 
 			// setup matrices
 			XMStoreFloat4x4(&_projectionMatrix,
@@ -399,9 +408,9 @@ void Application::InitResources()
 					1000.0f)
 			);
 
-			ThrowIfFailed(_uniformBuffer->Map( 0, &readRange, reinterpret_cast<void**>(&_mappedUniformBuffer)));
+			ThrowIfFailed(_uniformBuffer->Map(0, &readRange, reinterpret_cast<void**>(&_mappedUniformBuffer)));
 			memcpy(_mappedUniformBuffer, &_viewProjectionMatrix, sizeof(_viewProjectionMatrix));
-			_uniformBuffer->Unmap(0, &readRange);
+			_uniformBuffer->Unmap(0, nullptr);
 		}
 
 		// Describe and create the graphics pipeline state object (PSO).
@@ -553,13 +562,10 @@ void Application::SetCommandList()
 	_commandList->RSSetViewports(1, &_viewport);
 	_commandList->RSSetScissorRects(1, &_surfaceSize);
 
-	ID3D12DescriptorHeap* pDescriptorHeaps[] = { _uniformBufferHeap.Get() };
-	_commandList->SetDescriptorHeaps(_countof(pDescriptorHeaps), pDescriptorHeaps);
+	ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::Instance().GetHeap() };
+	_commandList->SetDescriptorHeaps(1, heaps);
 
-	D3D12_GPU_DESCRIPTOR_HANDLE srvHandle(_uniformBufferHeap->GetGPUDescriptorHandleForHeapStart());
-	_commandList->SetGraphicsRootDescriptorTable(0, srvHandle);
-
-	_modelManager.BindTextures();
+	_commandList->SetGraphicsRootDescriptorTable(0, DescriptorAllocator::Instance().GetGPUHandle(_uniformBufferDescriptor));
 
 	// Transition the back buffer from present to render target state.
 	D3D12_RESOURCE_BARRIER renderTargetBarrier = {};
@@ -582,11 +588,6 @@ void Application::SetCommandList()
 	_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 
 	_modelManager.DrawAll();
-	
-	// Culling agains the frustum works, but whenever you pass in the _viewProjectionMatrix, it behaves in unexpected ways. 
-	// Somehow the planes get all messed up and I cannot find the problem - its related to the viewmatrix but I cannot find the exact problem.
-	// I've tried so many different things, I just don't understand whats wrong...
-	// _modelManager.DrawAllCulled(_projectionMatrix);
 
 	// Transition back buffer to present state for the swap chain.
 	D3D12_RESOURCE_BARRIER presentBarrier = {};

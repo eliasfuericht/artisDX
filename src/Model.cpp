@@ -5,8 +5,9 @@ Model::Model(INT id, MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12Gra
 	_mesh = Mesh(device, vertices, indices);
 	_modelMatrix = modelMatrix;
 	_aabb = AABB(device, vertices);
-	for (DirectX::ScratchImage& texture : textures) {
-		Texture modelTexture = Texture(device, commandList, texture);
+	for (int i = 0; i < textures.size(); i++)
+	{
+		Texture modelTexture = Texture(device, commandList, textures[i]);
 		_textures.push_back(std::move(modelTexture));
 	}
 	ExtractTransformsFromMatrix();
@@ -47,20 +48,18 @@ void Model::DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
 	memcpy(_mappedUniformBuffer, &_modelMatrix, sizeof(_modelMatrix));
 
-	commandList->SetGraphicsRootConstantBufferView(1, _modelMatrixBuffer->GetGPUVirtualAddress());
+	auto gpuHandle = DescriptorAllocator::Instance().GetGPUHandle(_cbvCpuHandle);
+	commandList->SetGraphicsRootDescriptorTable(1, gpuHandle); // root param index 1
+
+	for (auto& texture : _textures)
+	{
+		texture.BindTexture(commandList);
+	}
 
 	_mesh.BindMeshData(commandList);
 
 	// debug draw aabb
 	//_aabb.BindMeshData(commandList);
-}
-
-void Model::BindTextures(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
-{
-	for (auto& texture : _textures)
-	{
-		texture.BindTexture(commandList);
-	}
 }
 
 void Model::CreateModelMatrixBuffer(MSWRL::ComPtr<ID3D12Device> device)
@@ -71,12 +70,6 @@ void Model::CreateModelMatrixBuffer(MSWRL::ComPtr<ID3D12Device> device)
 	heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
 	heapProps.CreationNodeMask = 1;
 	heapProps.VisibleNodeMask = 1;
-
-	D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
-	heapDesc.NumDescriptors = 1;
-	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	ThrowIfFailed(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_modelMatrixBufferHeap)));
 
 	D3D12_RESOURCE_DESC uboResourceDesc;
 	uboResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -95,18 +88,18 @@ void Model::CreateModelMatrixBuffer(MSWRL::ComPtr<ID3D12Device> device)
 		&heapProps, D3D12_HEAP_FLAG_NONE, &uboResourceDesc,
 		D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
 		IID_PPV_ARGS(&_modelMatrixBuffer)));
-	_modelMatrixBufferHeap->SetName(L"Model Matrix Buffer Upload Resource Heap");
 
+	// Step 2: Allocate a descriptor from the global allocator
+	_cbvCpuHandle = DescriptorAllocator::Instance().Allocate(); // store this handle in your model class
+
+	// Step 3: Create the CBV using that handle
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 	cbvDesc.BufferLocation = _modelMatrixBuffer->GetGPUVirtualAddress();
-	cbvDesc.SizeInBytes = (sizeof(_modelMatrix) + 255) & ~255; // CB size is required to be 256-byte aligned.
+	cbvDesc.SizeInBytes = (sizeof(_modelMatrix) + 255) & ~255;
 
-	D3D12_CPU_DESCRIPTOR_HANDLE cbvHandle(_modelMatrixBufferHeap->GetCPUDescriptorHandleForHeapStart());
-	cbvHandle.ptr = cbvHandle.ptr + device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 0;
+	device->CreateConstantBufferView(&cbvDesc, _cbvCpuHandle);
 
-	device->CreateConstantBufferView(&cbvDesc, cbvHandle);
-
-	// Map once and keep the pointer
+	// Step 4: Map the buffer
 	D3D12_RANGE readRange = { 0, 0 };
 	ThrowIfFailed(_modelMatrixBuffer->Map(0, &readRange, reinterpret_cast<void**>(&_mappedUniformBuffer)));
 	memcpy(_mappedUniformBuffer, &_modelMatrix, sizeof(_modelMatrix));

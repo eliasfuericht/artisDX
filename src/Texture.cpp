@@ -9,12 +9,6 @@ Texture::Texture(MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12Graphic
 
 void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
-	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 1;
-	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	ThrowIfFailed(device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&_srvHeap)));
-
 	const TexMetadata& metadata = _image.GetMetadata();
 	_mipCount = metadata.mipLevels;
 
@@ -65,21 +59,22 @@ void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID
 	UpdateSubresources(commandList.Get(), _textureResource.Get(), _textureUploadHeap.Get(), 0, 0, 1, &textureData);
 	commandList->ResourceBarrier(1, &transitionBarrier);
 
+	_srvCpuHandle = DescriptorAllocator::Instance().Allocate();
+
 	// Describe and create a SRV for the texture.
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.Format = textureDesc.Format;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = 1;
-	device->CreateShaderResourceView(_textureResource.Get(), &srvDesc, _srvHeap->GetCPUDescriptorHandleForHeapStart());
+	device->CreateShaderResourceView(_textureResource.Get(), &srvDesc, _srvCpuHandle);
 }
 
 void Texture::BindTexture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
-	ID3D12DescriptorHeap* heaps[] = { _srvHeap.Get() };
+	ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::Instance().GetHeap() };
 	commandList->SetDescriptorHeaps(1, heaps);
 
-	D3D12_GPU_DESCRIPTOR_HANDLE srvHandle(_srvHeap->GetGPUDescriptorHandleForHeapStart());
-	// Then bind to root signature (depends on your root param setup)
-	commandList->SetGraphicsRootDescriptorTable(2, srvHandle);
+	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = DescriptorAllocator::Instance().GetGPUHandle(_srvCpuHandle);
+	commandList->SetGraphicsRootDescriptorTable(2, gpuHandle);
 }

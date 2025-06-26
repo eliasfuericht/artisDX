@@ -4,6 +4,7 @@
 #include "Window.h"
 #include "Camera.h"
 #include "ModelManager.h"
+#include "DescriptorAllocator.h"
 
 class Application
 {
@@ -38,12 +39,7 @@ private:
 	int _frameCount = 0;
 	double _fps = 0.0;
 
-
-
 	MSWRL::ComPtr<ID3D12DescriptorHeap> _srvHeap;
-
-
-
 
 	// DX12 Specific
 	// Initialization
@@ -87,6 +83,7 @@ private:
 
 	MSWRL::ComPtr<ID3D12Resource> _uniformBuffer;
 	MSWRL::ComPtr<ID3D12DescriptorHeap> _uniformBufferHeap;
+	D3D12_CPU_DESCRIPTOR_HANDLE _uniformBufferDescriptor;
 	// needs to be rawpointer since we perform memcpy on it
 	UINT8* _mappedUniformBuffer;
 

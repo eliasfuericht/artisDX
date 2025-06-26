@@ -14,9 +14,7 @@ public:
 	Model() {};
 	Model(INT id, MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, std::vector<Vertex> vertices, std::vector<uint32_t> indices, XMFLOAT4X4 modelMatrix, std::vector<DirectX::ScratchImage> textures);
 	
-	void CreateTextureGPUHandles(MSWRL::ComPtr<ID3D12Device> device);
 	void DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
-	void BindTextures(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 	void DrawGUI();
 	void RegisterWithGUI();
 
@@ -48,7 +46,7 @@ private:
 	std::vector<Texture> _textures;
 
 	MSWRL::ComPtr<ID3D12Resource> _modelMatrixBuffer;
-	MSWRL::ComPtr<ID3D12DescriptorHeap> _modelMatrixBufferHeap;
+	D3D12_CPU_DESCRIPTOR_HANDLE _cbvCpuHandle;
 
 	UINT8* _mappedUniformBuffer;
 };

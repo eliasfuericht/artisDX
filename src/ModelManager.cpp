@@ -156,16 +156,6 @@ void ModelManager::DrawAll()
 	}
 }
 
-void ModelManager::BindTextures()
-{
-	// UpdateModels();
-
-	for (auto& model : _models)
-	{
-		model->BindTextures(_commandList);
-	}
-}
-
 void ModelManager::UpdateModels()
 {
 	for (auto& model : _models)

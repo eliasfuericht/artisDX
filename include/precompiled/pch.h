@@ -55,6 +55,8 @@ using namespace DirectX;
 
 #define GetHInstance() GetModuleHandle(NULL)
 
+#define NUM_MAX_DESCRIPTORS 1024
+
 template<typename... Args>
 void PrintHelper(Args&&... args) {
 	std::ostringstream oss;
