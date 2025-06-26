@@ -1,5 +1,6 @@
 #include "Model.h"
-Model::Model(INT id, MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, std::vector<Vertex> vertices, std::vector<uint32_t> indices, XMFLOAT4X4 modelMatrix, std::vector<DirectX::ScratchImage> textures)
+Model::Model(	INT id, MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, std::vector<Vertex> vertices, std::vector<uint32_t> indices, 
+							XMFLOAT4X4 modelMatrix, std::vector<std::tuple<Texture::TEXTURETYPE, ScratchImage>> textures)
 {
 	_ID = id;
 	_mesh = Mesh(device, vertices, indices);
@@ -7,7 +8,9 @@ Model::Model(INT id, MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12Gra
 	_aabb = AABB(device, vertices);
 	for (int i = 0; i < textures.size(); i++)
 	{
-		Texture modelTexture = Texture(device, commandList, textures[i]);
+		// how to pass texturetype and texturedata?
+		auto& [texType, texImage] = textures[i];
+		Texture modelTexture = Texture(device, commandList, texType, texImage);
 		_textures.push_back(std::move(modelTexture));
 	}
 	ExtractTransformsFromMatrix();
@@ -51,12 +54,11 @@ void Model::DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 	auto gpuHandle = DescriptorAllocator::Instance().GetGPUHandle(_cbvCpuHandle);
 	commandList->SetGraphicsRootDescriptorTable(1, gpuHandle); // root param index 1
 
-	_textures[0].BindTexture(commandList);
-	/*
+	//_textures[0].BindTexture(commandList);
 	for (auto& texture : _textures)
 	{
 		texture.BindTexture(commandList);
-	}*/
+	}
 
 	_mesh.BindMeshData(commandList);
 

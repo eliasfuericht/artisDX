@@ -1,8 +1,9 @@
 #include "Texture.h"
 
-Texture::Texture(MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, ScratchImage& texture)
+Texture::Texture(MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, Texture::TEXTURETYPE texType, ScratchImage& texture)
 {
 	_image = std::move(texture);
+	_textureType = texType;
 
 	CreateBuffers(device, commandList);
 }

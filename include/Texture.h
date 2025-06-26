@@ -12,12 +12,14 @@ public:
 	{
 		ALBEDO = 0,
 		NORMAL = 1,
-		METAL_AO = 2
+		METALLICROUGHNESS = 2,
+		EMISSIVE = 3,
+		OCCLUSION = 4
 	};
 
 public:
 	Texture() {};
-	Texture(MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, ScratchImage& texture);
+	Texture(MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, Texture::TEXTURETYPE texType, ScratchImage& texture);
 	void BindTexture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 
 private:

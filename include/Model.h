@@ -12,7 +12,7 @@ class Model : public IGUIComponent
 {
 public:
 	Model() {};
-	Model(INT id, MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, std::vector<Vertex> vertices, std::vector<uint32_t> indices, XMFLOAT4X4 modelMatrix, std::vector<DirectX::ScratchImage> textures);
+	Model(INT id, MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, std::vector<Vertex> vertices, std::vector<uint32_t> indices, XMFLOAT4X4 modelMatrix, std::vector<std::tuple<Texture::TEXTURETYPE, ScratchImage>> textures);
 	
 	void DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 	void DrawGUI();

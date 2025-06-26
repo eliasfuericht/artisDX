@@ -23,6 +23,7 @@
 #include <comdef.h>  // For _com_error
 #include <sstream>
 #include <numeric>
+#include <tuple>
 
 // GLM
 #include <../build/_deps/glm-src/glm/glm.hpp>

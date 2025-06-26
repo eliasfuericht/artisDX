@@ -97,9 +97,50 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 			XMStoreFloat4x4(&modelMatrix, transformMatrix);
 		}
 
-		std::vector<DirectX::ScratchImage> textures;
+		std::unordered_map<size_t, Texture::TEXTURETYPE> imageToType;
+		/*
+		for (const fastgltf::Material& material : asset->materials) {
+			// Base color / Albedo
+			if (material.pbrMetallicRoughness.baseColorTexture.has_value()) {
+				auto texIndex = material.pbrMetallicRoughness.baseColorTexture->textureIndex;
+				auto imgIndex = asset->textures[texIndex].imageIndex;
+				imageToType[imgIndex] = Texture::TEXTURETYPE::ALBEDO;
+			}
 
-		for (const fastgltf::Image& image : asset->images) {
+			// Normal map
+			if (material.normalTexture.has_value()) {
+				auto texIndex = material.normalTexture->textureIndex;
+				auto imgIndex = asset->textures[texIndex].imageIndex;
+				imageToType[imgIndex] = Texture::TEXTURETYPE::NORMAL;
+			}
+
+			// Metallic-roughness (usually in one texture, metallic in B, roughness in G)
+			if (material.pbrMetallicRoughness.metallicRoughnessTexture.has_value()) {
+				auto texIndex = material.pbrMetallicRoughness.metallicRoughnessTexture->textureIndex;
+				auto imgIndex = asset->textures[texIndex].imageIndex;
+				imageToType[imgIndex] = Texture::TEXTURETYPE::METALLICROUGHNESS;
+			}
+
+			// Emissive map
+			if (material.emissiveTexture.has_value()) {
+				auto texIndex = material.emissiveTexture->textureIndex;
+				auto imgIndex = asset->textures[texIndex].imageIndex;
+				imageToType[imgIndex] = Texture::TEXTURETYPE::EMISSIVE;
+			}
+
+			// Occlusion
+			if (material.occlusionTexture.has_value()) {
+				auto texIndex = material.occlusionTexture->textureIndex;
+				auto imgIndex = asset->textures[texIndex].imageIndex;
+				imageToType[imgIndex] = Texture::TEXTURETYPE::OCCLUSION;
+			}
+		}
+		*/
+		std::vector<std::tuple<Texture::TEXTURETYPE, ScratchImage>> textures;
+
+		for (size_t i = 0; i < asset->images.size(); ++i) {
+			const fastgltf::Image& assetImage = asset->images[i];
+
 			const uint8_t* pixelData = nullptr;
 			size_t pixelSize = 0;
 
@@ -108,7 +149,7 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 			int channels = 0;
 
 			// Extract encoded image bytes (e.g. PNG, JPEG)
-			if (auto bufferViewPtr = std::get_if<fastgltf::sources::BufferView>(&image.data)) {
+			if (auto bufferViewPtr = std::get_if<fastgltf::sources::BufferView>(&assetImage.data)) {
 				const fastgltf::sources::BufferView& view = *bufferViewPtr;
 				const auto& bufferViewMeta = asset->bufferViews[view.bufferViewIndex];
 				const auto& buffer = asset->buffers[bufferViewMeta.bufferIndex];
@@ -133,7 +174,12 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 
 			ThrowIfFailed(LoadFromWICMemory(pixelData, pixelSize, WIC_FLAGS_NONE, &metadata, image));
 
-			textures.push_back(std::move(image));
+			Texture::TEXTURETYPE type = Texture::TEXTURETYPE::ALBEDO;
+			if (auto it = imageToType.find(i); it != imageToType.end()) {
+				type = it->second;
+			}
+
+			textures.emplace_back(type, std::move(image));
 		}
 
 		// TODO: make hashes as id

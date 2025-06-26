@@ -235,7 +235,7 @@ void Application::InitResources()
 		D3D12_DESCRIPTOR_RANGE1 srvRange = {};
 		srvRange.BaseShaderRegister = 0; // t0
 		srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-		srvRange.NumDescriptors = 2;
+		srvRange.NumDescriptors = 1;
 		srvRange.RegisterSpace = 0;
 		srvRange.OffsetInDescriptorsFromTableStart = 0;
 		srvRange.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
