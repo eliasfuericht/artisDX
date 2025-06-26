@@ -146,14 +146,6 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 	return true;
 }
 
-void ModelManager::CreateTextureGPUHandles()
-{
-	for (auto& model : _models)
-	{
-		model->CreateTextureGPUHandles(_device);
-	}
-}
-
 void ModelManager::DrawAll()
 {
 	// UpdateModels();
@@ -161,6 +153,16 @@ void ModelManager::DrawAll()
 	for (auto& model : _models)
 	{
 		model->DrawModel(_commandList);
+	}
+}
+
+void ModelManager::BindTextures()
+{
+	// UpdateModels();
+
+	for (auto& model : _models)
+	{
+		model->BindTextures(_commandList);
 	}
 }
 

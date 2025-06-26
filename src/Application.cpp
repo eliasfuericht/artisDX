@@ -224,7 +224,7 @@ void Application::InitResources()
 		cbvRange.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
 
 		D3D12_DESCRIPTOR_RANGE1 srvRange = {};
-		srvRange.BaseShaderRegister = 0; // t0 in HLSL
+		srvRange.BaseShaderRegister = 0;
 		srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 		srvRange.NumDescriptors = 1;
 		srvRange.RegisterSpace = 0;
@@ -539,8 +539,6 @@ void Application::InitResources()
 	// upload all textures from models
 	ThrowIfFailed(_commandList->Close());
 	ExecuteCommandList();
-
-	_modelManager.CreateTextureGPUHandles();
 }
 
 void Application::SetCommandList()
@@ -560,6 +558,8 @@ void Application::SetCommandList()
 
 	D3D12_GPU_DESCRIPTOR_HANDLE srvHandle(_uniformBufferHeap->GetGPUDescriptorHandleForHeapStart());
 	_commandList->SetGraphicsRootDescriptorTable(0, srvHandle);
+
+	_modelManager.BindTextures();
 
 	// Transition the back buffer from present to render target state.
 	D3D12_RESOURCE_BARRIER renderTargetBarrier = {};

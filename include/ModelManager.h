@@ -12,8 +12,8 @@ public:
 	ModelManager(MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 
 	bool LoadModel(std::filesystem::path path);
-	void CreateTextureGPUHandles();
 	void DrawAll();
+	void BindTextures();
 	void DrawAllCulled(XMFLOAT4X4 viewProjMatrix);
 
 	void UpdateModels();

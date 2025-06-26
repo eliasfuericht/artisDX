@@ -16,6 +16,7 @@ public:
 	
 	void CreateTextureGPUHandles(MSWRL::ComPtr<ID3D12Device> device);
 	void DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
+	void BindTextures(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 	void DrawGUI();
 	void RegisterWithGUI();
 

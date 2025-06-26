@@ -19,14 +19,6 @@ void Model::RegisterWithGUI()
 	GUI::RegisterComponent(weak_from_this());
 }
 
-void Model::CreateTextureGPUHandles(MSWRL::ComPtr<ID3D12Device> device)
-{
-	for (Texture& texture : _textures)
-	{
-		texture.CreateGPUHandle(device);
-	}
-}
-
 void Model::ExtractTransformsFromMatrix()
 {
 	XMMATRIX M = XMLoadFloat4x4(&_modelMatrix);
@@ -59,13 +51,16 @@ void Model::DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 
 	_mesh.BindMeshData(commandList);
 
+	// debug draw aabb
+	//_aabb.BindMeshData(commandList);
+}
+
+void Model::BindTextures(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
+{
 	for (auto& texture : _textures)
 	{
 		texture.BindTexture(commandList);
 	}
-
-	// debug draw aabb
-	//_aabb.BindMeshData(commandList);
 }
 
 void Model::CreateModelMatrixBuffer(MSWRL::ComPtr<ID3D12Device> device)

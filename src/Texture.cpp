@@ -74,16 +74,12 @@ void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID
 	device->CreateShaderResourceView(_textureResource.Get(), &srvDesc, _srvHeap->GetCPUDescriptorHandleForHeapStart());
 }
 
-void Texture::CreateGPUHandle(MSWRL::ComPtr<ID3D12Device> device)
-{
-	_srvHandle = _srvHeap->GetGPUDescriptorHandleForHeapStart();
-}
-
 void Texture::BindTexture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
 	ID3D12DescriptorHeap* heaps[] = { _srvHeap.Get() };
 	commandList->SetDescriptorHeaps(1, heaps);
 
+	D3D12_GPU_DESCRIPTOR_HANDLE srvHandle(_srvHeap->GetGPUDescriptorHandleForHeapStart());
 	// Then bind to root signature (depends on your root param setup)
-	commandList->SetGraphicsRootDescriptorTable(2, _srvHandle);
+	commandList->SetGraphicsRootDescriptorTable(2, srvHandle);
 }
