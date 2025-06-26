@@ -51,10 +51,12 @@ void Model::DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 	auto gpuHandle = DescriptorAllocator::Instance().GetGPUHandle(_cbvCpuHandle);
 	commandList->SetGraphicsRootDescriptorTable(1, gpuHandle); // root param index 1
 
+	_textures[0].BindTexture(commandList);
+	/*
 	for (auto& texture : _textures)
 	{
 		texture.BindTexture(commandList);
-	}
+	}*/
 
 	_mesh.BindMeshData(commandList);
 

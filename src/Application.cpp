@@ -224,18 +224,18 @@ void Application::InitResources()
 		cbvRangeViewProj.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
 
 		D3D12_DESCRIPTOR_RANGE1 cbvRangeModel = {};
-		cbvRangeModel.BaseShaderRegister = 1; // b1 — DIFFERENT from b0!
+		cbvRangeModel.BaseShaderRegister = 1; // b1
 		cbvRangeModel.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 		cbvRangeModel.NumDescriptors = 1;
 		cbvRangeModel.RegisterSpace = 0;
 		cbvRangeModel.OffsetInDescriptorsFromTableStart = 0;
 		cbvRangeModel.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
 
-		// Texture SRV (t0)
+		// Texture SRV (t0) Albedo + Normal
 		D3D12_DESCRIPTOR_RANGE1 srvRange = {};
 		srvRange.BaseShaderRegister = 0; // t0
 		srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-		srvRange.NumDescriptors = 1;
+		srvRange.NumDescriptors = 2;
 		srvRange.RegisterSpace = 0;
 		srvRange.OffsetInDescriptorsFromTableStart = 0;
 		srvRange.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
@@ -543,7 +543,8 @@ void Application::InitResources()
 	//_modelManager.LoadModel("../assets/movedcube.glb");
 	//_modelManager.LoadModel("../assets/elicube.glb");
 	//_modelManager.LoadModel("../assets/cuberotated.glb");
-	_modelManager.LoadModel("../assets/uv_debug.glb");
+	//_modelManager.LoadModel("../assets/uv_debug.glb");
+	_modelManager.LoadModel("../assets/helmet.glb");
 
 	// upload all textures from models
 	ThrowIfFailed(_commandList->Close());
