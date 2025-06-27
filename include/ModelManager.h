@@ -3,7 +3,6 @@
 #include "precompiled/pch.h"
 
 #include "Model.h"
-#include "FrustumCuller.h"
 
 class ModelManager
 {
@@ -13,7 +12,6 @@ public:
 
 	bool LoadModel(std::filesystem::path path);
 	void DrawAll();
-	void DrawAllCulled(XMFLOAT4X4 viewProjMatrix);
 
 	void UpdateModels();
 
@@ -26,4 +24,5 @@ private:
 	MSWRL::ComPtr<ID3D12GraphicsCommandList> _commandList;
 	fastgltf::Parser _parser;
 	std::vector<std::shared_ptr<Model>> _models;
+	INT _modelId = 0;
 };

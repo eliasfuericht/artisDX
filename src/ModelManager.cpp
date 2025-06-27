@@ -30,10 +30,16 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 		return false;
 	}
 
+	std::vector<std::vector<Vertex>> submeshVertices;
+	std::vector<std::vector<uint32_t>> submeshIndices;
+	std::vector<XMFLOAT4X4> submeshModelMatrices;
+	std::vector<std::tuple<Texture::TEXTURETYPE, ScratchImage>> textures;
+
 	for (auto& mesh : asset->meshes) 
 	{
 		std::vector<Vertex> vertices;
 		std::vector<uint32_t> indices;
+		XMFLOAT4X4 modelMatrix;
 
 		for (auto& primitive : mesh.primitives) 
 		{
@@ -78,7 +84,6 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 		}
 
 		// extract modelmatrix
-		XMFLOAT4X4 modelMatrix;
 		XMStoreFloat4x4(&modelMatrix, XMMatrixIdentity());
 
 		auto& transform = asset->nodes[0].transform;
@@ -98,45 +103,6 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 		}
 
 		std::unordered_map<size_t, Texture::TEXTURETYPE> imageToType;
-		/*
-		for (const fastgltf::Material& material : asset->materials) {
-			// Base color / Albedo
-			if (material.pbrMetallicRoughness.baseColorTexture.has_value()) {
-				auto texIndex = material.pbrMetallicRoughness.baseColorTexture->textureIndex;
-				auto imgIndex = asset->textures[texIndex].imageIndex;
-				imageToType[imgIndex] = Texture::TEXTURETYPE::ALBEDO;
-			}
-
-			// Normal map
-			if (material.normalTexture.has_value()) {
-				auto texIndex = material.normalTexture->textureIndex;
-				auto imgIndex = asset->textures[texIndex].imageIndex;
-				imageToType[imgIndex] = Texture::TEXTURETYPE::NORMAL;
-			}
-
-			// Metallic-roughness (usually in one texture, metallic in B, roughness in G)
-			if (material.pbrMetallicRoughness.metallicRoughnessTexture.has_value()) {
-				auto texIndex = material.pbrMetallicRoughness.metallicRoughnessTexture->textureIndex;
-				auto imgIndex = asset->textures[texIndex].imageIndex;
-				imageToType[imgIndex] = Texture::TEXTURETYPE::METALLICROUGHNESS;
-			}
-
-			// Emissive map
-			if (material.emissiveTexture.has_value()) {
-				auto texIndex = material.emissiveTexture->textureIndex;
-				auto imgIndex = asset->textures[texIndex].imageIndex;
-				imageToType[imgIndex] = Texture::TEXTURETYPE::EMISSIVE;
-			}
-
-			// Occlusion
-			if (material.occlusionTexture.has_value()) {
-				auto texIndex = material.occlusionTexture->textureIndex;
-				auto imgIndex = asset->textures[texIndex].imageIndex;
-				imageToType[imgIndex] = Texture::TEXTURETYPE::OCCLUSION;
-			}
-		}
-		*/
-		std::vector<std::tuple<Texture::TEXTURETYPE, ScratchImage>> textures;
 
 		for (size_t i = 0; i < asset->images.size(); ++i) {
 			const fastgltf::Image& assetImage = asset->images[i];
@@ -182,12 +148,14 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 			textures.emplace_back(type, std::move(image));
 		}
 
-		// TODO: make hashes as id
-		INT id = _models.size();
-		std::shared_ptr<Model> model = std::make_shared<Model>(id, _device, _commandList, vertices, indices, modelMatrix, std::move(textures));
-		model->RegisterWithGUI();
-		_models.push_back(std::move(model)); 
+		submeshVertices.push_back(vertices);
+		submeshIndices.push_back(indices);
+		submeshModelMatrices.push_back(modelMatrix);
 	}
+
+	std::shared_ptr<Model> model = std::make_shared<Model>(_modelId++, _device, _commandList, submeshVertices, submeshIndices, submeshModelMatrices, std::move(textures));
+	model->RegisterWithGUI();
+	_models.push_back(std::move(model)); 
 
 	return true;
 }
@@ -212,29 +180,6 @@ void ModelManager::UpdateModels()
 			//_models.erase(model->GetID());
 		}
 	}
-}
-
-// doesnt really work
-void ModelManager::DrawAllCulled(XMFLOAT4X4 viewProjMatrix)
-{
-	UpdateModels();
-
-	FrustumCuller::GetInstance().ExtractPlanes(viewProjMatrix, _device);
-	FrustumCuller::GetInstance().BindMeshData(_commandList);
-
-	for (auto& model : _models)
-	{
-		bool draw = FrustumCuller::GetInstance().CheckAABB(model->GetAABB(), model->GetModelMatrix());
-		if (draw)
-		{
-			model->DrawModel(_commandList);
-		}
-		else
-		{
-			PRINT("Culled");
-		}
-	}
-
 }
 
 void ModelManager::TranslateModel(XMFLOAT3 vec, UINT modelId)

@@ -1,21 +1,23 @@
 #include "Model.h"
-Model::Model(	INT id, MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, std::vector<Vertex> vertices, std::vector<uint32_t> indices, 
-							XMFLOAT4X4 modelMatrix, std::vector<std::tuple<Texture::TEXTURETYPE, ScratchImage>> textures)
+Model::Model(	INT id, MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, std::vector<std::vector<Vertex>> submeshVertices, 
+							std::vector<std::vector<uint32_t>> submeshIndices, std::vector<XMFLOAT4X4> submeshMatrices, std::vector<std::tuple<Texture::TEXTURETYPE, ScratchImage>> textures)
 {
 	_ID = id;
-	_mesh = Mesh(device, vertices, indices);
-	_modelMatrix = modelMatrix;
-	_aabb = AABB(device, vertices);
+
+	for (int i = 0; i < submeshVertices.size(); i++)
+	{
+		_subMeshes.emplace_back(SubMesh(_subMeshId++, Mesh(device, submeshVertices[i], submeshIndices[i]), AABB(device, submeshVertices[i]), submeshMatrices[i], device));
+	}
+
 	for (int i = 0; i < textures.size(); i++)
 	{
-		// how to pass texturetype and texturedata?
 		auto& [texType, texImage] = textures[i];
 		Texture modelTexture = Texture(device, commandList, texType, texImage);
 		_textures.push_back(std::move(modelTexture));
 	}
+
 	ExtractTransformsFromMatrix();
 	UpdateModelMatrix();
-	CreateModelMatrixBuffer(device);
 }
 
 void Model::RegisterWithGUI()
@@ -23,106 +25,50 @@ void Model::RegisterWithGUI()
 	GUI::RegisterComponent(weak_from_this());
 }
 
-void Model::ExtractTransformsFromMatrix()
-{
-	XMMATRIX M = XMLoadFloat4x4(&_modelMatrix);
-
-	XMVECTOR translation, rotation, scale;
-	XMMatrixDecompose(&scale, &rotation, &translation, M);
-
-	XMStoreFloat3(&_translation, translation);
-
-	XMStoreFloat3(&_scaling, scale);
-
-	XMFLOAT4 quat;
-	XMStoreFloat4(&quat, rotation);
-
-	XMMATRIX rotationMatrix = XMMatrixRotationQuaternion(rotation);
-
-	_rotation.x = XMConvertToDegrees(atan2(rotationMatrix.r[1].m128_f32[2], rotationMatrix.r[2].m128_f32[2])); // Pitch
-	_rotation.y = XMConvertToDegrees(	atan2(-rotationMatrix.r[0].m128_f32[2],
-																		sqrt(rotationMatrix.r[0].m128_f32[0] * rotationMatrix.r[0].m128_f32[0] +
-																		rotationMatrix.r[0].m128_f32[1] * rotationMatrix.r[0].m128_f32[1]))); // Yaw
-	_rotation.z = XMConvertToDegrees(atan2(rotationMatrix.r[0].m128_f32[1], rotationMatrix.r[0].m128_f32[0])); // Roll
-
-}
-
 void Model::DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
-	memcpy(_mappedUniformBuffer, &_modelMatrix, sizeof(_modelMatrix));
-
-	auto gpuHandle = DescriptorAllocator::Instance().GetGPUHandle(_cbvCpuHandle);
-	commandList->SetGraphicsRootDescriptorTable(1, gpuHandle); // root param index 1
-
-	//_textures[0].BindTexture(commandList);
-	for (auto& texture : _textures)
+	for (Texture& texture : _textures)
 	{
 		texture.BindTexture(commandList);
 	}
 
-	_mesh.BindMeshData(commandList);
+	for (SubMesh& subMesh : _subMeshes)
+	{
+		memcpy(subMesh.mappedPtr, &subMesh.localTransform, sizeof(XMFLOAT4X4));
 
-	// debug draw aabb
-	//_aabb.BindMeshData(commandList);
+		commandList->SetGraphicsRootDescriptorTable(1, subMesh.cbvGpuHandle);
+		subMesh.mesh.BindMeshData(commandList);
+	}
 }
 
-void Model::CreateModelMatrixBuffer(MSWRL::ComPtr<ID3D12Device> device)
+void Model::ExtractTransformsFromMatrix()
 {
-	D3D12_HEAP_PROPERTIES heapProps;
-	heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
-	heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-	heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-	heapProps.CreationNodeMask = 1;
-	heapProps.VisibleNodeMask = 1;
+	for (SubMesh& subMesh : _subMeshes)
+	{
+		XMMATRIX M = XMLoadFloat4x4(&subMesh.localTransform);
 
-	D3D12_RESOURCE_DESC uboResourceDesc;
-	uboResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	uboResourceDesc.Alignment = 0;
-	uboResourceDesc.Width = (sizeof(_modelMatrix) + 255) & ~255;
-	uboResourceDesc.Height = 1;
-	uboResourceDesc.DepthOrArraySize = 1;
-	uboResourceDesc.MipLevels = 1;
-	uboResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
-	uboResourceDesc.SampleDesc.Count = 1;
-	uboResourceDesc.SampleDesc.Quality = 0;
-	uboResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-	uboResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+		XMVECTOR translation, rotation, scale;
+		XMMatrixDecompose(&scale, &rotation, &translation, M);
 
-	ThrowIfFailed(device->CreateCommittedResource(
-		&heapProps, D3D12_HEAP_FLAG_NONE, &uboResourceDesc,
-		D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
-		IID_PPV_ARGS(&_modelMatrixBuffer)));
+		XMStoreFloat3(&subMesh.translation, translation);
 
-	// Step 2: Allocate a descriptor from the global allocator
-	_cbvCpuHandle = DescriptorAllocator::Instance().Allocate(); // store this handle in your model class
+		XMStoreFloat3(&subMesh.scaling, scale);
 
-	// Step 3: Create the CBV using that handle
-	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-	cbvDesc.BufferLocation = _modelMatrixBuffer->GetGPUVirtualAddress();
-	cbvDesc.SizeInBytes = (sizeof(_modelMatrix) + 255) & ~255;
+		XMFLOAT4 quat;
+		XMStoreFloat4(&quat, rotation);
 
-	device->CreateConstantBufferView(&cbvDesc, _cbvCpuHandle);
+		XMMATRIX rotationMatrix = XMMatrixRotationQuaternion(rotation);
 
-	// Step 4: Map the buffer
-	D3D12_RANGE readRange = { 0, 0 };
-	ThrowIfFailed(_modelMatrixBuffer->Map(0, &readRange, reinterpret_cast<void**>(&_mappedUniformBuffer)));
-	memcpy(_mappedUniformBuffer, &_modelMatrix, sizeof(_modelMatrix));
-	_modelMatrixBuffer->Unmap(0, &readRange);
+		subMesh.rotation.x = XMConvertToDegrees(atan2(rotationMatrix.r[1].m128_f32[2], rotationMatrix.r[2].m128_f32[2])); // Pitch
+		subMesh.rotation.y = XMConvertToDegrees(atan2(-rotationMatrix.r[0].m128_f32[2], sqrt(rotationMatrix.r[0].m128_f32[0] * rotationMatrix.r[0].m128_f32[0] +
+			rotationMatrix.r[0].m128_f32[1] * rotationMatrix.r[0].m128_f32[1]))); // Yaw
+		subMesh.rotation.z = XMConvertToDegrees(atan2(rotationMatrix.r[0].m128_f32[1], rotationMatrix.r[0].m128_f32[0])); // Roll
+	}
 }
 
 INT Model::GetID()
 {
 	return _ID;
-}
-
-AABB Model::GetAABB()
-{
-	return _aabb;
-}
-
-XMFLOAT4X4 Model::GetModelMatrix()
-{
-	return _modelMatrix;
 }
 
 void Model::DrawGUI() {
@@ -131,9 +77,16 @@ void Model::DrawGUI() {
 	GUI::Begin(windowName.c_str());
 	GUI::PushID(_ID);
 
-	GUI::DragFloat3("Translation", _translation);
-	GUI::DragFloat3("Rotation", _rotation);
-	GUI::DragFloat3("Scaling", _scaling);
+	for (SubMesh& subMesh : _subMeshes)
+	{
+		GUI::PushID(subMesh.id);
+		std::string subWindowString = "SubMesh " + std::to_string(subMesh.id);
+		GUI::Text(subWindowString.c_str());
+		GUI::DragFloat3("Translation", subMesh.translation);
+		GUI::DragFloat3("Rotation", subMesh.rotation);
+		GUI::DragFloat3("Scaling", subMesh.scaling);
+		GUI::PopID();
+	}
 
 	//_markedForDeletion = GUI::Button("Delete");
 
@@ -145,49 +98,57 @@ void Model::DrawGUI() {
 
 void Model::UpdateModelMatrix() 
 {
-	//TODO: implement check if values have changed, skip if nothing changed
+	for (SubMesh& subMesh : _subMeshes)
+	{
+		XMMATRIX modelMatrix = XMMatrixIdentity();
 
-	XMMATRIX modelMatrix = XMMatrixIdentity();
+		modelMatrix = XMMatrixMultiply(modelMatrix, XMMatrixScaling(subMesh.scaling.x, subMesh.scaling.y, subMesh.scaling.z));
 
-	modelMatrix = XMMatrixMultiply(modelMatrix, XMMatrixScaling(_scaling.x, _scaling.y, _scaling.z));
+		modelMatrix = XMMatrixMultiply(modelMatrix, XMMatrixRotationRollPitchYaw(
+			XMConvertToRadians(subMesh.rotation.x),
+			XMConvertToRadians(subMesh.rotation.y),
+			XMConvertToRadians(subMesh.rotation.z)
+		));
 
-	modelMatrix = XMMatrixMultiply(modelMatrix, XMMatrixRotationRollPitchYaw(
-		XMConvertToRadians(_rotation.x),
-		XMConvertToRadians(_rotation.y),
-		XMConvertToRadians(_rotation.z)
-	));
+		modelMatrix = XMMatrixMultiply(modelMatrix, XMMatrixTranslation(subMesh.translation.x, subMesh.translation.y, subMesh.translation.z));
 
-	modelMatrix = XMMatrixMultiply(modelMatrix, XMMatrixTranslation(_translation.x, _translation.y, _translation.z));
-
-	XMStoreFloat4x4(&_modelMatrix, modelMatrix);
-
-	//_aabb.UpdateTransform(_modelMatrix);
+		XMStoreFloat4x4(&subMesh.localTransform, modelMatrix);
+	}
 }
 
 void Model::Translate(XMFLOAT3 vec)
 {
-	XMMATRIX translationMatrix = XMMatrixTranslation(vec.x, vec.y, vec.z);
-	XMMATRIX modelMatrix = XMLoadFloat4x4(&_modelMatrix);
-	modelMatrix = XMMatrixMultiply(translationMatrix, modelMatrix); // Translation first
+	for (SubMesh& subMesh : _subMeshes)
+	{
+		XMMATRIX translationMatrix = XMMatrixTranslation(vec.x, vec.y, vec.z);
+		XMMATRIX modelMatrix = XMLoadFloat4x4(&subMesh.localTransform);
+		modelMatrix = XMMatrixMultiply(translationMatrix, modelMatrix); // Translation first
 
-	XMStoreFloat4x4(&_modelMatrix, modelMatrix);
+		XMStoreFloat4x4(&subMesh.localTransform, modelMatrix);
+	}
 }
 
 void Model::Rotate(XMFLOAT3 vec)
 {
-	XMVECTOR quaternion = XMQuaternionRotationRollPitchYaw(vec.x, vec.y, vec.z);
-	XMMATRIX rotationMatrix = XMMatrixRotationQuaternion(quaternion);
-	XMMATRIX modelMatrix = XMLoadFloat4x4(&_modelMatrix);
-	modelMatrix = XMMatrixMultiply(rotationMatrix, modelMatrix); // Rotation second
+	for (SubMesh& subMesh : _subMeshes)
+	{
+		XMVECTOR quaternion = XMQuaternionRotationRollPitchYaw(vec.x, vec.y, vec.z);
+		XMMATRIX rotationMatrix = XMMatrixRotationQuaternion(quaternion);
+		XMMATRIX modelMatrix = XMLoadFloat4x4(&subMesh.localTransform);
+		modelMatrix = XMMatrixMultiply(rotationMatrix, modelMatrix); // Rotation second
 
-	XMStoreFloat4x4(&_modelMatrix, modelMatrix);
+		XMStoreFloat4x4(&subMesh.localTransform, modelMatrix);
+	}
 }
 
 void Model::Scale(XMFLOAT3 vec)
 {
-	XMMATRIX scalingMatrix = XMMatrixScaling(vec.x, vec.y, vec.z);
-	XMMATRIX modelMatrix = XMLoadFloat4x4(&_modelMatrix);
-	modelMatrix = XMMatrixMultiply(scalingMatrix, modelMatrix); // Scale last
+	for (SubMesh& subMesh : _subMeshes)
+	{
+		XMMATRIX scalingMatrix = XMMatrixScaling(vec.x, vec.y, vec.z);
+		XMMATRIX modelMatrix = XMLoadFloat4x4(&subMesh.localTransform);
+		modelMatrix = XMMatrixMultiply(scalingMatrix, modelMatrix); // Scale last
 
-	XMStoreFloat4x4(&_modelMatrix, modelMatrix);
+		XMStoreFloat4x4(&subMesh.localTransform, modelMatrix);
+	}
 }
