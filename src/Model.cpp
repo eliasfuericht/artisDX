@@ -1,12 +1,15 @@
 #include "Model.h"
 Model::Model(	INT id, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, std::vector<std::vector<Vertex>> meshInstanceVertices, std::vector<std::vector<uint32_t>> meshInstanceIndices,
-							std::vector<XMFLOAT4X4> meshInstanceMatrices, std::vector<std::tuple<Texture::TEXTURETYPE, ScratchImage>> textures, std::vector<INT> materialIndices, std::vector<std::vector<INT>> materials)
+							std::vector<XMFLOAT4X4> meshInstanceMatrices, std::vector<std::tuple<Texture::TEXTURETYPE, ScratchImage>> textures, std::vector<std::tuple<INT, std::vector<INT>>> materials)
 {
 	_ID = id;
 
 	for (int i = 0; i < meshInstanceVertices.size(); i++)
 	{
-		_meshInstances.emplace_back(MeshInstance(_meshInstanceId++, Mesh(meshInstanceVertices[i], meshInstanceIndices[i]), AABB(meshInstanceVertices[i]), meshInstanceMatrices[i], materialIndices[i]));
+		auto& [materialIndex, materialTextureIndices] = materials[i];
+
+		_meshInstances.emplace_back(MeshInstance(_meshInstanceId++, Mesh(meshInstanceVertices[i], meshInstanceIndices[i]), AABB(meshInstanceVertices[i]), meshInstanceMatrices[i], materialIndex));
+		_materialTextureIndices.push_back(materialTextureIndices);
 	}
 
 	for (int i = 0; i < textures.size(); i++)
@@ -16,25 +19,24 @@ Model::Model(	INT id, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, std:
 		_textures.push_back(std::move(modelTexture));
 	}
 
-	//for (int i = 0; i < materials.size(); i++) {	}
-
 	ExtractTransformsFromMatrix();
 	UpdateModelMatrix();
 }
 
 void Model::DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
-	_textures[0].BindTexture(commandList);
 
 	for (MeshInstance& meshInstance : _meshInstances)
 	{
 		memcpy(meshInstance._mappedPtr, &meshInstance._localTransform, sizeof(XMFLOAT4X4));
 
 		commandList->SetGraphicsRootDescriptorTable(1, meshInstance._cbvGpuHandle);
-		/*
-		const Material& material = _materials[meshInstance._materialIndex];
-		commandList->SetGraphicsRootDescriptorTable(2, material._gpuHandle);
-		*/
+
+		for (INT i : _materialTextureIndices[meshInstance._materialIndex])
+		{
+			_textures[i].BindTexture(commandList);
+		}
+
 		meshInstance._mesh.BindMeshData(commandList);
 	}
 }

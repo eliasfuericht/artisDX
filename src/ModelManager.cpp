@@ -176,7 +176,7 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 			}
 		}
 
-		materials.push_back(materialTextureIndices);
+		materials.emplace_back(std::tuple<INT, std::vector<INT>>(materialIndices[i], materialTextureIndices));
 	}
 
 	for (size_t i = 0; i < asset->images.size(); ++i) {
@@ -224,7 +224,7 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 		textures.emplace_back(type, std::move(image));
 	}
 
-	std::shared_ptr<Model> model = std::make_shared<Model>(_modelId++, _commandList, submeshVertices, submeshIndices, submeshModelMatrices, std::move(textures), materialIndices, materials);
+	std::shared_ptr<Model> model = std::make_shared<Model>(_modelId++, _commandList, submeshVertices, submeshIndices, submeshModelMatrices, std::move(textures), materials);
 	model->RegisterWithGUI();
 	_models.push_back(std::move(model)); 
 

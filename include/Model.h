@@ -15,7 +15,7 @@ class Model : public IGUIComponent
 public:
 	Model() {};
 	Model(INT id, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, std::vector<std::vector<Vertex>> meshInstanceVertices, std::vector<std::vector<uint32_t>> meshInstanceIndices,
-				std::vector<XMFLOAT4X4> meshInstanceMatrices, std::vector<std::tuple<Texture::TEXTURETYPE, ScratchImage>> textures, std::vector<INT> materialIndices, std::vector<std::vector<INT>> materials);
+				std::vector<XMFLOAT4X4> meshInstanceMatrices, std::vector<std::tuple<Texture::TEXTURETYPE, ScratchImage>> textures, std::vector<std::tuple<INT, std::vector<INT>>> materials);
 	
 	void DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 	void DrawGUI();
@@ -38,7 +38,7 @@ private:
 
 	std::vector<MeshInstance> _meshInstances;
 	std::vector<Texture> _textures;
-	std::vector<Material> _materials;
+	std::vector<std::vector<INT>> _materialTextureIndices;
 
 	MSWRL::ComPtr<ID3D12Resource> _modelMatrixBuffer;
 	D3D12_CPU_DESCRIPTOR_HANDLE _cbvCpuHandle;

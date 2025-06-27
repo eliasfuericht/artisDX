@@ -550,6 +550,7 @@ void Application::InitResources()
 	//_modelManager.LoadModel("../assets/cuberotated.glb");
 	//_modelManager.LoadModel("../assets/uv_debug.glb");
 	_modelManager.LoadModel("../assets/helmet.glb");
+	//_modelManager.LoadModel("../assets/old_rusty_car.glb");
 
 	// upload all textures from models
 	ThrowIfFailed(_commandList->Close());
