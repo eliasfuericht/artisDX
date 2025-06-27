@@ -32,7 +32,6 @@ private:
 	D3D12_CPU_DESCRIPTOR_HANDLE _srvCpuHandle;
 
 	ScratchImage _image;
-	ScratchImage _mipMaps;
 	UINT _mipCount;
 	Texture::TEXTURETYPE _textureType;
 };

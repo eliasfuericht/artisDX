@@ -21,7 +21,7 @@ SPIRV_Cross_Output main(SPIRV_Cross_Input stage_input)
 {
     SPIRV_Cross_Output stage_output;
 
-    float4 texColor = metallicRoughnessTexture.Sample(mySampler, stage_input.inUV);
+    float4 texColor = albedoTexture.Sample(mySampler, stage_input.inUV);
     stage_output.outFragColor = texColor;
 
     return stage_output;
