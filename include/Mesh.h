@@ -2,15 +2,17 @@
 
 #include "precompiled/pch.h"
 
+#include "D3D12Core.h"
+
 class Mesh
 {
 public:
 	Mesh() {};
-	Mesh(MSWRL::ComPtr<ID3D12Device> device, std::vector<Vertex> vertices, std::vector<uint32_t> indices);
+	Mesh(std::vector<Vertex> vertices, std::vector<uint32_t> indices);
 	void BindMeshData(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 
 private:
-	MSWRL::ComPtr<ID3D12Resource> CreateBuffer(ID3D12Device* device, UINT64 size, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES initialState);
+	MSWRL::ComPtr<ID3D12Resource> CreateBuffer(UINT64 size, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES initialState);
 	void UploadBuffers(std::vector<Vertex> vertices, UINT vertexBufferSize, std::vector<uint32_t> indices, UINT indexBufferSize);
 
 	MSWRL::ComPtr<ID3D12Resource> _vertexBuffer;

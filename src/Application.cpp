@@ -48,7 +48,7 @@ Application::Application(const CHAR* name, INT w, INT h)
 
 void Application::InitGUI()
 {
-	GUI::Init(_window, D3D12Core::GetDevice(), _commandQueue, _swapchain, _rtvHeap, _renderTargets, _rtvDescriptorSize);
+	GUI::Init(_window, _commandQueue, _swapchain, _rtvHeap, _renderTargets, _rtvDescriptorSize);
 }
 
 void Application::InitDX12()
@@ -233,17 +233,18 @@ void Application::InitResources()
 		cbvRangeModel.OffsetInDescriptorsFromTableStart = 0;
 		cbvRangeModel.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
 
-		// Texture SRV (t0) Albedo + Normal
-		D3D12_DESCRIPTOR_RANGE1 srvRange = {};
-		srvRange.BaseShaderRegister = 0; // t0
-		srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-		srvRange.NumDescriptors = 1;
-		srvRange.RegisterSpace = 0;
-		srvRange.OffsetInDescriptorsFromTableStart = 0;
-		srvRange.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
+		D3D12_DESCRIPTOR_RANGE1 srvRanges[5] = {};
 
-		// constant buffers
-		D3D12_ROOT_PARAMETER1 rootParameters[3] = {};
+		for (int i = 0; i < 5; ++i) {
+			srvRanges[i].BaseShaderRegister = i; // t0 to t4
+			srvRanges[i].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+			srvRanges[i].NumDescriptors = 1;
+			srvRanges[i].RegisterSpace = 0;
+			srvRanges[i].OffsetInDescriptorsFromTableStart = 0;
+			srvRanges[i].Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
+		}
+
+		D3D12_ROOT_PARAMETER1 rootParameters[7] = {};
 
 		// View Projection Buffer
 		rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
@@ -257,11 +258,13 @@ void Application::InitResources()
 		rootParameters[1].DescriptorTable.NumDescriptorRanges = 1;
 		rootParameters[1].DescriptorTable.pDescriptorRanges = &cbvRangeModel;
 
-		// texture
-		rootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-		rootParameters[2].DescriptorTable.NumDescriptorRanges = 1;
-		rootParameters[2].DescriptorTable.pDescriptorRanges = &srvRange;
+		// textures
+		for (int i = 0; i < 5; ++i) {
+			rootParameters[i + 2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			rootParameters[i + 2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+			rootParameters[i + 2].DescriptorTable.NumDescriptorRanges = 1;
+			rootParameters[i + 2].DescriptorTable.pDescriptorRanges = &srvRanges[i];
+		}
 
 		CD3DX12_STATIC_SAMPLER_DESC staticSampler{ 0, D3D12_FILTER_MIN_MAG_MIP_LINEAR };
 
@@ -539,7 +542,7 @@ void Application::InitResources()
 	}
 
 	// MODELLOADING
-	_modelManager = ModelManager(D3D12Core::GetDevice(), _commandList);
+	_modelManager = ModelManager(_commandList);
 
 	//_modelManager.LoadModel("../assets/cube.glb");
 	//_modelManager.LoadModel("../assets/movedcube.glb");

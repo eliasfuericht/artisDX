@@ -1,11 +1,11 @@
 #include "AABB.h"
 
-AABB::AABB(MSWRL::ComPtr<ID3D12Device> device, const std::vector<Vertex>& vertices)
+AABB::AABB(const std::vector<Vertex>& vertices)
 {
-	ComputeFromVertices(device, vertices);
+	ComputeFromVertices(vertices);
 }
 
-void AABB::ComputeFromVertices(MSWRL::ComPtr<ID3D12Device> device, const std::vector<Vertex>& vertices)
+void AABB::ComputeFromVertices(const std::vector<Vertex>& vertices)
 {
 	XMFLOAT3 min = vertices[0].position;
 	XMFLOAT3 max = vertices[0].position;
@@ -45,11 +45,11 @@ void AABB::ComputeFromVertices(MSWRL::ComPtr<ID3D12Device> device, const std::ve
 	};
 
 	UINT vertexBufferSize = _aabbVertices.size() * sizeof(Vertex);
-	_vertexBuffer = CreateBuffer(device.Get(), vertexBufferSize, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
+	_vertexBuffer = CreateBuffer(vertexBufferSize, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
 
 	_indicesSize = _aabbIndices.size();
 	UINT indexBufferSize = _indicesSize * sizeof(uint32_t);
-	_indexBuffer = CreateBuffer(device.Get(), indexBufferSize, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
+	_indexBuffer = CreateBuffer(indexBufferSize, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
 
 	UploadBuffers();
 
@@ -102,7 +102,7 @@ void AABB::Recompute(const XMFLOAT4X4& matrix)
 	_max = newMax;
 }
 
-MSWRL::ComPtr<ID3D12Resource> AABB::CreateBuffer(ID3D12Device* device, UINT64 size, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES initialState)
+MSWRL::ComPtr<ID3D12Resource> AABB::CreateBuffer(UINT64 size, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES initialState)
 {
 	D3D12_HEAP_PROPERTIES heapProps = {};
 	heapProps.Type = heapType;
@@ -126,7 +126,7 @@ MSWRL::ComPtr<ID3D12Resource> AABB::CreateBuffer(ID3D12Device* device, UINT64 si
 
 	MSWRL::ComPtr<ID3D12Resource> buffer;
 
-	ThrowIfFailed(device->CreateCommittedResource(
+	ThrowIfFailed(D3D12Core::GetDevice()->CreateCommittedResource(
 		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
 		&resourceDesc,

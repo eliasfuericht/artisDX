@@ -13,7 +13,7 @@ UINT GUI::_rtvDescriptorSize;
 
 std::vector<std::weak_ptr<IGUIComponent>> GUI::_guiComponents;
 
-void GUI::Init(Window window, MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12CommandQueue> commandQueue, MSWRL::ComPtr<IDXGISwapChain3> swapchain, MSWRL::ComPtr<ID3D12DescriptorHeap> rtvHeap, MSWRL::ComPtr<ID3D12Resource>* renderTargets, UINT rtvDescriptorSize)
+void GUI::Init(Window window, MSWRL::ComPtr<ID3D12CommandQueue> commandQueue, MSWRL::ComPtr<IDXGISwapChain3> swapchain, MSWRL::ComPtr<ID3D12DescriptorHeap> rtvHeap, MSWRL::ComPtr<ID3D12Resource>* renderTargets, UINT rtvDescriptorSize)
 {
 	_commandQueue = commandQueue;
 	_swapchain = swapchain;
@@ -51,15 +51,15 @@ void GUI::Init(Window window, MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<
 	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	desc.NumDescriptors = 1;
 	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	ThrowIfFailed(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&_srvHeap)));
+	ThrowIfFailed(D3D12Core::GetDevice()->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&_srvHeap)));
 
 	// Create Command Allocator & Command List
-	ThrowIfFailed(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_commandAllocator)));
-	ThrowIfFailed(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _commandAllocator.Get(), nullptr, IID_PPV_ARGS(&_commandList)));
+	ThrowIfFailed(D3D12Core::GetDevice()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_commandAllocator)));
+	ThrowIfFailed(D3D12Core::GetDevice()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _commandAllocator.Get(), nullptr, IID_PPV_ARGS(&_commandList)));
 	_commandList->Close();
 
 	ImGui_ImplWin32_Init(window.GetHWND());
-	ImGui_ImplDX12_Init(device.Get(), 3, DXGI_FORMAT_R8G8B8A8_UNORM, _srvHeap.Get(), _srvHeap->GetCPUDescriptorHandleForHeapStart(), _srvHeap->GetGPUDescriptorHandleForHeapStart());
+	ImGui_ImplDX12_Init(D3D12Core::GetDevice().Get(), 3, DXGI_FORMAT_R8G8B8A8_UNORM, _srvHeap.Get(), _srvHeap->GetCPUDescriptorHandleForHeapStart(), _srvHeap->GetGPUDescriptorHandleForHeapStart());
 }
 
 void GUI::NewFrame()

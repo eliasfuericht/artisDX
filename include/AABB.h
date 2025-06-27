@@ -2,16 +2,18 @@
 
 #include "precompiled/pch.h"
 
+#include "D3D12Core.h"
+
 class AABB
 {
 public:
 	AABB() = default;
-	AABB(MSWRL::ComPtr<ID3D12Device> device, const std::vector<Vertex>& vertices);
+	AABB(const std::vector<Vertex>& vertices);
 
-	void ComputeFromVertices(MSWRL::ComPtr<ID3D12Device> device, const std::vector<Vertex>& vertices);
+	void ComputeFromVertices(const std::vector<Vertex>& vertices);
 	void Recompute(const XMFLOAT4X4& matrix);
 
-	MSWRL::ComPtr<ID3D12Resource> CreateBuffer(ID3D12Device* device, UINT64 size, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES initialState);
+	MSWRL::ComPtr<ID3D12Resource> CreateBuffer(UINT64 size, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES initialState);
 	void UploadBuffers();
 
 	void BindMeshData(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);

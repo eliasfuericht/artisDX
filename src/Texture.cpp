@@ -1,14 +1,14 @@
 #include "Texture.h"
 
-Texture::Texture(MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, Texture::TEXTURETYPE texType, ScratchImage& texture)
+Texture::Texture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, Texture::TEXTURETYPE texType, ScratchImage& texture)
 {
 	_image = std::move(texture);
 	_textureType = texType;
 
-	CreateBuffers(device, commandList);
+	CreateBuffers(commandList);
 }
 
-void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
+void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
 	const TexMetadata& metadata = _image.GetMetadata();
 	_mipCount = metadata.mipLevels;
@@ -27,7 +27,7 @@ void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID
 
 	D3D12_HEAP_PROPERTIES defaultHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 
-	ThrowIfFailed(device->CreateCommittedResource(
+	ThrowIfFailed(D3D12Core::GetDevice()->CreateCommittedResource(
 		&defaultHeap,
 		D3D12_HEAP_FLAG_NONE,
 		&textureDesc,
@@ -41,7 +41,7 @@ void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID
 	D3D12_RESOURCE_DESC uploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize);
 
 	// Create the GPU upload buffer.
-	ThrowIfFailed(device->CreateCommittedResource(
+	ThrowIfFailed(D3D12Core::GetDevice()->CreateCommittedResource(
 		&defaultUploadHeap,
 		D3D12_HEAP_FLAG_NONE,
 		&uploadBufferDesc,
@@ -68,7 +68,7 @@ void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID
 	srvDesc.Format = textureDesc.Format;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = 1;
-	device->CreateShaderResourceView(_textureResource.Get(), &srvDesc, _srvCpuHandle);
+	D3D12Core::GetDevice()->CreateShaderResourceView(_textureResource.Get(), &srvDesc, _srvCpuHandle);
 }
 
 void Texture::BindTexture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
@@ -77,5 +77,5 @@ void Texture::BindTexture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 	commandList->SetDescriptorHeaps(1, heaps);
 
 	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = DescriptorAllocator::Instance().GetGPUHandle(_srvCpuHandle);
-	commandList->SetGraphicsRootDescriptorTable(2, gpuHandle);
+	commandList->SetGraphicsRootDescriptorTable(_textureType + 2, gpuHandle);
 }

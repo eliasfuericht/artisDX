@@ -2,13 +2,14 @@
 
 #include "precompiled/pch.h"
 
+#include "D3D12Core.h"
 #include "Window.h"
 #include "IGUIComponent.h"
 
 class GUI
 {
 public:
-	static void Init(	Window window, MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12CommandQueue> commandQueue, 
+	static void Init(	Window window, MSWRL::ComPtr<ID3D12CommandQueue> commandQueue, 
 										MSWRL::ComPtr<IDXGISwapChain3> swapchain, MSWRL::ComPtr<ID3D12DescriptorHeap> rtvHeap, 
 										MSWRL::ComPtr<ID3D12Resource>* renderTargets, UINT rtvDescriptorSize);
 	static void Draw();

@@ -1,16 +1,17 @@
 #include "MeshInstance.h"
 
-MeshInstance::MeshInstance(INT MeshInstanceId, Mesh meshInstance, AABB aabbInstance, XMFLOAT4X4 localTransformMatrix, MSWRL::ComPtr<ID3D12Device> device)
+MeshInstance::MeshInstance(INT MeshInstanceId, Mesh meshInstance, AABB aabbInstance, XMFLOAT4X4 localTransformMatrix, INT materialIndexInstance)
 {
-	id = MeshInstanceId;
-	mesh = meshInstance;
-	aabb = aabbInstance;
-	localTransform = localTransformMatrix;
+	_id = MeshInstanceId;
+	_mesh = meshInstance;
+	_aabb = aabbInstance;
+	_localTransform = localTransformMatrix;
+	_materialIndex = materialIndexInstance;
 
-	CreateCBV(device);
+	CreateCBV();
 }
 
-void MeshInstance::CreateCBV(MSWRL::ComPtr<ID3D12Device> device)
+void MeshInstance::CreateCBV()
 {
 	D3D12_CPU_DESCRIPTOR_HANDLE cbvCpuHandle = DescriptorAllocator::Instance().Allocate();
 
@@ -19,22 +20,22 @@ void MeshInstance::CreateCBV(MSWRL::ComPtr<ID3D12Device> device)
 	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
 	CD3DX12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
 
-	device->CreateCommittedResource(
+	D3D12Core::GetDevice()->CreateCommittedResource(
 		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
 		&bufferDesc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(&constantBuffer));
+		IID_PPV_ARGS(&_constantBuffer));
 
 	CD3DX12_RANGE readRange(0, 0);
-	constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&mappedPtr));
+	_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&_mappedPtr));
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-	cbvDesc.BufferLocation = constantBuffer->GetGPUVirtualAddress();
+	cbvDesc.BufferLocation = _constantBuffer->GetGPUVirtualAddress();
 	cbvDesc.SizeInBytes = bufferSize;
 
-	device->CreateConstantBufferView(&cbvDesc, cbvCpuHandle);
+	D3D12Core::GetDevice()->CreateConstantBufferView(&cbvDesc, cbvCpuHandle);
 
-	cbvGpuHandle = DescriptorAllocator::Instance().GetGPUHandle(cbvCpuHandle);
+	_cbvGpuHandle = DescriptorAllocator::Instance().GetGPUHandle(cbvCpuHandle);
 }

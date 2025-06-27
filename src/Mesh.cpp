@@ -1,13 +1,13 @@
 #include "Mesh.h"
 
-Mesh::Mesh(MSWRL::ComPtr<ID3D12Device> device, std::vector<Vertex> vertices, std::vector<uint32_t> indices)
+Mesh::Mesh(std::vector<Vertex> vertices, std::vector<uint32_t> indices)
 {
 	UINT vertexBufferSize = vertices.size() * sizeof(Vertex);
-	_vertexBuffer = CreateBuffer(device.Get(), vertexBufferSize, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
+	_vertexBuffer = CreateBuffer(vertexBufferSize, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
 
 	_indicesSize = indices.size();
 	UINT indexBufferSize = _indicesSize * sizeof(uint32_t);
-	_indexBuffer = CreateBuffer(device.Get(), indexBufferSize, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
+	_indexBuffer = CreateBuffer(indexBufferSize, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
 
 	UploadBuffers(vertices, vertexBufferSize, indices, indexBufferSize);
 
@@ -21,7 +21,7 @@ Mesh::Mesh(MSWRL::ComPtr<ID3D12Device> device, std::vector<Vertex> vertices, std
 }
 
 
-MSWRL::ComPtr<ID3D12Resource> Mesh::CreateBuffer(ID3D12Device* device, UINT64 size, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES initialState)
+MSWRL::ComPtr<ID3D12Resource> Mesh::CreateBuffer(UINT64 size, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES initialState)
 {
 	D3D12_HEAP_PROPERTIES heapProps = {};
 	heapProps.Type = heapType;
@@ -45,7 +45,7 @@ MSWRL::ComPtr<ID3D12Resource> Mesh::CreateBuffer(ID3D12Device* device, UINT64 si
 
 	MSWRL::ComPtr<ID3D12Resource> buffer;
 
-	ThrowIfFailed(device->CreateCommittedResource(
+	ThrowIfFailed(D3D12Core::GetDevice()->CreateCommittedResource(
 		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
 		&resourceDesc,

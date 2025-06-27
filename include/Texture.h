@@ -3,6 +3,8 @@
 #include "precompiled/pch.h"
 
 #include "DirectXTex.h"
+
+#include "D3D12Core.h"
 #include "DescriptorAllocator.h"
 
 class Texture
@@ -19,11 +21,11 @@ public:
 
 public:
 	Texture() {};
-	Texture(MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, Texture::TEXTURETYPE texType, ScratchImage& texture);
+	Texture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, Texture::TEXTURETYPE texType, ScratchImage& texture);
 	void BindTexture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 
 private:
-	void CreateBuffers(MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
+	void CreateBuffers(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 
 	MSWRL::ComPtr<ID3D12Resource> _textureUploadHeap;
 	MSWRL::ComPtr<ID3D12Resource> _textureResource; 

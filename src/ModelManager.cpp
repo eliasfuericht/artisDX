@@ -1,10 +1,8 @@
 #include "ModelManager.h"
 
-ModelManager::ModelManager(MSWRL::ComPtr<ID3D12Device> device, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
+ModelManager::ModelManager(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
-	_device = device;
 	_commandList = commandList;
-	// FrustumCuller::GetInstance().CreateModelMatrixBuffer(device);
 }
 
 bool ModelManager::LoadModel(std::filesystem::path path)
@@ -34,17 +32,22 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 	std::vector<std::vector<uint32_t>> submeshIndices;
 	std::vector<XMFLOAT4X4> submeshModelMatrices;
 	std::vector<std::tuple<Texture::TEXTURETYPE, ScratchImage>> textures;
+	std::vector<INT> materialIndices;
+	std::vector<std::tuple<INT, std::vector<INT>>> materials;
 
 	for (auto& mesh : asset->meshes) 
 	{
 		std::vector<Vertex> vertices;
 		std::vector<uint32_t> indices;
 		XMFLOAT4X4 modelMatrix;
+		materialIndices.push_back(mesh.primitives[0].materialIndex.value_or(0));
 
 		for (auto& primitive : mesh.primitives) 
 		{
 			const fastgltf::Accessor& indexAccessor = asset->accessors[primitive.indicesAccessor.value()];
+
 			indices.reserve(indices.size() + indexAccessor.count);
+
 			fastgltf::iterateAccessor<std::uint32_t>(asset.get(), indexAccessor, [&](std::uint32_t idx) {
 				indices.push_back(idx);
 				});
@@ -102,58 +105,126 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 			XMStoreFloat4x4(&modelMatrix, transformMatrix);
 		}
 
-		std::unordered_map<size_t, Texture::TEXTURETYPE> imageToType;
-
-		for (size_t i = 0; i < asset->images.size(); ++i) {
-			const fastgltf::Image& assetImage = asset->images[i];
-
-			const uint8_t* pixelData = nullptr;
-			size_t pixelSize = 0;
-
-			int width = 0;
-			int height = 0;
-			int channels = 0;
-
-			// Extract encoded image bytes (e.g. PNG, JPEG)
-			if (auto bufferViewPtr = std::get_if<fastgltf::sources::BufferView>(&assetImage.data)) {
-				const fastgltf::sources::BufferView& view = *bufferViewPtr;
-				const auto& bufferViewMeta = asset->bufferViews[view.bufferViewIndex];
-				const auto& buffer = asset->buffers[bufferViewMeta.bufferIndex];
-
-				if (auto arrayPtr = std::get_if<fastgltf::sources::Array>(&buffer.data)) {
-					pixelData = reinterpret_cast<const uint8_t*>(arrayPtr->bytes.data()) + bufferViewMeta.byteOffset;
-					pixelSize = bufferViewMeta.byteLength;
-				}
-			}
-
-			if (!pixelData || pixelSize == 0)
-				continue;
-
-			ScratchImage image;
-			TexMetadata metadata = {};
-			metadata.width = width;
-			metadata.height = height;
-			metadata.mipLevels = 1;
-			metadata.arraySize = 1;
-			metadata.dimension = DirectX::TEX_DIMENSION_TEXTURE2D;
-			metadata.format = DXGI_FORMAT_R8G8B8A8_UNORM;
-
-			ThrowIfFailed(LoadFromWICMemory(pixelData, pixelSize, WIC_FLAGS_NONE, &metadata, image));
-
-			Texture::TEXTURETYPE type = Texture::TEXTURETYPE::ALBEDO;
-			if (auto it = imageToType.find(i); it != imageToType.end()) {
-				type = it->second;
-			}
-
-			textures.emplace_back(type, std::move(image));
-		}
-
 		submeshVertices.push_back(vertices);
 		submeshIndices.push_back(indices);
 		submeshModelMatrices.push_back(modelMatrix);
 	}
 
-	std::shared_ptr<Model> model = std::make_shared<Model>(_modelId++, _device, _commandList, submeshVertices, submeshIndices, submeshModelMatrices, std::move(textures));
+	std::unordered_map<size_t, Texture::TEXTURETYPE> imageToType;
+
+	for (int i = 0; i < asset->materials.size(); i++) {
+		const auto& material = asset->materials[i];
+		std::vector<INT> materialTextureIndices;
+
+		// 1. Base color (albedo)
+		if (material.pbrData.baseColorTexture.has_value()) {
+			auto textureIndex = material.pbrData.baseColorTexture->textureIndex;
+
+			materialTextureIndices.push_back(textureIndex);
+			
+			const auto& texture = asset->textures[textureIndex];
+			if (texture.imageIndex.has_value()) {
+				imageToType[texture.imageIndex.value()] = Texture::TEXTURETYPE::ALBEDO;
+			}
+		}
+
+		// 2. Metallic-Roughness
+		if (material.pbrData.metallicRoughnessTexture.has_value()) {
+			auto textureIndex = material.pbrData.metallicRoughnessTexture->textureIndex;
+
+			materialTextureIndices.push_back(textureIndex);
+
+			const auto& texture = asset->textures[textureIndex];
+			if (texture.imageIndex.has_value()) {
+				imageToType[texture.imageIndex.value()] = Texture::TEXTURETYPE::METALLICROUGHNESS;
+			}
+		}
+
+		// 3. Normal map
+		if (material.normalTexture.has_value()) {
+			auto textureIndex = material.normalTexture->textureIndex;
+
+			materialTextureIndices.push_back(textureIndex);
+
+			const auto& texture = asset->textures[textureIndex];
+			if (texture.imageIndex.has_value()) {
+				imageToType[texture.imageIndex.value()] = Texture::TEXTURETYPE::NORMAL;
+			}
+		}
+
+		// 4. Emissive
+		if (material.emissiveTexture.has_value()) {
+			auto textureIndex = material.emissiveTexture->textureIndex;
+
+			materialTextureIndices.push_back(textureIndex);
+
+			const auto& texture = asset->textures[textureIndex];
+			if (texture.imageIndex.has_value()) {
+				imageToType[texture.imageIndex.value()] = Texture::TEXTURETYPE::EMISSIVE;
+			}
+		}
+
+		// 5. Occlusion
+		if (material.occlusionTexture.has_value()) {
+			auto textureIndex = material.occlusionTexture->textureIndex;
+
+			materialTextureIndices.push_back(textureIndex);
+
+			const auto& texture = asset->textures[textureIndex];
+			if (texture.imageIndex.has_value()) {
+				imageToType[texture.imageIndex.value()] = Texture::TEXTURETYPE::OCCLUSION;
+			}
+		}
+
+		materials.push_back(materialTextureIndices);
+	}
+
+	for (size_t i = 0; i < asset->images.size(); ++i) {
+		const fastgltf::Image& assetImage = asset->images[i];
+
+		const uint8_t* pixelData = nullptr;
+		size_t pixelSize = 0;
+
+		int width = 0;
+		int height = 0;
+		int channels = 0;
+
+		// Extract encoded image bytes (e.g. PNG, JPEG)
+		if (auto bufferViewPtr = std::get_if<fastgltf::sources::BufferView>(&assetImage.data)) {
+			const fastgltf::sources::BufferView& view = *bufferViewPtr;
+			const auto& bufferViewMeta = asset->bufferViews[view.bufferViewIndex];
+			const auto& textureName = bufferViewMeta.name;
+			const auto& buffer = asset->buffers[bufferViewMeta.bufferIndex];
+
+			if (auto arrayPtr = std::get_if<fastgltf::sources::Array>(&buffer.data)) {
+				pixelData = reinterpret_cast<const uint8_t*>(arrayPtr->bytes.data()) + bufferViewMeta.byteOffset;
+				pixelSize = bufferViewMeta.byteLength;
+			}
+		}
+
+		if (!pixelData || pixelSize == 0)
+			continue;
+
+		ScratchImage image;
+		TexMetadata metadata = {};
+		metadata.width = width;
+		metadata.height = height;
+		metadata.mipLevels = 1;
+		metadata.arraySize = 1;
+		metadata.dimension = DirectX::TEX_DIMENSION_TEXTURE2D;
+		metadata.format = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+		ThrowIfFailed(LoadFromWICMemory(pixelData, pixelSize, WIC_FLAGS_NONE, &metadata, image));
+
+		Texture::TEXTURETYPE type = Texture::TEXTURETYPE::ALBEDO;
+		if (auto it = imageToType.find(i); it != imageToType.end()) {
+			type = it->second;
+		}
+
+		textures.emplace_back(type, std::move(image));
+	}
+
+	std::shared_ptr<Model> model = std::make_shared<Model>(_modelId++, _commandList, submeshVertices, submeshIndices, submeshModelMatrices, std::move(textures), materialIndices, materials);
 	model->RegisterWithGUI();
 	_models.push_back(std::move(model)); 
 
@@ -162,25 +233,12 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 
 void ModelManager::DrawAll()
 {
-	// UpdateModels();
-
 	for (auto& model : _models)
 	{
 		model->DrawModel(_commandList);
 	}
 }
 
-void ModelManager::UpdateModels()
-{
-	for (auto& model : _models)
-	{
-		if (model->_markedForDeletion)
-		{
-			// TODO: Make model deletion possible
-			//_models.erase(model->GetID());
-		}
-	}
-}
 
 void ModelManager::TranslateModel(XMFLOAT3 vec, UINT modelId)
 {
