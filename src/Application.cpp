@@ -14,7 +14,6 @@ Application::Application(const CHAR* name, INT w, INT h)
 	_debugDevice = nullptr;
 #endif					
 
-	_device = nullptr;
 	_commandQueue = nullptr;
 	_commandAllocator = nullptr;
 	_commandList = nullptr;
@@ -49,7 +48,7 @@ Application::Application(const CHAR* name, INT w, INT h)
 
 void Application::InitGUI()
 {
-	GUI::Init(_window, _device, _commandQueue, _swapchain, _rtvHeap, _renderTargets, _rtvDescriptorSize);
+	GUI::Init(_window, D3D12Core::GetDevice(), _commandQueue, _swapchain, _rtvHeap, _renderTargets, _rtvDescriptorSize);
 }
 
 void Application::InitDX12()
@@ -101,12 +100,15 @@ void Application::InitDX12()
 
 	// Create Device
 	// The device is the interface between the program(CPU) and the adapter(GPU)
-	ThrowIfFailed(D3D12CreateDevice(_adapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&_device)), "Device creation failed!");
-	_device->SetName(L"artisDX_Device");
+	MSWRL::ComPtr<ID3D12Device> device;
+	ThrowIfFailed(D3D12CreateDevice(_adapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&device)), "Device creation failed!");
+	device->SetName(L"artisDX_Device");
+
+	D3D12Core::Initialize(device);
 
 #if defined(_DEBUG)
 	// Get debug device
-	ThrowIfFailed(_device->QueryInterface(_debugDevice.GetAddressOf()));
+	ThrowIfFailed(D3D12Core::GetDevice()->QueryInterface(_debugDevice.GetAddressOf()));
 #endif
 
 	// Create Command Queue
@@ -117,13 +119,13 @@ void Application::InitDX12()
 	// D3D12_COMMAND_LIST_TYPE_COMPUTE = compute pipeline
 	// ...
 
-	ThrowIfFailed(_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&_commandQueue)),"CommandQueue creation failed!");
+	ThrowIfFailed(D3D12Core::GetDevice()->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&_commandQueue)),"CommandQueue creation failed!");
 
 	// Create Command Allocator
-	ThrowIfFailed(_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_commandAllocator)));
+	ThrowIfFailed(D3D12Core::GetDevice()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_commandAllocator)));
 
 	// Sync
-	ThrowIfFailed(_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence)));
+	ThrowIfFailed(D3D12Core::GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence)));
 }
 
 void Application::InitSwapchain(UINT w, UINT h)
@@ -186,16 +188,16 @@ void Application::InitSwapchain(UINT w, UINT h)
 	rtvHeapDesc.NumDescriptors = _backBufferCount;
 	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-	ThrowIfFailed(_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&_rtvHeap)));
+	ThrowIfFailed(D3D12Core::GetDevice()->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&_rtvHeap)));
 
-	_rtvDescriptorSize = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	_rtvDescriptorSize = D3D12Core::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
 	// Create frame resources
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle(_rtvHeap->GetCPUDescriptorHandleForHeapStart());
 	for (UINT i = 0; i < _backBufferCount; i++)
 	{
 		ThrowIfFailed(_swapchain->GetBuffer(i, IID_PPV_ARGS(&_renderTargets[i])));
-		_device->CreateRenderTargetView(_renderTargets[i].Get(), nullptr, rtvHandle);
+		D3D12Core::GetDevice()->CreateRenderTargetView(_renderTargets[i].Get(), nullptr, rtvHandle);
 		rtvHandle.ptr += _rtvDescriptorSize;
 		_rtvDescriptor[i] = rtvHandle;
 	}
@@ -212,7 +214,7 @@ void Application::InitResources()
 		// greater than this.
 		featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
 
-		if (FAILED(_device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData,sizeof(featureData))))
+		if (FAILED(D3D12Core::GetDevice()->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData,sizeof(featureData))))
 			featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
 
 		D3D12_DESCRIPTOR_RANGE1 cbvRangeViewProj = {};
@@ -275,7 +277,7 @@ void Application::InitResources()
 		MSWRL::ComPtr<ID3DBlob> error;
 
 		ThrowIfFailed(D3D12SerializeVersionedRootSignature(&rootSignatureDesc, &signature, &error));
-		ThrowIfFailed(_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&_rootSignature)));
+		ThrowIfFailed(D3D12Core::GetDevice()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&_rootSignature)));
 		_rootSignature->SetName(L"artisDX_rootSignature");
 	}
 
@@ -350,7 +352,7 @@ void Application::InitResources()
 					D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
 		};
 
-		DescriptorAllocator::Instance().Initialize(_device.Get(), NUM_MAX_DESCRIPTORS);
+		DescriptorAllocator::Instance().Initialize(D3D12Core::GetDevice().Get(), NUM_MAX_DESCRIPTORS);
 
 		// Create the UBO.
 		{
@@ -365,7 +367,7 @@ void Application::InitResources()
 			heapDesc.NumDescriptors = 1;
 			heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 			heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-			ThrowIfFailed(_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_uniformBufferHeap)));
+			ThrowIfFailed(D3D12Core::GetDevice()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_uniformBufferHeap)));
 
 			D3D12_RESOURCE_DESC uboResourceDesc;
 			uboResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -380,7 +382,7 @@ void Application::InitResources()
 			uboResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 			uboResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
-			ThrowIfFailed(_device->CreateCommittedResource(
+			ThrowIfFailed(D3D12Core::GetDevice()->CreateCommittedResource(
 				&heapProps, D3D12_HEAP_FLAG_NONE, &uboResourceDesc,
 				D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
 				IID_PPV_ARGS(&_uniformBuffer)));
@@ -391,7 +393,7 @@ void Application::InitResources()
 			cbvDesc.SizeInBytes = (sizeof(_viewProjectionMatrix) + 255) & ~255; // CB size is required to be 256-byte aligned.
 
 			D3D12_CPU_DESCRIPTOR_HANDLE cbvCpuHandle = DescriptorAllocator::Instance().Allocate();
-			_device->CreateConstantBufferView(&cbvDesc, cbvCpuHandle);
+			D3D12Core::GetDevice()->CreateConstantBufferView(&cbvDesc, cbvCpuHandle);
 
 			_uniformBufferDescriptor = cbvCpuHandle; // Save this for binding later
 
@@ -443,7 +445,7 @@ void Application::InitResources()
 
 		try
 		{
-			ThrowIfFailed(_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&_pipelineState)));
+			ThrowIfFailed(D3D12Core::GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&_pipelineState)));
 		}
 		catch (std::exception e)
 		{
@@ -456,7 +458,7 @@ void Application::InitResources()
 		dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 		dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 
-		ThrowIfFailed(_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&_dsvHeap)));
+		ThrowIfFailed(D3D12Core::GetDevice()->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&_dsvHeap)));
 
 		// Heap properties for creating the texture (GPU read/write)
 		D3D12_HEAP_PROPERTIES heapProps = {};
@@ -485,7 +487,7 @@ void Application::InitResources()
 		depthOptimizedClearValue.DepthStencil.Depth = 1.0f;
 		depthOptimizedClearValue.DepthStencil.Stencil = 0; 
 
-		ThrowIfFailed(_device->CreateCommittedResource(
+		ThrowIfFailed(D3D12Core::GetDevice()->CreateCommittedResource(
 			&heapProps,
 			D3D12_HEAP_FLAG_NONE,
 			&depthResourceDesc,
@@ -500,10 +502,10 @@ void Application::InitResources()
 		dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
 
 		// Create the DSV for the depth-stencil buffer
-		_device->CreateDepthStencilView(_depthStencilBuffer.Get(), &dsvDesc, _dsvHeap->GetCPUDescriptorHandleForHeapStart());
+		D3D12Core::GetDevice()->CreateDepthStencilView(_depthStencilBuffer.Get(), &dsvDesc, _dsvHeap->GetCPUDescriptorHandleForHeapStart());
 	}
 
-	ThrowIfFailed(_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _commandAllocator.Get(), _pipelineState.Get(), IID_PPV_ARGS(&_commandList)));
+	ThrowIfFailed(D3D12Core::GetDevice()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _commandAllocator.Get(), _pipelineState.Get(), IID_PPV_ARGS(&_commandList)));
 	_commandList->SetName(L"artisDX CommandList");
 
 	// Create synchronization objects and wait until assets have been uploaded
@@ -537,7 +539,7 @@ void Application::InitResources()
 	}
 
 	// MODELLOADING
-	_modelManager = ModelManager(_device, _commandList);
+	_modelManager = ModelManager(D3D12Core::GetDevice(), _commandList);
 
 	//_modelManager.LoadModel("../assets/cube.glb");
 	//_modelManager.LoadModel("../assets/movedcube.glb");
@@ -727,7 +729,6 @@ Application::~Application()
 	_commandAllocator.Reset();
 	_commandQueue.Reset();
 	_swapchain.Reset();
-	_device.Reset();
 	_factory.Reset();
 	_adapter.Reset();
 

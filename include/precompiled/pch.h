@@ -43,8 +43,6 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 
 #include "../build/_deps/imgui-src/backends/imgui_impl_dx12.h"
 
-#include "Structs.h"
-
 using namespace DirectX;
 
 // Defines
@@ -108,4 +106,11 @@ enum KEYCODES
 	LCTRL = 17,
 	ESC = 27,
 	SHIFT = 16
+};
+
+struct Vertex {
+	XMFLOAT3 position;
+	XMFLOAT3 normal;
+	XMFLOAT4 tangent;
+	XMFLOAT2 uv;
 };

@@ -1,6 +1,8 @@
 #pragma once
 
 #include "precompiled/pch.h"
+
+#include "D3D12Core.h"
 #include "Window.h"
 #include "Camera.h"
 #include "ModelManager.h"
@@ -45,7 +47,6 @@ private:
 	// Initialization
 	MSWRL::ComPtr<IDXGIFactory4> _factory;
 	MSWRL::ComPtr<IDXGIAdapter1> _adapter;
-	MSWRL::ComPtr<ID3D12Device> _device;
 
 #if defined(_DEBUG)
 	MSWRL::ComPtr<ID3D12Debug1> _debugController;
