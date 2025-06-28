@@ -45,7 +45,7 @@ MSWRL::ComPtr<ID3D12Resource> Mesh::CreateBuffer(UINT64 size, D3D12_HEAP_TYPE he
 
 	MSWRL::ComPtr<ID3D12Resource> buffer;
 
-	ThrowIfFailed(D3D12Core::GetDevice()->CreateCommittedResource(
+	ThrowIfFailed(D3D12Core::Device::Get()->CreateCommittedResource(
 		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
 		&resourceDesc,

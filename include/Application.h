@@ -41,8 +41,6 @@ private:
 	int _frameCount = 0;
 	double _fps = 0.0;
 
-	MSWRL::ComPtr<ID3D12DescriptorHeap> _srvHeap;
-
 	// DX12 Specific
 	// Initialization
 	MSWRL::ComPtr<IDXGIFactory4> _factory;
@@ -85,11 +83,8 @@ private:
 	MSWRL::ComPtr<ID3D12Resource> _uniformBuffer;
 	MSWRL::ComPtr<ID3D12DescriptorHeap> _uniformBufferHeap;
 	D3D12_CPU_DESCRIPTOR_HANDLE _uniformBufferDescriptor;
-	// needs to be rawpointer since we perform memcpy on it
+	
 	UINT8* _mappedUniformBuffer;
-
-	D3D12_VERTEX_BUFFER_VIEW _vertexBufferView;
-	D3D12_INDEX_BUFFER_VIEW _indexBufferView;
 
 	ModelManager _modelManager;
 
