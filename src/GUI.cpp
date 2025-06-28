@@ -51,15 +51,15 @@ void GUI::Init(Window window, MSWRL::ComPtr<ID3D12CommandQueue> commandQueue, MS
 	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	desc.NumDescriptors = 1;
 	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	ThrowIfFailed(D3D12Core::Device::Get()->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&_srvHeap)));
+	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&_srvHeap)));
 
 	// Create Command Allocator & Command List
-	ThrowIfFailed(D3D12Core::Device::Get()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_commandAllocator)));
-	ThrowIfFailed(D3D12Core::Device::Get()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _commandAllocator.Get(), nullptr, IID_PPV_ARGS(&_commandList)));
+	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_commandAllocator)));
+	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _commandAllocator.Get(), nullptr, IID_PPV_ARGS(&_commandList)));
 	_commandList->Close();
 
 	ImGui_ImplWin32_Init(window.GetHWND());
-	ImGui_ImplDX12_Init(D3D12Core::Device::Get().Get(), 3, DXGI_FORMAT_R8G8B8A8_UNORM, _srvHeap.Get(), _srvHeap->GetCPUDescriptorHandleForHeapStart(), _srvHeap->GetGPUDescriptorHandleForHeapStart());
+	ImGui_ImplDX12_Init(D3D12Core::GraphicsDevice::GetDevice().Get(), 3, DXGI_FORMAT_R8G8B8A8_UNORM, _srvHeap.Get(), _srvHeap->GetCPUDescriptorHandleForHeapStart(), _srvHeap->GetGPUDescriptorHandleForHeapStart());
 }
 
 void GUI::NewFrame()

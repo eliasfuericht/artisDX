@@ -126,7 +126,7 @@ MSWRL::ComPtr<ID3D12Resource> AABB::CreateBuffer(UINT64 size, D3D12_HEAP_TYPE he
 
 	MSWRL::ComPtr<ID3D12Resource> buffer;
 
-	ThrowIfFailed(D3D12Core::Device::Get()->CreateCommittedResource(
+	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommittedResource(
 		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
 		&resourceDesc,

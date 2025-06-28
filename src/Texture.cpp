@@ -55,7 +55,7 @@ void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList
 
 	D3D12_HEAP_PROPERTIES defaultHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 
-	ThrowIfFailed(D3D12Core::Device::Get()->CreateCommittedResource(
+	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommittedResource(
 		&defaultHeap,
 		D3D12_HEAP_FLAG_NONE,
 		&textureDesc,
@@ -69,7 +69,7 @@ void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList
 	D3D12_RESOURCE_DESC uploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize);
 
 	// Create the GPU upload buffer.
-	ThrowIfFailed(D3D12Core::Device::Get()->CreateCommittedResource(
+	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommittedResource(
 		&defaultUploadHeap,
 		D3D12_HEAP_FLAG_NONE,
 		&uploadBufferDesc,
@@ -100,7 +100,7 @@ void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = _mipCount;
 	srvDesc.Texture2D.MostDetailedMip = 0;
-	D3D12Core::Device::Get()->CreateShaderResourceView(_textureResource.Get(), &srvDesc, _srvCpuHandle);
+	D3D12Core::GraphicsDevice::GetDevice()->CreateShaderResourceView(_textureResource.Get(), &srvDesc, _srvCpuHandle);
 }
 
 void Texture::BindTexture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)

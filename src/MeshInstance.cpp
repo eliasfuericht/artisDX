@@ -20,7 +20,7 @@ void MeshInstance::CreateCBV()
 	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
 	CD3DX12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
 
-	D3D12Core::Device::Get()->CreateCommittedResource(
+	D3D12Core::GraphicsDevice::GetDevice()->CreateCommittedResource(
 		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
 		&bufferDesc,
@@ -35,7 +35,7 @@ void MeshInstance::CreateCBV()
 	cbvDesc.BufferLocation = _constantBuffer->GetGPUVirtualAddress();
 	cbvDesc.SizeInBytes = bufferSize;
 
-	D3D12Core::Device::Get()->CreateConstantBufferView(&cbvDesc, cbvCpuHandle);
+	D3D12Core::GraphicsDevice::GetDevice()->CreateConstantBufferView(&cbvDesc, cbvCpuHandle);
 
 	_cbvGpuHandle = DescriptorAllocator::Instance().GetGPUHandle(cbvCpuHandle);
 }

@@ -46,11 +46,6 @@ private:
 	MSWRL::ComPtr<IDXGIFactory4> _factory;
 	MSWRL::ComPtr<IDXGIAdapter1> _adapter;
 
-#if defined(_DEBUG)
-	MSWRL::ComPtr<ID3D12Debug1> _debugController;
-	MSWRL::ComPtr<ID3D12DebugDevice> _debugDevice;
-#endif
-
 	MSWRL::ComPtr<ID3D12CommandQueue> _commandQueue;
 	MSWRL::ComPtr<ID3D12CommandAllocator> _commandAllocator;
 	MSWRL::ComPtr<ID3D12GraphicsCommandList> _commandList;
