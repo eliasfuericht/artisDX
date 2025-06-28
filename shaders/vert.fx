@@ -18,19 +18,25 @@ struct SPIRV_Cross_Input
 
 struct SPIRV_Cross_Output
 {
-    float2 outUV : TEXCOORD;
     float4 position : SV_Position;
+    float2 outUV : TEXCOORD;
+    float3 outNormal : NORMAL;
+    float4 outTangent : TANGENT;
 };
 
 SPIRV_Cross_Output main(SPIRV_Cross_Input stage_input)
 {
     SPIRV_Cross_Output stage_output;
 
-    float2 inUV = stage_input.inUV;
-    float3 inPos = stage_input.inPos;
+    float4 worldPos = mul(float4(stage_input.inPos, 1.0f), c_modelMatrix);
+    stage_output.position = mul(worldPos, c_viewProjectionMatrix);
+    
+    float3x3 normalMatrix = (float3x3) c_modelMatrix; 
+    stage_output.outNormal = normalize(mul(stage_input.inNormal, normalMatrix));
+    
+    float3 worldTangent = normalize(mul(stage_input.inTangent.xyz, normalMatrix));
+    stage_output.outTangent = float4(worldTangent, stage_input.inTangent.w);
 
-    stage_output.position = mul(float4(inPos, 1.0f), mul(c_modelMatrix, c_viewProjectionMatrix));
-    stage_output.outUV = inUV;
-
+    stage_output.outUV = stage_input.inUV;
     return stage_output;
 }

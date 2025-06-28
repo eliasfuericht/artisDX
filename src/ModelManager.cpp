@@ -206,13 +206,7 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 			continue;
 
 		ScratchImage image;
-		TexMetadata metadata = {};
-		metadata.width = width;
-		metadata.height = height;
-		metadata.mipLevels = 1;
-		metadata.arraySize = 1;
-		metadata.dimension = DirectX::TEX_DIMENSION_TEXTURE2D;
-		metadata.format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		TexMetadata metadata;
 
 		ThrowIfFailed(LoadFromWICMemory(pixelData, pixelSize, WIC_FLAGS_NONE, &metadata, image));
 

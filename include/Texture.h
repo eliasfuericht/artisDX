@@ -2,6 +2,8 @@
 
 #include "precompiled/pch.h"
 
+#include <wincodec.h>
+
 #include "DirectXTex.h"
 
 #include "D3D12Core.h"

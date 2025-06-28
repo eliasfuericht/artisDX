@@ -44,7 +44,7 @@ void Camera::ConsumeKey(BOOL* keys, FLOAT deltaTime)
 	FLOAT multiplier = 1.0f;
 	if (keys[KEYCODES::SHIFT])
 	{
-		multiplier = 20.0f;
+		multiplier = 25.0f;
 	}
 
 	FLOAT velocity = _moveSpeed * deltaTime * multiplier;
