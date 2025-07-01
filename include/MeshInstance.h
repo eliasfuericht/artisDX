@@ -2,7 +2,7 @@
 
 #include "precompiled/pch.h"
 
-#include "D3D12Core.h"
+#include "GraphicsDevice.h"
 #include "DescriptorAllocator.h"
 #include "Mesh.h"
 #include "AABB.h"

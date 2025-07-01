@@ -6,25 +6,9 @@ Application::Application(const CHAR* name, INT w, INT h)
 
 	_width = w;
 	_height = h;
-	_factory = nullptr;
-	_adapter = nullptr;
-				
-	_commandQueue = nullptr;
+		
 	_commandAllocator = nullptr;
-	_commandList = nullptr;
-
-	_rtvHeap = nullptr;
-	for (size_t i = 0; i < _backBufferCount; ++i)
-	{
-		_renderTargets[i] = nullptr;
-	}
-	_swapchain = nullptr;
-
-	// Sync																																					 
-	_frameIndex = 0;
-	_fenceEvent = nullptr;
-	_fence = nullptr;
-	_fenceValue = 0;
+	_commandList = nullptr;																														 
 
 	_camera = Camera(
 		XMVectorSet(0.0f, 0.0f, 5.0f, 0.0f),
@@ -35,18 +19,12 @@ Application::Application(const CHAR* name, INT w, INT h)
 		0.1f
 	);
 
-	InitDX12();
-	InitSwapchain(w, h);
+	Init();
 	InitResources();
 	InitGUI();
 }
 
-void Application::InitGUI()
-{
-	GUI::Init(_window, _commandQueue, _swapchain, _rtvHeap, _renderTargets, _rtvDescriptorSize);
-}
-
-void Application::InitDX12()
+void Application::Init()
 {
 	CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 	// Create Factory
@@ -65,7 +43,9 @@ void Application::InitDX12()
 	dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 #endif
 
-	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&_factory)));
+	MSWRL::ComPtr<IDXGIFactory4> factory;
+	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
+	D3D12Core::GraphicsDevice::InitializeFactory(factory);
 
 	SIZE_T maxMemSize = 0;
 
@@ -73,7 +53,7 @@ void Application::InitDX12()
 	for (UINT adapterIndex = 0; ; ++adapterIndex)
 	{
 		MSWRL::ComPtr<IDXGIAdapter1> adapter;
-		if (_factory->EnumAdapters1(adapterIndex, &adapter) == DXGI_ERROR_NOT_FOUND)
+		if (D3D12Core::GraphicsDevice::GetFactory()->EnumAdapters1(adapterIndex, &adapter) == DXGI_ERROR_NOT_FOUND)
 			break;
 
 		DXGI_ADAPTER_DESC1 desc;
@@ -83,26 +63,20 @@ void Application::InitDX12()
 		if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
 			continue;
 
-		// Check if the adapter supports Direct3D 12
 		if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_0, __uuidof(ID3D12Device), nullptr)))
 		{
-			// Update if this adapter has more dedicated video memory than previous best
 			if (desc.DedicatedVideoMemory > maxMemSize)
 			{
 				maxMemSize = desc.DedicatedVideoMemory;
-				_adapter = adapter; // Store the adapter with the largest video memory
+				D3D12Core::GraphicsDevice::InitializeAdapter(adapter);
 			}
 		}
-		// Adapter will be released automatically at the end of scope
 	}
 
-	// Create Device
-	// The device is the interface between the program(CPU) and the adapter(GPU)
 	MSWRL::ComPtr<ID3D12Device> device;
-	ThrowIfFailed(D3D12CreateDevice(_adapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&device)), "Device creation failed!");
-	device->SetName(L"artisDX_Device");
-
+	ThrowIfFailed(D3D12CreateDevice(D3D12Core::GraphicsDevice::GetAdapter().Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&device)), "Device creation failed!");
 	D3D12Core::GraphicsDevice::InitializeDevice(device);
+	D3D12Core::GraphicsDevice::GetDevice()->SetName(L"artisDX_Device");
 
 #if defined(_DEBUG)
 	{
@@ -117,92 +91,19 @@ void Application::InitDX12()
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-	// D3D12_COMMAND_LIST_TYPE_DIRECT = normal graphics pipeline
-	// D3D12_COMMAND_LIST_TYPE_COMPUTE = compute pipeline
-	// ...
 
-	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&_commandQueue)),"CommandQueue creation failed!");
+	MSWRL::ComPtr<ID3D12CommandQueue> commandQueue;
+	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&commandQueue)),"CommandQueue creation failed!");
+	D3D12Core::CommandQueue::InitializeCommandQueue(commandQueue);
+
+	MSWRL::ComPtr<ID3D12Fence> fence;
+	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
+	D3D12Core::CommandQueue::InitializeFence(fence);
 
 	// Create Command Allocator
 	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_commandAllocator)));
 
-	// Sync
-	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence)));
-}
-
-void Application::InitSwapchain(UINT w, UINT h)
-{
-	// Wait for the GPU to finish with the previous frame
-	const UINT64 fence = _fenceValue;
-	ThrowIfFailed(_commandQueue->Signal(_fence.Get(), fence));
-	_fenceValue++;
-	if (_fence->GetCompletedValue() < fence)
-	{
-		ThrowIfFailed(_fence->SetEventOnCompletion(fence, _fenceEvent));
-		WaitForSingleObjectEx(_fenceEvent, INFINITE, false);
-	}
-
-	// Clean up old resources before resizing
-	for (UINT n = 0; n < _backBufferCount; n++)
-	{
-		_renderTargets[n].Reset();  // Release old render targets
-	}
-	_rtvHeap.Reset();  // Release old descriptor heap
-
-	_surfaceSize.left = 0;
-	_surfaceSize.top = 0;
-	_surfaceSize.right = static_cast<LONG>(w);
-	_surfaceSize.bottom = static_cast<LONG>(h);
-
-	_viewport = CD3DX12_VIEWPORT{ 0.0f, 0.0f, static_cast<float>(w), static_cast<float>(h) };
-	_viewport.MinDepth = 0.0f;
-	_viewport.MaxDepth = 1.0f;
-
-	if (_swapchain != nullptr)
-	{
-		// Resize the swapchain buffers
-		_swapchain->ResizeBuffers(_backBufferCount, w, h, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
-	}
-	else
-	{
-		// Create the swapchain if it doesn't exist
-		DXGI_SWAP_CHAIN_DESC1 swapchainDesc = {};
-		swapchainDesc.BufferCount = _backBufferCount;
-		swapchainDesc.Width = w;
-		swapchainDesc.Height = h;
-		swapchainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-		swapchainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-		swapchainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-		swapchainDesc.SampleDesc.Count = 1;
-
-		MSWRL::ComPtr<IDXGISwapChain1> swapchain;
-		ThrowIfFailed(_factory->CreateSwapChainForHwnd(_commandQueue.Get(), _window.GetHWND(), &swapchainDesc, nullptr, nullptr, &swapchain), "Failed to create swapchain");
-
-		MSWRL::ComPtr<IDXGISwapChain3> swapchain3;
-		ThrowIfFailed(swapchain->QueryInterface(__uuidof(IDXGISwapChain3), (void**)&swapchain3), "QueryInterface for swapchain failed.");
-		_swapchain = swapchain3;
-	}
-
-	_frameIndex = _swapchain->GetCurrentBackBufferIndex();
-
-	// Recreate descriptor heaps and render targets
-	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-	rtvHeapDesc.NumDescriptors = _backBufferCount;
-	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&_rtvHeap)));
-
-	_rtvDescriptorSize = D3D12Core::GraphicsDevice::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-
-	// Create frame resources
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle(_rtvHeap->GetCPUDescriptorHandleForHeapStart());
-	for (UINT i = 0; i < _backBufferCount; i++)
-	{
-		ThrowIfFailed(_swapchain->GetBuffer(i, IID_PPV_ARGS(&_renderTargets[i])));
-		D3D12Core::GraphicsDevice::GetDevice()->CreateRenderTargetView(_renderTargets[i].Get(), nullptr, rtvHandle);
-		rtvHandle.ptr += _rtvDescriptorSize;
-		_rtvDescriptor[i] = rtvHandle;
-	}
+	D3D12Core::Swapchain::Init(_window);
 }
 
 void Application::InitResources()
@@ -260,7 +161,7 @@ void Application::InitResources()
 		rootParameters[1].DescriptorTable.NumDescriptorRanges = 1;
 		rootParameters[1].DescriptorTable.pDescriptorRanges = &cbvRangeModel;
 
-		// textures
+		// textures ugly asf need to rethink
 		for (int i = 0; i < 5; ++i) {
 			rootParameters[i + 2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 			rootParameters[i + 2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
@@ -402,10 +303,6 @@ void Application::InitResources()
 
 			_uniformBufferDescriptor = cbvCpuHandle; // Save this for binding later
 
-			// We do not intend to read from this resource on the CPU. (End is
-			// less than or equal to begin)
-			D3D12_RANGE readRange = { 0, 0 };
-
 			// setup matrices
 			XMStoreFloat4x4(&_projectionMatrix,
 				XMMatrixPerspectiveFovLH(
@@ -415,6 +312,9 @@ void Application::InitResources()
 					1000.0f)
 			);
 
+			// We do not intend to read from this resource on the CPU. (End is
+			// less than or equal to begin)
+			D3D12_RANGE readRange = { 0, 0 };
 			ThrowIfFailed(_uniformBuffer->Map(0, &readRange, reinterpret_cast<void**>(&_mappedUniformBuffer)));
 			memcpy(_mappedUniformBuffer, &_viewProjectionMatrix, sizeof(_viewProjectionMatrix));
 			_uniformBuffer->Unmap(0, nullptr);
@@ -457,14 +357,6 @@ void Application::InitResources()
 			std::cout << "Failed to create Graphics Pipeline!";
 		}
 
-		// Create the DSV Heap
-		D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
-		dsvHeapDesc.NumDescriptors = 1;
-		dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-		dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-
-		ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&_dsvHeap)));
-
 		// Heap properties for creating the texture (GPU read/write)
 		D3D12_HEAP_PROPERTIES heapProps = {};
 		heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
@@ -501,6 +393,14 @@ void Application::InitResources()
 			IID_PPV_ARGS(&_depthStencilBuffer)
 		));
 
+		// Create the DSV Heap
+		D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
+		dsvHeapDesc.NumDescriptors = 1;
+		dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+		dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+
+		ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&_dsvHeap)));
+
 		D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
 		dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
 		dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
@@ -512,45 +412,10 @@ void Application::InitResources()
 
 	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _commandAllocator.Get(), _pipelineState.Get(), IID_PPV_ARGS(&_commandList)));
 	_commandList->SetName(L"artisDX CommandList");
-
-	// Create synchronization objects and wait until assets have been uploaded
-	// to the GPU.
-	{
-		_fenceValue = 1;
-
-		// Create an event handle to use for frame synchronization.
-		_fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-		if (_fenceEvent == nullptr)
-		{
-			ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
-		}
-
-		// Wait for the command list to execute; we are reusing the same command
-		// list in our main loop but for now, we just want to wait for setup to
-		// complete before continuing.
-		// Signal and increment the fence value.
-		const UINT64 fence = _fenceValue;
-		ThrowIfFailed(_commandQueue->Signal(_fence.Get(), fence));
-		_fenceValue++;
-
-		// Wait until the previous frame is finished.
-		if (_fence->GetCompletedValue() < fence)
-		{
-			ThrowIfFailed(_fence->SetEventOnCompletion(fence, _fenceEvent));
-			WaitForSingleObject(_fenceEvent, INFINITE);
-		}
-
-		_frameIndex = _swapchain->GetCurrentBackBufferIndex();
-	}
-
+	
 	// MODELLOADING
 	_modelManager = ModelManager(_commandList);
 
-	//_modelManager.LoadModel("../assets/cube.glb");
-	//_modelManager.LoadModel("../assets/movedcube.glb");
-	//_modelManager.LoadModel("../assets/elicube.glb");
-	//_modelManager.LoadModel("../assets/cuberotated.glb");
-	//_modelManager.LoadModel("../assets/uv_debug.glb");
 	_modelManager.LoadModel("../assets/helmet.glb");
 	//_modelManager.LoadModel("../assets/old_rusty_car.glb");
 	//_modelManager.LoadModel("../assets/sponza.glb");
@@ -559,6 +424,11 @@ void Application::InitResources()
 	// upload all textures from models
 	ThrowIfFailed(_commandList->Close());
 	ExecuteCommandList();
+}
+
+void Application::InitGUI()
+{
+	GUI::Init(_window);
 }
 
 void Application::SetCommandList()
@@ -570,8 +440,8 @@ void Application::SetCommandList()
 	ThrowIfFailed(_commandList->Reset(_commandAllocator.Get(), _pipelineState.Get()));
 	// Set necessary state.
 	_commandList->SetGraphicsRootSignature(_rootSignature.Get());
-	_commandList->RSSetViewports(1, &_viewport);
-	_commandList->RSSetScissorRects(1, &_surfaceSize);
+	_commandList->RSSetViewports(1, &D3D12Core::Swapchain::_viewport);
+	_commandList->RSSetScissorRects(1, &D3D12Core::Swapchain::_surfaceSize);
 
 	ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::Instance().GetHeap() };
 	_commandList->SetDescriptorHeaps(1, heaps);
@@ -582,14 +452,15 @@ void Application::SetCommandList()
 	D3D12_RESOURCE_BARRIER renderTargetBarrier = {};
 	renderTargetBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	renderTargetBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	renderTargetBarrier.Transition.pResource = _renderTargets[_frameIndex].Get();
+	renderTargetBarrier.Transition.pResource = D3D12Core::Swapchain::_renderTargets[D3D12Core::Swapchain::_frameIndex].Get();
 	renderTargetBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
 	renderTargetBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	renderTargetBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	_commandList->ResourceBarrier(1, &renderTargetBarrier);
-
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = _rtvHeap->GetCPUDescriptorHandleForHeapStart();
-	rtvHandle.ptr += (_frameIndex * _rtvDescriptorSize);
+	
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = D3D12Core::Swapchain::_rtvHeap->GetCPUDescriptorHandleForHeapStart();
+	// increments pointer from buffer 0 to 1 if _frameindex is 1
+	rtvHandle.ptr += (D3D12Core::Swapchain::_frameIndex * D3D12Core::Swapchain::_rtvDescriptorSize);
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = _dsvHeap->GetCPUDescriptorHandleForHeapStart();
 	_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 	_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0.0f, 0, nullptr);
@@ -604,7 +475,7 @@ void Application::SetCommandList()
 	D3D12_RESOURCE_BARRIER presentBarrier = {};
 	presentBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	presentBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	presentBarrier.Transition.pResource = _renderTargets[_frameIndex].Get();
+	presentBarrier.Transition.pResource = D3D12Core::Swapchain::_renderTargets[D3D12Core::Swapchain::_frameIndex].Get();
 	presentBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	presentBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 	presentBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
@@ -639,7 +510,6 @@ void Application::Run()
 
 	GUI::Shutdown();
 }
-
 
 void Application::UpdateFPS()
 {
@@ -683,32 +553,18 @@ void Application::ExecuteCommandList()
 {
 	// Execute the command list.
 	ID3D12CommandList* ppCommandLists[] = { _commandList.Get() };
-	_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+	D3D12Core::CommandQueue::GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
-	WaitForFence();
+	D3D12Core::CommandQueue::WaitForFence();
 }
 
 void Application::Present()
 {
-	_swapchain->Present(1, 0);
+	D3D12Core::Swapchain::_swapchain->Present(1, 0);
 
-	WaitForFence();
+	D3D12Core::CommandQueue::WaitForFence();
 
-	_frameIndex = _swapchain->GetCurrentBackBufferIndex();
-}
-
-void Application::WaitForFence()
-{
-	// Signal and increment the fence value.
-	const UINT64 fence = _fenceValue;
-	ThrowIfFailed(_commandQueue->Signal(_fence.Get(), fence));
-	_fenceValue++;
-
-	if (_fence->GetCompletedValue() < fence)
-	{
-		ThrowIfFailed(_fence->SetEventOnCompletion(fence, _fenceEvent));
-		WaitForSingleObject(_fenceEvent, INFINITE);
-	}
+	D3D12Core::Swapchain::_frameIndex = D3D12Core::Swapchain::_swapchain->GetCurrentBackBufferIndex();
 }
 
 Application::~Application()
@@ -716,47 +572,20 @@ Application::~Application()
 	CoUninitialize();
 	_window.Shutdown();
 	// Ensure GPU has finished executing commands before releasing resources
-	_fenceValue++;
-	_commandQueue->Signal(_fence.Get(), _fenceValue);
-
-	if (_fence->GetCompletedValue() < _fenceValue)
-	{
-		_fence->SetEventOnCompletion(_fenceValue, _fenceEvent);
-		WaitForSingleObject(_fenceEvent, INFINITE);
-	}
-
-	// Close event handle
-	if (_fenceEvent)
-	{
-		CloseHandle(_fenceEvent);
-		_fenceEvent = nullptr;
-	}
+	D3D12Core::CommandQueue::WaitForFence();
 
 	// Explicitly release all DX12 objects
 	_commandList.Reset();
 	_commandAllocator.Reset();
-	_commandQueue.Reset();
-	_swapchain.Reset();
-	_factory.Reset();
-	_adapter.Reset();
-
-	_rtvHeap.Reset();
+	
 	_rootSignature.Reset();
 	_pipelineState.Reset();
-	_dsvHeap.Reset();
 
-	for (UINT i = 0; i < _backBufferCount; i++)
-	{
-		_renderTargets[i].Reset();
-	}
+	_dsvHeap.Reset();
 	_depthStencilBuffer.Reset();
 
 	_uniformBuffer.Reset();
 	_uniformBufferHeap.Reset();
-
-	_fence.Reset();
-
-	// Clean up other objects
 	_mappedUniformBuffer = nullptr;
 
 	// Cleanup GUI

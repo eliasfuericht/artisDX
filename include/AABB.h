@@ -2,7 +2,7 @@
 
 #include "precompiled/pch.h"
 
-#include "D3D12Core.h"
+#include "GraphicsDevice.h"
 
 class AABB
 {

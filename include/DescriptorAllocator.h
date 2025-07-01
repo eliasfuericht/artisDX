@@ -20,5 +20,5 @@ private:
 	UINT _descriptorSize = 0;
 	UINT _capacity = 0;
 	std::atomic<UINT> _currentOffset = 0;
-	std::mutex _allocationMutex;
+	// std::mutex _allocationMutex;
 };

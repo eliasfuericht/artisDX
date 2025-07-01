@@ -2,16 +2,16 @@
 
 #include "precompiled/pch.h"
 
-#include "D3D12Core.h"
+#include "GraphicsDevice.h"
+#include "Swapchain.h"
+#include "CommandQueue.h"
 #include "Window.h"
 #include "IGUIComponent.h"
 
 class GUI
 {
 public:
-	static void Init(	Window window, MSWRL::ComPtr<ID3D12CommandQueue> commandQueue, 
-										MSWRL::ComPtr<IDXGISwapChain3> swapchain, MSWRL::ComPtr<ID3D12DescriptorHeap> rtvHeap, 
-										MSWRL::ComPtr<ID3D12Resource>* renderTargets, UINT rtvDescriptorSize);
+	static void Init(Window window);
 	static void Draw();
 	static void Render();
 	static void Shutdown();
@@ -72,12 +72,10 @@ private:
 	static MSWRL::ComPtr<ID3D12DescriptorHeap> _srvHeap;
 	static MSWRL::ComPtr<ID3D12GraphicsCommandList> _commandList;
 	static MSWRL::ComPtr<ID3D12CommandAllocator> _commandAllocator;
-	static MSWRL::ComPtr<ID3D12CommandQueue> _commandQueue;
 	static MSWRL::ComPtr<IDXGISwapChain3> _swapchain;
 	static MSWRL::ComPtr<ID3D12DescriptorHeap> _rtvHeap;
 	static UINT _rtvDescriptorSize;
 	static MSWRL::ComPtr<ID3D12Resource> _renderTargets[2];
 
-	//static std::vector<std::shared_ptr<IGUIComponent>> _guiComponents;
 	static std::vector<std::weak_ptr<IGUIComponent>> _guiComponents;
 };

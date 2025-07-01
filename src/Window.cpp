@@ -164,6 +164,7 @@ void Window::Create()
 	ShowCursor(FALSE);
 
 	SetCapture(_hWindow);
+
 }
 
 void Window::Show()

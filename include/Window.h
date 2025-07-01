@@ -2,6 +2,8 @@
 
 #include "precompiled/pch.h"
 
+#include <hidusage.h>
+
 class Window
 {
 public:

@@ -21,7 +21,7 @@ void DescriptorAllocator::Initialize(ID3D12Device* device, UINT numDescriptors)
 
 D3D12_CPU_DESCRIPTOR_HANDLE DescriptorAllocator::Allocate()
 {
-	std::lock_guard<std::mutex> lock(_allocationMutex);
+	// std::lock_guard<std::mutex> lock(_allocationMutex);
 
 	UINT offset = _currentOffset++;
 	if (offset >= _capacity)

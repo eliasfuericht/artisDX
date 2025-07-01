@@ -5,7 +5,6 @@ ImGuiIO* GUI::_imguiIO = nullptr;
 MSWRL::ComPtr<ID3D12GraphicsCommandList> GUI::_commandList;
 MSWRL::ComPtr<ID3D12CommandAllocator> GUI::_commandAllocator;
 MSWRL::ComPtr<ID3D12DescriptorHeap> GUI::_srvHeap;
-MSWRL::ComPtr<ID3D12CommandQueue> GUI::_commandQueue;
 MSWRL::ComPtr<IDXGISwapChain3> GUI::_swapchain;
 MSWRL::ComPtr<ID3D12DescriptorHeap> GUI::_rtvHeap;
 MSWRL::ComPtr<ID3D12Resource> GUI::_renderTargets[2];
@@ -13,16 +12,15 @@ UINT GUI::_rtvDescriptorSize;
 
 std::vector<std::weak_ptr<IGUIComponent>> GUI::_guiComponents;
 
-void GUI::Init(Window window, MSWRL::ComPtr<ID3D12CommandQueue> commandQueue, MSWRL::ComPtr<IDXGISwapChain3> swapchain, MSWRL::ComPtr<ID3D12DescriptorHeap> rtvHeap, MSWRL::ComPtr<ID3D12Resource>* renderTargets, UINT rtvDescriptorSize)
+void GUI::Init(Window window)
 {
-	_commandQueue = commandQueue;
-	_swapchain = swapchain;
-	_rtvHeap = rtvHeap;
+	_swapchain = D3D12Core::Swapchain::_swapchain;
+	_rtvHeap = D3D12Core::Swapchain::_rtvHeap;
 	for (UINT n = 0; n < 2; n++)
 	{
-		_renderTargets[n] = renderTargets[n];
+		_renderTargets[n] = D3D12Core::Swapchain::_renderTargets[n];
 	}
-	_rtvDescriptorSize = rtvDescriptorSize;
+	_rtvDescriptorSize = D3D12Core::Swapchain::_rtvDescriptorSize;
 
 	// init imgui
 	IMGUI_CHECKVERSION();
@@ -167,7 +165,7 @@ void GUI::Render()
 	// Close & Execute
 	ThrowIfFailed(_commandList->Close());
 	ID3D12CommandList* lists[] = { _commandList.Get() };
-	_commandQueue->ExecuteCommandLists(_countof(lists), lists);
+	D3D12Core::CommandQueue::GetCommandQueue()->ExecuteCommandLists(_countof(lists), lists);
 }
 
 void GUI::Shutdown()
