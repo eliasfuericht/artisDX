@@ -6,7 +6,6 @@ Camera::Camera(XMVECTOR pos, XMVECTOR startUp, FLOAT startYaw, FLOAT startPitch,
 	_front = XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f);
 }
 
-
 void Camera::ConsumeMouse(FLOAT xChange, FLOAT yChange)
 {
 	xChange *= _turnSpeed;
@@ -24,19 +23,6 @@ void Camera::ConsumeMouse(FLOAT xChange, FLOAT yChange)
 	{
 		_pitch = -89.0f;
 	}
-
-	Update();
-}
-
-void Camera::DrawGUI()
-{
-	GUI::Begin("Camera Window");
-
-	XMFLOAT3 temp = { 0.0f, 0.0f, 0.0f };
-
-	GUI::SliderFloat3("position", temp, -100.0f, 100.0f);
-
-	GUI::End();
 }
 
 void Camera::ConsumeKey(BOOL* keys, FLOAT deltaTime)
@@ -73,8 +59,6 @@ void Camera::ConsumeKey(BOOL* keys, FLOAT deltaTime)
 	{
 		_position = XMVectorSubtract(_position, XMVectorScale(_up, velocity));
 	}
-
-	Update();
 }
 
 void Camera::Update()
@@ -93,4 +77,15 @@ void Camera::Update()
 	_up = XMVector3Normalize(XMVector3Cross(_right, _front));
 
 	XMStoreFloat4x4(&_viewMatrix, XMMatrixLookAtLH(_position, XMVectorAdd(_position, _front), _up));
+}
+
+void Camera::DrawGUI()
+{
+	GUI::Begin("Camera Window");
+
+	XMFLOAT3 temp = { 0.0f, 0.0f, 0.0f };
+
+	GUI::SliderFloat3("position", temp, -100.0f, 100.0f);
+
+	GUI::End();
 }

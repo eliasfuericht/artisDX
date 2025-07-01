@@ -12,6 +12,7 @@ public:
 
 	void ConsumeMouse(FLOAT xChange, FLOAT yChange);
 	void ConsumeKey(BOOL* keys, FLOAT deltaTime);
+	void Update();
 
 	void DrawGUI();
 
@@ -21,7 +22,6 @@ public:
 	XMVECTOR _position;
 
 private:
-	void Update();
 
 	XMVECTOR _front;
 	XMVECTOR _up;

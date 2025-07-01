@@ -493,15 +493,14 @@ void Application::Run()
 
 	while (msg.message != WM_CLOSE)
 	{
-		UpdateFPS(); // Calculate FPS
-
+		UpdateFPS();
 		UpdateConstantBuffer();
 		SetCommandList();
 		ExecuteCommandList();
 		GUI::Draw();
 		Present();
 
-		if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE))
+		while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
 		{
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
@@ -542,6 +541,7 @@ void Application::UpdateConstantBuffer()
 
 	_camera.ConsumeKey(_window.GetKeys(), deltaTime);
 	_camera.ConsumeMouse(_window.GetXChange(), _window.GetYChange());
+	_camera.Update();
 	_viewMatrix = _camera.GetViewMatrix();
 
 	XMStoreFloat4x4(&_viewProjectionMatrix, XMMatrixMultiply(XMLoadFloat4x4(&_viewMatrix), XMLoadFloat4x4(&_projectionMatrix)));

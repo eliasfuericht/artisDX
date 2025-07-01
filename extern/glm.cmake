@@ -7,4 +7,4 @@ CPMAddPackage(
 set_target_properties(glm PROPERTIES VS_GLOBAL_VcpkgEnabled false)
 add_compile_definitions(GLM_ENABLE_EXPERIMENTAL)
 
-set_property(TARGET glm PROPERTY FOLDER "External/")
+set_property(TARGET glm PROPERTY FOLDER "extern/glm")
