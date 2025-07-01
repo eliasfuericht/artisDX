@@ -29,7 +29,6 @@ include(extern/imgui.cmake)
 include(extern/fastgltf.cmake)
 include(extern/d3dx12.cmake)
 include(extern/directxtex.cmake)
-include(extern/glfw.cmake)
 
 message(STATUS "External libraries configured successfully.")
 
@@ -38,8 +37,7 @@ target_include_directories(${APPLICATION_NAME} PRIVATE include)
 
 target_link_libraries(
   ${APPLICATION_NAME}    
-  d3d12
-  glfw      
+  d3d12    
   dxgi        
   dxguid      
   D3DCompiler 

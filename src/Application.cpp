@@ -491,20 +491,30 @@ void Application::Run()
 	_window.Show();
 	MSG msg = { 0 };
 
-	while (msg.message != WM_CLOSE)
+	bool running = true;
+
+	while (running)
 	{
+		while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+		{
+			if (msg.message == WM_QUIT)
+			{
+				running = false;
+				break;
+			}
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+
+		if (!running)
+			break;
+
 		UpdateFPS();
 		UpdateConstantBuffer();
 		SetCommandList();
 		ExecuteCommandList();
 		GUI::Draw();
 		Present();
-
-		while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
-		{
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
-		}
 	}
 
 	GUI::Shutdown();

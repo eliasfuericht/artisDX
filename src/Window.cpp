@@ -73,16 +73,6 @@ LRESULT CALLBACK WindowProcess(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 			PostQuitMessage(0);
 			break;
 		}
-		// ALT+F4
-		case WM_SYSCOMMAND:
-		{
-			if ((wParam & 0xFFF0) == SC_CLOSE)
-			{
-				PostMessage(hwnd, WM_CLOSE, 0, 0); 
-				return 0;
-			}
-			break;
-		}
 	}
 
 	return DefWindowProc(hwnd, msg, wParam, lParam);
