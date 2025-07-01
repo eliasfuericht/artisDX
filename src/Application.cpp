@@ -87,7 +87,6 @@ void Application::Init()
 	}
 #endif
 
-	// Create Command Queue
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
@@ -100,7 +99,7 @@ void Application::Init()
 	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
 	D3D12Core::CommandQueue::InitializeFence(fence);
 
-	// Create Command Allocator
+	// Create Command Allocator - still stored in application, think about better place
 	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_commandAllocator)));
 
 	D3D12Core::Swapchain::Init(_window);
@@ -416,7 +415,8 @@ void Application::InitResources()
 	// MODELLOADING
 	_modelManager = ModelManager(_commandList);
 
-	_modelManager.LoadModel("../assets/helmet.glb");
+	//_modelManager.LoadModel("../assets/helmet.glb");
+	_modelManager.LoadModel("../assets/helmet_blend.glb");
 	//_modelManager.LoadModel("../assets/old_rusty_car.glb");
 	//_modelManager.LoadModel("../assets/sponza.glb");
 	//_modelManager.LoadModel("../assets/brick_wall.glb");

@@ -4,6 +4,8 @@ set(CMAKE_CXX_STANDARD 20)
 
 message(STATUS "Configuring sources...")
 
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
 set(APPLICATION_NAME "artisDX")
 
 file(GLOB_RECURSE ARTISDX_SOURCES "src/*.cpp")

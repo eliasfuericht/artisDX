@@ -25,7 +25,6 @@ public:
 
 	BOOL _captureMouse;
 private:
-	// Win32
 	WNDCLASSEX _windowClassEx;
 	const CHAR* _windowTitle;
 	UINT _windowWidth;

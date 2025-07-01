@@ -233,7 +233,6 @@ void ModelManager::DrawAll()
 	}
 }
 
-
 void ModelManager::TranslateModel(XMFLOAT3 vec, UINT modelId)
 {
 	_models[modelId]->Translate(vec);

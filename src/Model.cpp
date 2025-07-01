@@ -19,8 +19,10 @@ Model::Model(	INT id, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, std:
 		_textures.push_back(std::move(modelTexture));
 	}
 
+	XMStoreFloat4x4(&_transformMatrix, XMLoadFloat4x4(&meshInstanceMatrices[0]));
+
 	ExtractTransformsFromMatrix();
-	UpdateModelMatrix();
+	UpdateTransformMatrix();
 }
 
 void Model::DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
@@ -76,43 +78,65 @@ void Model::DrawGUI() {
 
 	GUI::Begin(windowName.c_str());
 	GUI::PushID(_ID);
+	std::string partenTransformText = "Parent Transform";
+	GUI::Text(partenTransformText.c_str());
+	GUI::DragFloat3("Parent Translation", _translation);
+	GUI::DragFloat3("Parent Rotation", _rotation);
+	GUI::DragFloat3("Parent Scaling", _scaling);
+
+	GUI::PopID();
 
 	for (MeshInstance& meshInstance : _meshInstances)
 	{
 		GUI::PushID(meshInstance._id);
-		std::string subWindowString = "MeshInstance " + std::to_string(meshInstance._id);
-		GUI::Text(subWindowString.c_str());
+		std::string meshInstanceTransformText = "MeshInstance " + std::to_string(meshInstance._id);
+		GUI::Text(meshInstanceTransformText.c_str());
 		GUI::DragFloat3("Translation", meshInstance._translation);
 		GUI::DragFloat3("Rotation", meshInstance._rotation);
 		GUI::DragFloat3("Scaling", meshInstance._scaling);
 		GUI::PopID();
 	}
 
-	//_markedForDeletion = GUI::Button("Delete");
-
-	GUI::PopID();
 	GUI::End();
 
-	UpdateModelMatrix();
+	UpdateTransformMatrix();
 }
 
-void Model::UpdateModelMatrix() 
+void Model::UpdateTransformMatrix()
 {
+	// update parent transformMatrix
+	XMMATRIX parentTransform = XMMatrixIdentity();
+
+	parentTransform = XMMatrixMultiply(parentTransform, XMMatrixScaling(_scaling.x, _scaling.y, _scaling.z));
+
+	parentTransform = XMMatrixMultiply(parentTransform, XMMatrixRotationRollPitchYaw(
+		XMConvertToRadians(_rotation.x),
+		XMConvertToRadians(_rotation.y),
+		XMConvertToRadians(_rotation.z)
+	));
+
+	parentTransform = XMMatrixMultiply(parentTransform, XMMatrixTranslation(_translation.x, _translation.y, _translation.z));
+
+	XMStoreFloat4x4(&_transformMatrix, parentTransform);
+
+	// update MeshInstance transformMatrix
 	for (MeshInstance& meshInstance : _meshInstances)
 	{
-		XMMATRIX modelMatrix = XMMatrixIdentity();
+		XMMATRIX localTransform = XMMatrixIdentity();
 
-		modelMatrix = XMMatrixMultiply(modelMatrix, XMMatrixScaling(meshInstance._scaling.x, meshInstance._scaling.y, meshInstance._scaling.z));
+		localTransform = XMMatrixMultiply(localTransform, XMMatrixScaling(meshInstance._scaling.x, meshInstance._scaling.y, meshInstance._scaling.z));
 
-		modelMatrix = XMMatrixMultiply(modelMatrix, XMMatrixRotationRollPitchYaw(
+		localTransform = XMMatrixMultiply(localTransform, XMMatrixRotationRollPitchYaw(
 			XMConvertToRadians(meshInstance._rotation.x),
 			XMConvertToRadians(meshInstance._rotation.y),
 			XMConvertToRadians(meshInstance._rotation.z)
 		));
 
-		modelMatrix = XMMatrixMultiply(modelMatrix, XMMatrixTranslation(meshInstance._translation.x, meshInstance._translation.y, meshInstance._translation.z));
+		localTransform = XMMatrixMultiply(localTransform, XMMatrixTranslation(meshInstance._translation.x, meshInstance._translation.y, meshInstance._translation.z));
 
-		XMStoreFloat4x4(&meshInstance._localTransform, modelMatrix);
+		XMMATRIX worldTransform = XMMatrixMultiply(localTransform, parentTransform);
+
+		XMStoreFloat4x4(&meshInstance._localTransform, worldTransform);
 	}
 }
 
@@ -121,10 +145,10 @@ void Model::Translate(XMFLOAT3 vec)
 	for (MeshInstance& meshInstance : _meshInstances)
 	{
 		XMMATRIX translationMatrix = XMMatrixTranslation(vec.x, vec.y, vec.z);
-		XMMATRIX modelMatrix = XMLoadFloat4x4(&meshInstance._localTransform);
-		modelMatrix = XMMatrixMultiply(translationMatrix, modelMatrix); // Translation first
+		XMMATRIX transformMatrix = XMLoadFloat4x4(&meshInstance._localTransform);
+		transformMatrix = XMMatrixMultiply(translationMatrix, transformMatrix); // Translation first
 
-		XMStoreFloat4x4(&meshInstance._localTransform, modelMatrix);
+		XMStoreFloat4x4(&meshInstance._localTransform, transformMatrix);
 	}
 }
 
@@ -134,10 +158,10 @@ void Model::Rotate(XMFLOAT3 vec)
 	{
 		XMVECTOR quaternion = XMQuaternionRotationRollPitchYaw(vec.x, vec.y, vec.z);
 		XMMATRIX rotationMatrix = XMMatrixRotationQuaternion(quaternion);
-		XMMATRIX modelMatrix = XMLoadFloat4x4(&meshInstance._localTransform);
-		modelMatrix = XMMatrixMultiply(rotationMatrix, modelMatrix); // Rotation second
+		XMMATRIX transformMatrix = XMLoadFloat4x4(&meshInstance._localTransform);
+		transformMatrix = XMMatrixMultiply(rotationMatrix, transformMatrix); // Rotation second
 
-		XMStoreFloat4x4(&meshInstance._localTransform, modelMatrix);
+		XMStoreFloat4x4(&meshInstance._localTransform, transformMatrix);
 	}
 }
 
@@ -146,10 +170,10 @@ void Model::Scale(XMFLOAT3 vec)
 	for (MeshInstance& meshInstance : _meshInstances)
 	{
 		XMMATRIX scalingMatrix = XMMatrixScaling(vec.x, vec.y, vec.z);
-		XMMATRIX modelMatrix = XMLoadFloat4x4(&meshInstance._localTransform);
-		modelMatrix = XMMatrixMultiply(scalingMatrix, modelMatrix); // Scale last
+		XMMATRIX transformMatrix = XMLoadFloat4x4(&meshInstance._localTransform);
+		transformMatrix = XMMatrixMultiply(scalingMatrix, transformMatrix); // Scale last
 
-		XMStoreFloat4x4(&meshInstance._localTransform, modelMatrix);
+		XMStoreFloat4x4(&meshInstance._localTransform, transformMatrix);
 	}
 }
 

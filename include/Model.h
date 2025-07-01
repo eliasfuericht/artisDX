@@ -31,17 +31,18 @@ public:
 
 private:
 	void ExtractTransformsFromMatrix();
-	void UpdateModelMatrix();
+	void UpdateTransformMatrix();
 
 	INT _ID;
 	INT _meshInstanceId = 0;
 
+	XMFLOAT4X4 _transformMatrix;
+
+	XMFLOAT3 _translation = { 0.0f, 0.0f, 0.0f };
+	XMFLOAT3 _rotation = { 0.0f, 0.0f, 0.0f };
+	XMFLOAT3 _scaling = { 1.0f, 1.0f, 1.0f };
+
 	std::vector<MeshInstance> _meshInstances;
 	std::vector<Texture> _textures;
 	std::vector<std::vector<INT>> _materialTextureIndices;
-
-	MSWRL::ComPtr<ID3D12Resource> _modelMatrixBuffer;
-	D3D12_CPU_DESCRIPTOR_HANDLE _cbvCpuHandle;
-
-	UINT8* _mappedUniformBuffer;
 };
