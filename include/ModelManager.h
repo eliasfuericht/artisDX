@@ -13,6 +13,8 @@ public:
 	bool LoadModel(std::filesystem::path path);
 	void DrawAll();
 
+	void GenerateTangents(std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
+
 	void TranslateModel(XMFLOAT3 vec, UINT modelId);
 	void RotateModel(XMFLOAT3 vec, UINT modelId);
 	void ScaleModel(XMFLOAT3 vec, UINT modelId);

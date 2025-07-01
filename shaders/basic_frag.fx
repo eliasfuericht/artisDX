@@ -4,6 +4,7 @@ Texture2D normalTexture             : register(t1);
 Texture2D metallicRoughnessTexture  : register(t2);
 Texture2D emissiveTexture           : register(t3);
 Texture2D occlusionTexture          : register(t4);
+
 SamplerState mySampler              : register(s0);
 
 struct SPIRV_Cross_Input

@@ -214,8 +214,8 @@ void Application::InitResources()
 
 #define COMPILESHADERS
 #ifdef COMPILESHADERS
-		std::wstring vertPath = wpath + L"shaders\\vert.fx";
-		std::wstring fragPath = wpath + L"shaders\\frag.fx";
+		std::wstring vertPath = wpath + L"shaders\\pbr_vert.fx";
+		std::wstring fragPath = wpath + L"shaders\\pbr_frag.fx";
 				
 		try
 		{
@@ -416,7 +416,6 @@ void Application::InitResources()
 	_modelManager = ModelManager(_commandList);
 
 	//_modelManager.LoadModel("../assets/helmet.glb");
-	//_modelManager.LoadModel("../assets/helmet_blend.glb");
 	//_modelManager.LoadModel("../assets/old_rusty_car.glb");
 	//_modelManager.LoadModel("../assets/sponza.glb");
 	//_modelManager.LoadModel("../assets/brick_wall.glb");
