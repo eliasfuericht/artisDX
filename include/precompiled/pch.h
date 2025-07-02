@@ -20,12 +20,12 @@
 #include <iostream>
 #include <fstream>
 #include <chrono>
-#include <comdef.h>  // For _com_error
+#include <comdef.h> 
 #include <sstream>
 #include <numeric>
 #include <tuple>
 
-// GLM
+// GLM (not used directly but fastgltf depends on it - cant remove it)
 #include <../build/_deps/glm-src/glm/glm.hpp>
 #include <../build/_deps/glm-src/glm/gtc/matrix_transform.hpp>
 
@@ -34,7 +34,7 @@
 #include "../build/_deps/imgui-src/imgui.h"
 #include "../build/_deps/imgui-src/backends/imgui_impl_win32.h"
 
-// fastgltf (apparently depends on glm - cant remove it)
+// fastgltf 
 #include "../build/_deps/fastgltf-src/include/fastgltf/core.hpp"
 #include "../build/_deps/fastgltf-src/include/fastgltf/types.hpp"
 #include "../build/_deps/fastgltf-src/include/fastgltf/tools.hpp"

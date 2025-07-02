@@ -16,7 +16,7 @@ Application::Application(const CHAR* name, INT w, INT h)
 		90.0f,
 		0.0f,
 		2.5f,
-		0.1f
+		0.1f 
 	);
 
 	Init();
