@@ -10,12 +10,16 @@
 class Mesh
 {
 public:
-	Mesh(INT MeshInstanceId, Primitive meshInstance, AABB aabbInstance, XMFLOAT4X4 localTransformMatrix, INT materialIndexInstance);
+	Mesh() {};
+	Mesh(INT meshId, std::vector<Primitive> primitives);
+
+	void BindPrimitives(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 
 	INT _id;
 	std::string _name;
-	Primitive _mesh;
-	AABB _aabb;
+	std::vector<Primitive> _primitives;
+
+	// weg
 	XMFLOAT4X4 _localTransform;
 	INT _materialIndex;
 

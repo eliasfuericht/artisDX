@@ -1,12 +1,11 @@
 #include "Mesh.h"
 
-Mesh::Mesh(INT MeshInstanceId, Primitive meshInstance, AABB aabbInstance, XMFLOAT4X4 localTransformMatrix, INT materialIndexInstance)
+Mesh::Mesh(INT meshId, std::vector<Primitive> primitives)
 {
-	_id = MeshInstanceId;
-	_mesh = meshInstance;
-	_aabb = aabbInstance;
-	_localTransform = localTransformMatrix;
-	_materialIndex = materialIndexInstance;
+	_id = meshId;
+	_primitives = primitives;
+	XMStoreFloat4x4(&_localTransform, XMMatrixIdentity());
+	//_materialIndex = materialIndexInstance;
 
 	CreateCBV();
 }
@@ -38,4 +37,12 @@ void Mesh::CreateCBV()
 	D3D12Core::GraphicsDevice::GetDevice()->CreateConstantBufferView(&cbvDesc, cbvCpuHandle);
 
 	_cbvGpuHandle = DescriptorAllocator::Instance().GetGPUHandle(cbvCpuHandle);
+}
+
+void Mesh::BindPrimitives(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
+{
+	for (Primitive& primitive : _primitives)
+	{
+		primitive.BindPrimitiveData(commandList);
+	}
 }

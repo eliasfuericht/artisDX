@@ -7,6 +7,9 @@ ModelManager::ModelManager(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 
 void ModelManager::LoadModel(std::filesystem::path path)
 {
+	Model model;
+	_gltfLoader.ConstructModelFromFile(path, model, _commandList);
+
 	constexpr auto gltfOptions =
 		fastgltf::Options::DontRequireValidAssetMember |
 		fastgltf::Options::AllowDouble |
@@ -28,95 +31,9 @@ void ModelManager::LoadModel(std::filesystem::path path)
 		return;
 	}
 
-	std::vector<std::vector<Vertex>> submeshVertices;
-	std::vector<std::vector<uint32_t>> submeshIndices;
-	std::vector<XMFLOAT4X4> submeshModelMatrices;
 	std::vector<std::tuple<Texture::TEXTURETYPE, ScratchImage>> textures;
 	std::vector<INT> materialIndices;
 	std::vector<std::tuple<INT, std::vector<INT>>> materials;
-
-	for (auto& mesh : asset->meshes) 
-	{
-		std::vector<Vertex> vertices;
-		std::vector<uint32_t> indices;
-		XMFLOAT4X4 modelMatrix;
-		materialIndices.push_back(mesh.primitives[0].materialIndex.value_or(0));
-		BOOL generateTangents = false;
-
-		for (auto& primitive : mesh.primitives) 
-		{
-			const fastgltf::Accessor& indexAccessor = asset->accessors[primitive.indicesAccessor.value()];
-
-			indices.reserve(indices.size() + indexAccessor.count);
-
-			fastgltf::iterateAccessor<std::uint32_t>(asset.get(), indexAccessor, [&](std::uint32_t idx) {
-				indices.push_back(idx);
-				});
-
-			const fastgltf::Accessor& positionAccessor = asset->accessors[primitive.findAttribute("POSITION")->accessorIndex];
-			vertices.resize(vertices.size() + positionAccessor.count);
-
-			fastgltf::iterateAccessorWithIndex<fastgltf::math::fvec3>(asset.get(), positionAccessor, [&](fastgltf::math::fvec3 pos, std::size_t idx) {
-				vertices[idx].position = XMFLOAT3(pos.x(), pos.y(), pos.z());
-				});
-
-			if (primitive.findAttribute("NORMAL") != primitive.attributes.end())
-			{
-				const fastgltf::Accessor& normalAccessor = asset->accessors[primitive.findAttribute("NORMAL")->accessorIndex];
-				fastgltf::iterateAccessorWithIndex<fastgltf::math::fvec3>(asset.get(), normalAccessor, [&](fastgltf::math::fvec3 normal, std::size_t idx) {
-					vertices[idx].normal = XMFLOAT3(normal.x(), normal.y(), normal.z());
-					});
-			}
-
-			if (primitive.findAttribute("TANGENT") != primitive.attributes.end())
-			{
-				const fastgltf::Accessor& tangentAccessor = asset->accessors[primitive.findAttribute("TANGENT")->accessorIndex];
-
-				fastgltf::iterateAccessorWithIndex<fastgltf::math::fvec4>(asset.get(), tangentAccessor, [&](fastgltf::math::fvec4 tangent, std::size_t idx) {
-					vertices[idx].tangent = XMFLOAT4(tangent.x(), tangent.y(), tangent.z(), tangent.w());
-					});
-			}
-			else
-			{
-				generateTangents = true;
-			}
-
-			if (primitive.findAttribute("TEXCOORD_0") != primitive.attributes.end())
-			{
-				const fastgltf::Accessor& uvAccessor = asset->accessors[primitive.findAttribute("TEXCOORD_0")->accessorIndex];
-
-				fastgltf::iterateAccessorWithIndex<fastgltf::math::fvec2>(asset.get(), uvAccessor, [&](fastgltf::math::fvec2 uv, std::size_t idx) {
-					vertices[idx].uv = XMFLOAT2(uv.x(), uv.y());
-					});
-			}
-		}
-
-		if (generateTangents)
-		{
-			GenerateTangents(vertices, indices);
-		}
-
-		// extract modelmatrix
-		XMStoreFloat4x4(&modelMatrix, XMMatrixIdentity());
-
-		auto& transform = asset->nodes[0].transform;
-		
-		if (std::holds_alternative<fastgltf::TRS>(transform)) {
-			const auto& trs = std::get<fastgltf::TRS>(transform);
-
-			DirectX::XMVECTOR translation = DirectX::XMVectorSet(trs.translation[0], trs.translation[1], trs.translation[2], 1.0f);
-			DirectX::XMVECTOR rotation = DirectX::XMVectorSet(trs.rotation[0], trs.rotation[1], trs.rotation[2], trs.rotation[3]);
-			DirectX::XMVECTOR scale = DirectX::XMVectorSet(trs.scale[0], trs.scale[1], trs.scale[2], 1.0f);
-			
-			DirectX::XMMATRIX transformMatrix = DirectX::XMMatrixScalingFromVector(scale) * DirectX::XMMatrixRotationQuaternion(rotation) * DirectX::XMMatrixTranslationFromVector(translation);
-
-			XMStoreFloat4x4(&modelMatrix, transformMatrix);
-		}
-
-		submeshVertices.push_back(vertices);
-		submeshIndices.push_back(indices);
-		submeshModelMatrices.push_back(modelMatrix);
-	}
 
 	std::unordered_map<size_t, Texture::TEXTURETYPE> imageToType;
 
@@ -184,9 +101,9 @@ void ModelManager::LoadModel(std::filesystem::path path)
 			}
 		}
 
-		materials.emplace_back(std::tuple<INT, std::vector<INT>>(materialIndices[i], materialTextureIndices));
+		//materials.emplace_back(std::tuple<INT, std::vector<INT>>(materialIndices[i], materialTextureIndices));
 	}
-
+	
 	for (size_t i = 0; i < asset->images.size(); ++i) {
 		const fastgltf::Image& assetImage = asset->images[i];
 
@@ -226,8 +143,8 @@ void ModelManager::LoadModel(std::filesystem::path path)
 		textures.emplace_back(type, std::move(image));
 	}
 
-	std::shared_ptr<Model> model = std::make_shared<Model>(_modelId++, _commandList, submeshVertices, submeshIndices, submeshModelMatrices, std::move(textures), materials);
-	model->RegisterWithGUI();
+	//std::shared_ptr<Model> model = std::make_shared<Model>(_modelId++, _commandList, submeshVertices, submeshIndices, submeshModelMatrices, std::move(textures), materials);
+	model.RegisterWithGUI();
 	_models.push_back(std::move(model)); 
 }
 
@@ -235,7 +152,7 @@ void ModelManager::DrawAll()
 {
 	for (auto& model : _models)
 	{
-		model->DrawModel(_commandList);
+		model.DrawModel(_commandList);
 	}
 }
 
@@ -319,15 +236,15 @@ void ModelManager::GenerateTangents(std::vector<Vertex>& vertices, const std::ve
 
 void ModelManager::TranslateModel(XMFLOAT3 vec, UINT modelId)
 {
-	_models[modelId]->Translate(vec);
+	_models[modelId].Translate(vec);
 }
 
 void ModelManager::RotateModel(XMFLOAT3 vec, UINT modelId)
 {
-	_models[modelId]->Rotate(vec);
+	_models[modelId].Rotate(vec);
 }
 
 void ModelManager::ScaleModel(XMFLOAT3 vec, UINT modelId)
 {
-	_models[modelId]->Scale(vec);
+	_models[modelId].Scale(vec);
 }

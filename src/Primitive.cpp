@@ -19,6 +19,8 @@ Primitive::Primitive(std::vector<Vertex>& vertices, std::vector<uint32_t>& indic
 	_indexBufferView.BufferLocation = _indexBuffer->GetGPUVirtualAddress();
 	_indexBufferView.SizeInBytes = indexBufferSize;
 	_indexBufferView.Format = DXGI_FORMAT_R32_UINT;
+
+	_aabb = AABB(vertices);
 }
 
 MSWRL::ComPtr<ID3D12Resource> Primitive::CreateBuffer(UINT64 size, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES initialState)

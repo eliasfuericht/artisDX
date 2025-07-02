@@ -1,17 +1,11 @@
 #include "Model.h"
 
-Model::Model(	INT id, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, std::vector<std::vector<Vertex>> meshInstanceVertices, std::vector<std::vector<uint32_t>> meshInstanceIndices,
-							std::vector<XMFLOAT4X4> meshInstanceMatrices, std::vector<std::tuple<Texture::TEXTURETYPE, ScratchImage>> textures, std::vector<std::tuple<INT, std::vector<INT>>> materials)
+Model::Model(	INT id, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, 
+							std::vector<Mesh> meshes, 
+							std::vector<std::tuple<Texture::TEXTURETYPE, ScratchImage>> textures)
 {
 	_id = id;
-
-	for (int i = 0; i < meshInstanceVertices.size(); i++)
-	{
-		auto& [materialIndex, materialTextureIndices] = materials[i];
-
-		_meshInstances.emplace_back(Mesh(_meshInstanceIdIncrementor++, Primitive(meshInstanceVertices[i], meshInstanceIndices[i]), AABB(meshInstanceVertices[i]), meshInstanceMatrices[i], materialIndex));
-		_materialTextureIndices.push_back(materialTextureIndices);
-	}
+	_meshes = meshes;
 
 	for (int i = 0; i < textures.size(); i++)
 	{
@@ -20,33 +14,30 @@ Model::Model(	INT id, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, std:
 		_textures.push_back(std::move(modelTexture));
 	}
 
-	XMStoreFloat4x4(&_transformMatrix, XMLoadFloat4x4(&meshInstanceMatrices[0]));
-
 	ExtractTransformsFromMatrix();
 	UpdateTransformMatrix();
 }
 
 void Model::DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
-
-	for (Mesh& meshInstance : _meshInstances)
+	for (Mesh& mesh : _meshes)
 	{
-		memcpy(meshInstance._mappedPtr, &meshInstance._localTransform, sizeof(XMFLOAT4X4));
+		memcpy(mesh._mappedPtr, &mesh._localTransform, sizeof(XMFLOAT4X4));
 
-		commandList->SetGraphicsRootDescriptorTable(1, meshInstance._cbvGpuHandle);
-
+		commandList->SetGraphicsRootDescriptorTable(1, mesh._cbvGpuHandle);
+		/*
 		for (INT i : _materialTextureIndices[meshInstance._materialIndex])
 		{
 			_textures[i].BindTexture(commandList);
 		}
-
-		meshInstance._mesh.BindPrimitiveData(commandList);
+		*/
+		mesh.BindPrimitives(commandList);
 	}
 }
 
 void Model::ExtractTransformsFromMatrix()
 {
-	for (Mesh& meshInstance : _meshInstances)
+	for (Mesh& meshInstance : _meshes)
 	{
 		XMMATRIX M = XMLoadFloat4x4(&meshInstance._localTransform);
 
@@ -87,7 +78,7 @@ void Model::DrawGUI() {
 
 	GUI::PopID();
 
-	for (Mesh& meshInstance : _meshInstances)
+	for (Mesh& meshInstance : _meshes)
 	{
 		GUI::PushID(meshInstance._id);
 		std::string meshInstanceTransformText = "MeshInstance " + std::to_string(meshInstance._id);
@@ -121,7 +112,7 @@ void Model::UpdateTransformMatrix()
 	XMStoreFloat4x4(&_transformMatrix, parentTransform);
 
 	// update MeshInstance transformMatrix
-	for (Mesh& meshInstance : _meshInstances)
+	for (Mesh& meshInstance : _meshes)
 	{
 		XMMATRIX localTransform = XMMatrixIdentity();
 
@@ -143,7 +134,7 @@ void Model::UpdateTransformMatrix()
 
 void Model::Translate(XMFLOAT3 vec)
 {
-	for (Mesh& meshInstance : _meshInstances)
+	for (Mesh& meshInstance : _meshes)
 	{
 		XMMATRIX translationMatrix = XMMatrixTranslation(vec.x, vec.y, vec.z);
 		XMMATRIX transformMatrix = XMLoadFloat4x4(&meshInstance._localTransform);
@@ -155,7 +146,7 @@ void Model::Translate(XMFLOAT3 vec)
 
 void Model::Rotate(XMFLOAT3 vec)
 {
-	for (Mesh& meshInstance : _meshInstances)
+	for (Mesh& meshInstance : _meshes)
 	{
 		XMVECTOR quaternion = XMQuaternionRotationRollPitchYaw(vec.x, vec.y, vec.z);
 		XMMATRIX rotationMatrix = XMMatrixRotationQuaternion(quaternion);
@@ -168,7 +159,7 @@ void Model::Rotate(XMFLOAT3 vec)
 
 void Model::Scale(XMFLOAT3 vec)
 {
-	for (Mesh& meshInstance : _meshInstances)
+	for (Mesh& meshInstance : _meshes)
 	{
 		XMMATRIX scalingMatrix = XMMatrixScaling(vec.x, vec.y, vec.z);
 		XMMATRIX transformMatrix = XMLoadFloat4x4(&meshInstance._localTransform);

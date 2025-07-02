@@ -3,6 +3,7 @@
 #include "precompiled/pch.h"
 
 #include "GraphicsDevice.h"
+#include "AABB.h"
 
 class Primitive
 {
@@ -22,4 +23,8 @@ private:
 	MSWRL::ComPtr<ID3D12Resource> _indexBuffer;
 	D3D12_INDEX_BUFFER_VIEW _indexBufferView = {};
 	uint32_t _indexCount = 0;
+
+	INT _materialIndex = NOTOK;
+
+	AABB _aabb;
 };

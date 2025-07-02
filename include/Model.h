@@ -14,9 +14,10 @@ class Model : public IGUIComponent
 {
 public:
 	Model() {};
-	Model(INT id, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, std::vector<std::vector<Vertex>> meshInstanceVertices, std::vector<std::vector<uint32_t>> meshInstanceIndices,
-				std::vector<XMFLOAT4X4> meshInstanceMatrices, std::vector<std::tuple<Texture::TEXTURETYPE, ScratchImage>> textures, std::vector<std::tuple<INT, std::vector<INT>>> materials);
-	
+	Model(INT id, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList,
+		std::vector<Mesh> meshes,
+		std::vector<std::tuple<Texture::TEXTURETYPE, ScratchImage>> textures);
+
 	void DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 	void DrawGUI();
 	void RegisterWithGUI();
@@ -27,7 +28,9 @@ public:
 	void Rotate(XMFLOAT3 vec);
 	void Scale(XMFLOAT3 vec);
 
-	bool _markedForDeletion = false;
+	std::vector<Mesh> _meshes;
+	std::vector<Texture> _textures;
+	std::vector<Material> _materials;
 
 private:
 	void ExtractTransformsFromMatrix();
@@ -42,7 +45,5 @@ private:
 	XMFLOAT3 _rotation = { 0.0f, 0.0f, 0.0f };
 	XMFLOAT3 _scaling = { 1.0f, 1.0f, 1.0f };
 
-	std::vector<Mesh> _meshInstances;
-	std::vector<Texture> _textures;
 	std::vector<std::vector<INT>> _materialTextureIndices;
 };

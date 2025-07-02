@@ -25,6 +25,6 @@ private:
 
 	GLTFLoader _gltfLoader;
 	fastgltf::Parser _parser;
-	std::vector<std::shared_ptr<Model>> _models;
+	std::vector<Model> _models;
 	INT _modelId = 0;
 };

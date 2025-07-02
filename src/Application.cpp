@@ -214,8 +214,8 @@ void Application::InitResources()
 
 #define COMPILESHADERS
 #ifdef COMPILESHADERS
-		std::wstring vertPath = wpath + L"shaders\\pbr_vert.fx";
-		std::wstring fragPath = wpath + L"shaders\\pbr_frag.fx";
+		std::wstring vertPath = wpath + L"shaders\\basic_vert.fx";
+		std::wstring fragPath = wpath + L"shaders\\basic_frag.fx";
 				
 		try
 		{
@@ -513,7 +513,7 @@ void Application::Run()
 		UpdateConstantBuffer();
 		SetCommandList();
 		ExecuteCommandList();
-		GUI::Draw();
+		//GUI::Draw();
 		Present();
 	}
 
