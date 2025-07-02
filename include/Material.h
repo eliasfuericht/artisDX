@@ -3,11 +3,13 @@
 #include "precompiled/pch.h"
 
 class Material {
-public:
-	Material() {};
-	Material(D3D12_GPU_DESCRIPTOR_HANDLE textureBlockHandle);
+	std::string name;
+	int baseColorTextureIndex = -1;
+	int normalTextureIndex = -1;
+	int metallicRoughnessTextureIndex = -1;
 
-	void Bind(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, UINT rootParameterIndex);
-
-	D3D12_GPU_DESCRIPTOR_HANDLE _gpuHandle;
+	// PBR factors
+	XMFLOAT4 baseColorFactor = { 1,1,1,1 };
+	float metallicFactor = 1.0f;
+	float roughnessFactor = 1.0f;
 };

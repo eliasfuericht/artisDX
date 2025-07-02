@@ -4,10 +4,10 @@
 
 #include "GUI.h"
 #include "IGUIComponent.h"
-#include "Mesh.h"
+#include "Primitive.h"
 #include "AABB.h"
 #include "Texture.h"
-#include "MeshInstance.h"
+#include "Mesh.h"
 #include "Material.h"
 
 class Model : public IGUIComponent
@@ -33,8 +33,8 @@ private:
 	void ExtractTransformsFromMatrix();
 	void UpdateTransformMatrix();
 
-	INT _ID;
-	INT _meshInstanceId = 0;
+	INT _id = NOTOK;
+	INT _meshInstanceIdIncrementor = 0;
 
 	XMFLOAT4X4 _transformMatrix;
 
@@ -42,7 +42,7 @@ private:
 	XMFLOAT3 _rotation = { 0.0f, 0.0f, 0.0f };
 	XMFLOAT3 _scaling = { 1.0f, 1.0f, 1.0f };
 
-	std::vector<MeshInstance> _meshInstances;
+	std::vector<Mesh> _meshInstances;
 	std::vector<Texture> _textures;
 	std::vector<std::vector<INT>> _materialTextureIndices;
 };

@@ -19,8 +19,8 @@ set(ARTISDX_SOURCES
     src/GUI.cpp
     src/main.cpp
     src/Material.cpp
+    src/Primitive.cpp
     src/Mesh.cpp
-    src/MeshInstance.cpp
     src/Model.cpp
     src/ModelManager.cpp
     src/Swapchain.cpp
@@ -40,8 +40,8 @@ set(ARTISDX_HEADERS
     include/GUI.h
     include/IGUIComponent.h
     include/Material.h
+    include/Primitive.h
     include/Mesh.h
-    include/MeshInstance.h
     include/Model.h
     include/ModelManager.h
     include/Swapchain.h

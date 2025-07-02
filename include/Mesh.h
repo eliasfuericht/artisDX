@@ -3,22 +3,31 @@
 #include "precompiled/pch.h"
 
 #include "GraphicsDevice.h"
+#include "DescriptorAllocator.h"
+#include "Primitive.h"
+#include "AABB.h"
 
 class Mesh
 {
 public:
-	Mesh() {};
-	Mesh(std::vector<Vertex> vertices, std::vector<uint32_t> indices);
-	void BindMeshData(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
+	Mesh(INT MeshInstanceId, Primitive meshInstance, AABB aabbInstance, XMFLOAT4X4 localTransformMatrix, INT materialIndexInstance);
+
+	INT _id;
+	std::string _name;
+	Primitive _mesh;
+	AABB _aabb;
+	XMFLOAT4X4 _localTransform;
+	INT _materialIndex;
+
+	XMFLOAT3 _translation = { 0.0f, 0.0f, 0.0f };
+	XMFLOAT3 _rotation = { 0.0f, 0.0f, 0.0f };
+	XMFLOAT3 _scaling = { 1.0f, 1.0f, 1.0f };
+
+	uint8_t* _mappedPtr = nullptr;
+	D3D12_GPU_DESCRIPTOR_HANDLE _cbvGpuHandle = {};
 
 private:
-	MSWRL::ComPtr<ID3D12Resource> CreateBuffer(UINT64 size, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES initialState);
-	void UploadBuffers(std::vector<Vertex> vertices, UINT vertexBufferSize, std::vector<uint32_t> indices, UINT indexBufferSize);
-
-	MSWRL::ComPtr<ID3D12Resource> _vertexBuffer;
-	D3D12_VERTEX_BUFFER_VIEW _vertexBufferView = {};
-
-	MSWRL::ComPtr<ID3D12Resource> _indexBuffer;
-	D3D12_INDEX_BUFFER_VIEW _indexBufferView = {};
-	size_t _indicesSize;
+	void CreateCBV();
+	
+	MSWRL::ComPtr<ID3D12Resource> _constantBuffer;
 };

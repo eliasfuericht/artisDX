@@ -5,7 +5,7 @@ ModelManager::ModelManager(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 	_commandList = commandList;
 }
 
-bool ModelManager::LoadModel(std::filesystem::path path)
+void ModelManager::LoadModel(std::filesystem::path path)
 {
 	constexpr auto gltfOptions =
 		fastgltf::Options::DontRequireValidAssetMember |
@@ -17,7 +17,7 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 	auto data = fastgltf::MappedGltfFile::FromPath(path);
 	if (!bool(data)) {
 		std::cerr << "Failed to open glTF file: " << fastgltf::getErrorMessage(data.error()) << '\n';
-		return false;
+		return;
 	}
 
 	auto asset = _parser.loadGltf(data.get(), path.parent_path(), gltfOptions);
@@ -25,7 +25,7 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 	{
 		// Some error occurred while reading the buffer, parsing the JSON, or validating the data.
 		std::cout << "Error occurred while parsing " << path << '\n';
-		return false;
+		return;
 	}
 
 	std::vector<std::vector<Vertex>> submeshVertices;
@@ -229,8 +229,6 @@ bool ModelManager::LoadModel(std::filesystem::path path)
 	std::shared_ptr<Model> model = std::make_shared<Model>(_modelId++, _commandList, submeshVertices, submeshIndices, submeshModelMatrices, std::move(textures), materials);
 	model->RegisterWithGUI();
 	_models.push_back(std::move(model)); 
-
-	return true;
 }
 
 void ModelManager::DrawAll()
