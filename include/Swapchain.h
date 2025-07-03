@@ -1,6 +1,6 @@
 #pragma once
 
-#include "precompiled/pch.h"
+#include "pch.h"
 
 #include "GraphicsDevice.h"
 #include "CommandQueue.h"

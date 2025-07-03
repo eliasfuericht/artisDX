@@ -30,7 +30,7 @@ set(ARTISDX_SOURCES
 )
 
 set(ARTISDX_HEADERS 
-    include/precompiled/pch.h
+    include/pch.h
     include/AABB.h
     include/Application.h
     include/Camera.h
@@ -53,7 +53,7 @@ set(ARTISDX_HEADERS
 
 add_executable(${APPLICATION_NAME} ${ARTISDX_SOURCES} ${ARTISDX_HEADERS})
 
-target_precompile_headers(${APPLICATION_NAME} PRIVATE include/precompiled/pch.h)
+target_precompile_headers(${APPLICATION_NAME} PRIVATE include/pch.h)
 
 message(STATUS "Configuring external libraries...")
 
