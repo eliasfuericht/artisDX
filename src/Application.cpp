@@ -308,7 +308,7 @@ void Application::InitResources()
 					XMConvertToRadians(45.0f),
 					static_cast<float>(_window.GetWidth()) / static_cast<float>(_window.GetHeight()),
 					0.1f,
-					1000.0f)
+					10000.0f)
 			);
 
 			// We do not intend to read from this resource on the CPU. (End is
@@ -415,9 +415,9 @@ void Application::InitResources()
 	// MODELLOADING
 	_modelManager = ModelManager(_commandList);
 
-	_modelManager.LoadModel("../assets/helmet.glb");
+	//_modelManager.LoadModel("../assets/helmet.glb");
 	//_modelManager.LoadModel("../assets/old_rusty_car.glb");
-	//_modelManager.LoadModel("../assets/sponza.glb");
+	_modelManager.LoadModel("../assets/sponza.glb");
 	//_modelManager.LoadModel("../assets/brick_wall.glb");
 	//_modelManager.LoadModel("../assets/DamagedHelmet.glb");
 

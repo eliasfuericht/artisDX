@@ -80,7 +80,7 @@ float3 getNormalFromMap(float2 uv, float3 normal, float4 tangent)
 SPIRV_Cross_Output main(SPIRV_Cross_Input input)
 {
     SPIRV_Cross_Output stage_output;
-
+    
     // Sample textures
     float3 albedo = pow(albedoTexture.Sample(mySampler, input.inUV).rgb, 2.2); // Gamma to linear
     float3 normal = getNormalFromMap(input.inUV, input.inNormal, input.inTangent);

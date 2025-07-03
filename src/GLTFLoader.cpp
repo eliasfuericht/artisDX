@@ -53,14 +53,16 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 	// extract materials and textures
 	std::vector<Material> materials;
 	std::vector<Texture> textures;
+	INT textureIndexIncrementor = 0;
+	
 	for (const fastgltf::Material& gltfMaterial : asset->materials) 
 	{
 		Material material;
 
 		// 1. BaseColor (Albedo)
+		material._baseColorTextureIndex = textureIndexIncrementor++;
 		if (gltfMaterial.pbrData.baseColorTexture.has_value()) {
 			size_t textureIndex = gltfMaterial.pbrData.baseColorTexture->textureIndex;
-			material._baseColorTextureIndex = textureIndex;
 
 			const fastgltf::Texture& assetTexture = asset->textures[textureIndex];
 			size_t imageIndex = assetTexture.imageIndex.value();
@@ -70,11 +72,17 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 			ScratchImage scratchImage = ExtractImageFromBuffer(asset.get(), assetImage);
 			textures.emplace_back(Texture(commandList, texType, scratchImage));
 		}
+		else
+		{
+			Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::ALBEDO;
+			ScratchImage scratchImage = LoadFallbackAlbedoTexture();
+			textures.emplace_back(Texture(commandList, texType, scratchImage));
+		}
 
 		// 2. Metallic-Roughness
+		material._metallicRoughnessTextureIndex = textureIndexIncrementor++;
 		if (gltfMaterial.pbrData.metallicRoughnessTexture.has_value()) {
 			size_t textureIndex = gltfMaterial.pbrData.metallicRoughnessTexture->textureIndex;
-			material._metallicRoughnessTextureIndex = textureIndex;
 
 			const fastgltf::Texture& assetTexture = asset->textures[textureIndex];
 			size_t imageIndex = assetTexture.imageIndex.value();
@@ -84,11 +92,17 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 			ScratchImage scratchImage = ExtractImageFromBuffer(asset.get(), assetImage);
 			textures.emplace_back(Texture(commandList, texType, scratchImage));
 		}
+		else
+		{
+			Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::METALLICROUGHNESS;
+			ScratchImage scratchImage = LoadFallbackMetallicRoughnessTexture();
+			textures.emplace_back(Texture(commandList, texType, scratchImage));
+		}
 
 		// 3. Normal
+		material._normalTextureIndex = textureIndexIncrementor++;
 		if (gltfMaterial.normalTexture.has_value()) {
 			size_t textureIndex = gltfMaterial.normalTexture->textureIndex;
-			material._normalTextureIndex = textureIndex;
 
 			const fastgltf::Texture& assetTexture = asset->textures[textureIndex];
 			size_t imageIndex = assetTexture.imageIndex.value();
@@ -98,11 +112,17 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 			ScratchImage scratchImage = ExtractImageFromBuffer(asset.get(), assetImage);
 			textures.emplace_back(Texture(commandList, texType, scratchImage));
 		}
+		else
+		{
+			Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::NORMAL;
+			ScratchImage scratchImage = LoadFallbackNormalTexture();
+			textures.emplace_back(Texture(commandList, texType, scratchImage));
+		}
 
 		// 4. Emissive
+		material._emissiveTextureIndex = textureIndexIncrementor++;
 		if (gltfMaterial.emissiveTexture.has_value()) {
 			size_t textureIndex = gltfMaterial.emissiveTexture->textureIndex;
-			material._emissiveTextureIndex = textureIndex;
 
 			const fastgltf::Texture& assetTexture = asset->textures[textureIndex];
 			size_t imageIndex = assetTexture.imageIndex.value();
@@ -112,11 +132,17 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 			ScratchImage scratchImage = ExtractImageFromBuffer(asset.get(), assetImage);
 			textures.emplace_back(Texture(commandList, texType, scratchImage));
 		}
+		else
+		{
+			Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::EMISSIVE;
+			ScratchImage scratchImage = LoadFallbackEmissiveTexture();
+			textures.emplace_back(Texture(commandList, texType, scratchImage));
+		}
 
 		// 5. Occlusion
+		material._occlusionTextureIndex = textureIndexIncrementor++;
 		if (gltfMaterial.occlusionTexture.has_value()) {
 			size_t textureIndex = gltfMaterial.occlusionTexture->textureIndex;
-			material._occlusionTextureIndex = textureIndex;
 
 			const fastgltf::Texture& assetTexture = asset->textures[textureIndex];
 			size_t imageIndex = assetTexture.imageIndex.value();
@@ -124,6 +150,12 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 
 			Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::OCCLUSION;
 			ScratchImage scratchImage = ExtractImageFromBuffer(asset.get(), assetImage);
+			textures.emplace_back(Texture(commandList, texType, scratchImage));
+		}
+		else
+		{
+			Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::OCCLUSION;
+			ScratchImage scratchImage = LoadFallbackOcclusionTexture();
 			textures.emplace_back(Texture(commandList, texType, scratchImage));
 		}
 		materials.push_back(material);
@@ -302,7 +334,7 @@ ScratchImage GLTFLoader::Create1x1Texture(uint8_t r, uint8_t g, uint8_t b, uint8
 ScratchImage GLTFLoader::LoadFallbackAlbedoTexture()
 {
 	// Default albedo: mid-gray (e.g., base color = 0.5)
-	return Create1x1Texture(128, 128, 128);
+	return Create1x1Texture(255, 0, 255);
 }
 
 ScratchImage GLTFLoader::LoadFallbackMetallicRoughnessTexture()
@@ -326,6 +358,6 @@ ScratchImage GLTFLoader::LoadFallbackEmissiveTexture()
 
 ScratchImage GLTFLoader::LoadFallbackOcclusionTexture()
 {
-	// Default: full occlusion (1.0) = white
+	// Default: no occlusion
 	return Create1x1Texture(255, 255, 255);
 }

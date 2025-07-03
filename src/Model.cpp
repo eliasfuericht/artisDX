@@ -76,14 +76,14 @@ void Model::DrawGUI() {
 
 	GUI::PopID();
 
-	for (Mesh& meshInstance : _meshes)
+	for (Mesh& mesh : _meshes)
 	{
-		GUI::PushID(meshInstance._id);
-		std::string meshInstanceTransformText = "MeshInstance " + std::to_string(meshInstance._id);
-		GUI::Text(meshInstanceTransformText.c_str());
-		GUI::DragFloat3("Translation", meshInstance._translation);
-		GUI::DragFloat3("Rotation", meshInstance._rotation);
-		GUI::DragFloat3("Scaling", meshInstance._scaling);
+		GUI::PushID(mesh._id);
+		std::string meshTransformText = "Mesh " + std::to_string(mesh._id);
+		GUI::Text(meshTransformText.c_str());
+		GUI::DragFloat3("Translation", mesh._translation);
+		GUI::DragFloat3("Rotation", mesh._rotation);
+		GUI::DragFloat3("Scaling", mesh._scaling);
 		GUI::PopID();
 	}
 
