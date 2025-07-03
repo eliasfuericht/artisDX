@@ -1,6 +1,6 @@
 #include "Primitive.h"
 
-Primitive::Primitive(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices)
+Primitive::Primitive(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, INT materialIndex)
 {
 	_vertexCount = vertices.size();
 	UINT vertexBufferSize = vertices.size() * sizeof(Vertex);
@@ -20,6 +20,7 @@ Primitive::Primitive(std::vector<Vertex>& vertices, std::vector<uint32_t>& indic
 	_indexBufferView.SizeInBytes = indexBufferSize;
 	_indexBufferView.Format = DXGI_FORMAT_R32_UINT;
 
+	_materialIndex = materialIndex;
 	_aabb = AABB(vertices);
 }
 

@@ -1,8 +1,8 @@
 #include "Texture.h"
 
-Texture::Texture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, Texture::TEXTURETYPE texType, ScratchImage& texture)
+Texture::Texture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, Texture::TEXTURETYPE texType, ScratchImage& scratchImage)
 {
-	_image = std::move(texture);
+	_image = std::move(scratchImage);
 
 	if (_image.GetMetadata().format != DXGI_FORMAT_R8G8B8A8_UNORM)
 	{

@@ -7,152 +7,20 @@ ModelManager::ModelManager(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 
 void ModelManager::LoadModel(std::filesystem::path path)
 {
-	Model model;
+	std::shared_ptr<Model> model;
+
 	_gltfLoader.ConstructModelFromFile(path, model, _commandList);
 
-	constexpr auto gltfOptions =
-		fastgltf::Options::DontRequireValidAssetMember |
-		fastgltf::Options::AllowDouble |
-		fastgltf::Options::LoadExternalBuffers |
-		fastgltf::Options::LoadExternalImages |
-		fastgltf::Options::GenerateMeshIndices;
+	model->RegisterWithGUI();
 
-	auto data = fastgltf::MappedGltfFile::FromPath(path);
-	if (!bool(data)) {
-		std::cerr << "Failed to open glTF file: " << fastgltf::getErrorMessage(data.error()) << '\n';
-		return;
-	}
-
-	auto asset = _parser.loadGltf(data.get(), path.parent_path(), gltfOptions);
-	if (auto error = asset.error(); error != fastgltf::Error::None) 
-	{
-		// Some error occurred while reading the buffer, parsing the JSON, or validating the data.
-		std::cout << "Error occurred while parsing " << path << '\n';
-		return;
-	}
-
-	std::vector<std::tuple<Texture::TEXTURETYPE, ScratchImage>> textures;
-	std::vector<INT> materialIndices;
-	std::vector<std::tuple<INT, std::vector<INT>>> materials;
-
-	std::unordered_map<size_t, Texture::TEXTURETYPE> imageToType;
-
-	for (int i = 0; i < asset->materials.size(); i++) {
-		const auto& material = asset->materials[i];
-		std::vector<INT> materialTextureIndices;
-
-		// 1. Base color (albedo)
-		if (material.pbrData.baseColorTexture.has_value()) {
-			auto textureIndex = material.pbrData.baseColorTexture->textureIndex;
-
-			materialTextureIndices.push_back(textureIndex);
-			
-			const auto& texture = asset->textures[textureIndex];
-			if (texture.imageIndex.has_value()) {
-				imageToType[texture.imageIndex.value()] = Texture::TEXTURETYPE::ALBEDO;
-			}
-		}
-
-		// 2. Metallic-Roughness
-		if (material.pbrData.metallicRoughnessTexture.has_value()) {
-			auto textureIndex = material.pbrData.metallicRoughnessTexture->textureIndex;
-
-			materialTextureIndices.push_back(textureIndex);
-
-			const auto& texture = asset->textures[textureIndex];
-			if (texture.imageIndex.has_value()) {
-				imageToType[texture.imageIndex.value()] = Texture::TEXTURETYPE::METALLICROUGHNESS;
-			}
-		}
-
-		// 3. Normal map
-		if (material.normalTexture.has_value()) {
-			auto textureIndex = material.normalTexture->textureIndex;
-
-			materialTextureIndices.push_back(textureIndex);
-
-			const auto& texture = asset->textures[textureIndex];
-			if (texture.imageIndex.has_value()) {
-				imageToType[texture.imageIndex.value()] = Texture::TEXTURETYPE::NORMAL;
-			}
-		}
-
-		// 4. Emissive
-		if (material.emissiveTexture.has_value()) {
-			auto textureIndex = material.emissiveTexture->textureIndex;
-
-			materialTextureIndices.push_back(textureIndex);
-
-			const auto& texture = asset->textures[textureIndex];
-			if (texture.imageIndex.has_value()) {
-				imageToType[texture.imageIndex.value()] = Texture::TEXTURETYPE::EMISSIVE;
-			}
-		}
-
-		// 5. Occlusion
-		if (material.occlusionTexture.has_value()) {
-			auto textureIndex = material.occlusionTexture->textureIndex;
-
-			materialTextureIndices.push_back(textureIndex);
-
-			const auto& texture = asset->textures[textureIndex];
-			if (texture.imageIndex.has_value()) {
-				imageToType[texture.imageIndex.value()] = Texture::TEXTURETYPE::OCCLUSION;
-			}
-		}
-
-		//materials.emplace_back(std::tuple<INT, std::vector<INT>>(materialIndices[i], materialTextureIndices));
-	}
-	
-	for (size_t i = 0; i < asset->images.size(); ++i) {
-		const fastgltf::Image& assetImage = asset->images[i];
-
-		const uint8_t* pixelData = nullptr;
-		size_t pixelSize = 0;
-
-		int width = 0;
-		int height = 0;
-		int channels = 0;
-
-		// Extract encoded image bytes (e.g. PNG, JPEG)
-		if (auto bufferViewPtr = std::get_if<fastgltf::sources::BufferView>(&assetImage.data)) {
-			const fastgltf::sources::BufferView& view = *bufferViewPtr;
-			const auto& bufferViewMeta = asset->bufferViews[view.bufferViewIndex];
-			const auto& textureName = bufferViewMeta.name;
-			const auto& buffer = asset->buffers[bufferViewMeta.bufferIndex];
-
-			if (auto arrayPtr = std::get_if<fastgltf::sources::Array>(&buffer.data)) {
-				pixelData = reinterpret_cast<const uint8_t*>(arrayPtr->bytes.data()) + bufferViewMeta.byteOffset;
-				pixelSize = bufferViewMeta.byteLength;
-			}
-		}
-
-		if (!pixelData || pixelSize == 0)
-			continue;
-
-		ScratchImage image;
-		TexMetadata metadata;
-
-		ThrowIfFailed(LoadFromWICMemory(pixelData, pixelSize, WIC_FLAGS_NONE, &metadata, image));
-
-		Texture::TEXTURETYPE type = Texture::TEXTURETYPE::ALBEDO;
-		if (auto it = imageToType.find(i); it != imageToType.end()) {
-			type = it->second;
-		}
-
-		textures.emplace_back(type, std::move(image));
-	}
-
-	//std::shared_ptr<Model> model = std::make_shared<Model>(_modelId++, _commandList, submeshVertices, submeshIndices, submeshModelMatrices, std::move(textures), materials);
-	model.RegisterWithGUI();
-	_models.push_back(std::move(model)); 
+	_models.push_back(std::move(model));
 }
 
 void ModelManager::DrawAll()
 {
 	for (auto& model : _models)
 	{
-		model.DrawModel(_commandList);
+		model->DrawModel(_commandList);
 	}
 }
 
@@ -236,15 +104,15 @@ void ModelManager::GenerateTangents(std::vector<Vertex>& vertices, const std::ve
 
 void ModelManager::TranslateModel(XMFLOAT3 vec, UINT modelId)
 {
-	_models[modelId].Translate(vec);
+	_models[modelId]->Translate(vec);
 }
 
 void ModelManager::RotateModel(XMFLOAT3 vec, UINT modelId)
 {
-	_models[modelId].Rotate(vec);
+	_models[modelId]->Rotate(vec);
 }
 
 void ModelManager::ScaleModel(XMFLOAT3 vec, UINT modelId)
 {
-	_models[modelId].Scale(vec);
+	_models[modelId]->Scale(vec);
 }

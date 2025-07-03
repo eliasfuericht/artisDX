@@ -9,10 +9,9 @@ class Primitive
 {
 public:
 	Primitive() {};
-	Primitive(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices);
+	Primitive(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, INT materialIndex);
 	void BindPrimitiveData(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 
-private:
 	MSWRL::ComPtr<ID3D12Resource> CreateBuffer(UINT64 size, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES initialState);
 	void UploadBuffers(std::vector<Vertex>& vertices, UINT vertexBufferSize, std::vector<uint32_t>& indices, UINT indexBufferSize);
 

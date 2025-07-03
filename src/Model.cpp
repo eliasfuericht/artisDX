@@ -1,18 +1,11 @@
 #include "Model.h"
 
-Model::Model(	INT id, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, 
-							std::vector<Mesh> meshes, 
-							std::vector<std::tuple<Texture::TEXTURETYPE, ScratchImage>> textures)
+Model::Model(INT id, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, std::vector<Mesh> meshes, std::vector<Texture> textures, std::vector<Material> materials)
 {
 	_id = id;
 	_meshes = meshes;
-
-	for (int i = 0; i < textures.size(); i++)
-	{
-		auto& [texType, texImage] = textures[i];
-		Texture modelTexture = Texture(commandList, texType, texImage);
-		_textures.push_back(std::move(modelTexture));
-	}
+	_textures = std::move(textures);
+	_materials = materials;
 
 	ExtractTransformsFromMatrix();
 	UpdateTransformMatrix();
@@ -25,13 +18,17 @@ void Model::DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 		memcpy(mesh._mappedPtr, &mesh._localTransform, sizeof(XMFLOAT4X4));
 
 		commandList->SetGraphicsRootDescriptorTable(1, mesh._cbvGpuHandle);
-		/*
-		for (INT i : _materialTextureIndices[meshInstance._materialIndex])
+
+		for (Primitive& primitive : mesh._primitives)
 		{
-			_textures[i].BindTexture(commandList);
+			Material& material = _materials[primitive._materialIndex];
+			_textures[material.baseColorTextureIndex].BindTexture(commandList);
+			_textures[material.metallicRoughnessTextureIndex].BindTexture(commandList);
+			_textures[material.normalTextureIndex].BindTexture(commandList);
+			_textures[material.emissiveTextureIndex].BindTexture(commandList);
+			_textures[material.occlusionTextureIndex].BindTexture(commandList);
+			primitive.BindPrimitiveData(commandList);
 		}
-		*/
-		mesh.BindPrimitives(commandList);
 	}
 }
 

@@ -2,14 +2,20 @@
 
 #include "precompiled/pch.h"
 
-class Material {
+class Material 
+{
+public:
+	Material() {};
+
 	std::string name;
-	int baseColorTextureIndex = -1;
-	int normalTextureIndex = -1;
-	int metallicRoughnessTextureIndex = -1;
+	INT baseColorTextureIndex = NOTOK;
+	INT normalTextureIndex = NOTOK;
+	INT metallicRoughnessTextureIndex = NOTOK;
+	INT emissiveTextureIndex = NOTOK;
+	INT occlusionTextureIndex = NOTOK;
 
 	// PBR factors
-	XMFLOAT4 baseColorFactor = { 1,1,1,1 };
-	float metallicFactor = 1.0f;
-	float roughnessFactor = 1.0f;
+	XMFLOAT4 baseColorFactor = { 1.0f, 1.0f, 1.0f, 1.0f };
+	FLOAT metallicFactor = 1.0f;
+	FLOAT roughnessFactor = 1.0f;
 };

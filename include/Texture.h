@@ -15,15 +15,15 @@ public:
 	enum TEXTURETYPE
 	{
 		ALBEDO = 0,
-		NORMAL = 1,
-		METALLICROUGHNESS = 2,
+		METALLICROUGHNESS = 1,
+		NORMAL = 2,
 		EMISSIVE = 3,
 		OCCLUSION = 4
 	};
 
 public:
 	Texture() {};
-	Texture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, Texture::TEXTURETYPE texType, ScratchImage& texture);
+	Texture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, Texture::TEXTURETYPE texType, ScratchImage& scratchImage);
 	void BindTexture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 
 private:

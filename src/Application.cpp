@@ -513,7 +513,7 @@ void Application::Run()
 		UpdateConstantBuffer();
 		SetCommandList();
 		ExecuteCommandList();
-		//GUI::Draw();
+		GUI::Draw();
 		Present();
 	}
 

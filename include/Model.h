@@ -14,9 +14,7 @@ class Model : public IGUIComponent
 {
 public:
 	Model() {};
-	Model(INT id, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList,
-		std::vector<Mesh> meshes,
-		std::vector<std::tuple<Texture::TEXTURETYPE, ScratchImage>> textures);
+	Model(INT id, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, std::vector<Mesh> meshes, std::vector<Texture> textures, std::vector<Material> materials);
 
 	void DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 	void DrawGUI();

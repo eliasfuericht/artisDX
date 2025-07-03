@@ -5,7 +5,6 @@ Mesh::Mesh(INT meshId, std::vector<Primitive> primitives)
 	_id = meshId;
 	_primitives = primitives;
 	XMStoreFloat4x4(&_localTransform, XMMatrixIdentity());
-	//_materialIndex = materialIndexInstance;
 
 	CreateCBV();
 }
