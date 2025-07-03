@@ -27,9 +27,9 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 
 	// Extract Vertex and Index Information
 	std::vector<Mesh> meshes;
+		INT meshIdIncrementor = 0;
 	for (const fastgltf::Mesh& mesh : asset->meshes)
 	{
-		INT meshIdIncrementor = 0;
 		std::vector<Primitive> primitives;
 
 		for (const fastgltf::Primitive& primitive : mesh.primitives)
@@ -49,7 +49,7 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 
 		meshes.emplace_back(Mesh(meshIdIncrementor++, primitives));
 	}
-	
+
 	// extract materials and textures
 	std::vector<Material> materials;
 	std::vector<Texture> textures;
@@ -60,7 +60,7 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 		// 1. BaseColor (Albedo)
 		if (gltfMaterial.pbrData.baseColorTexture.has_value()) {
 			size_t textureIndex = gltfMaterial.pbrData.baseColorTexture->textureIndex;
-			material.baseColorTextureIndex = textureIndex;
+			material._baseColorTextureIndex = textureIndex;
 
 			const fastgltf::Texture& assetTexture = asset->textures[textureIndex];
 			size_t imageIndex = assetTexture.imageIndex.value();
@@ -74,7 +74,7 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 		// 2. Metallic-Roughness
 		if (gltfMaterial.pbrData.metallicRoughnessTexture.has_value()) {
 			size_t textureIndex = gltfMaterial.pbrData.metallicRoughnessTexture->textureIndex;
-			material.metallicRoughnessTextureIndex = textureIndex;
+			material._metallicRoughnessTextureIndex = textureIndex;
 
 			const fastgltf::Texture& assetTexture = asset->textures[textureIndex];
 			size_t imageIndex = assetTexture.imageIndex.value();
@@ -88,7 +88,7 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 		// 3. Normal
 		if (gltfMaterial.normalTexture.has_value()) {
 			size_t textureIndex = gltfMaterial.normalTexture->textureIndex;
-			material.normalTextureIndex = textureIndex;
+			material._normalTextureIndex = textureIndex;
 
 			const fastgltf::Texture& assetTexture = asset->textures[textureIndex];
 			size_t imageIndex = assetTexture.imageIndex.value();
@@ -102,7 +102,7 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 		// 4. Emissive
 		if (gltfMaterial.emissiveTexture.has_value()) {
 			size_t textureIndex = gltfMaterial.emissiveTexture->textureIndex;
-			material.emissiveTextureIndex = textureIndex;
+			material._emissiveTextureIndex = textureIndex;
 
 			const fastgltf::Texture& assetTexture = asset->textures[textureIndex];
 			size_t imageIndex = assetTexture.imageIndex.value();
@@ -116,7 +116,7 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 		// 5. Occlusion
 		if (gltfMaterial.occlusionTexture.has_value()) {
 			size_t textureIndex = gltfMaterial.occlusionTexture->textureIndex;
-			material.occlusionTextureIndex = textureIndex;
+			material._occlusionTextureIndex = textureIndex;
 
 			const fastgltf::Texture& assetTexture = asset->textures[textureIndex];
 			size_t imageIndex = assetTexture.imageIndex.value();
