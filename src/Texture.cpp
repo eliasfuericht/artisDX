@@ -4,6 +4,7 @@ Texture::Texture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, Texture::
 {
 	_image = std::move(scratchImage);
 
+	// convert image if needed
 	if (_image.GetMetadata().format != DXGI_FORMAT_R8G8B8A8_UNORM)
 	{
 		ScratchImage converted;
@@ -20,17 +21,22 @@ Texture::Texture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, Texture::
 		_image = std::move(converted);
 	}
 
-	ScratchImage mipChain;
-	ThrowIfFailed(GenerateMipMaps(
-		_image.GetImages(),
-		_image.GetImageCount(),
-		_image.GetMetadata(),
-		TEX_FILTER_DEFAULT,
-		0,
-		mipChain
-	));
+	// dont generate mipmaps for fallbacktextures
+	if (_image.GetMetadata().width > 1 && _image.GetMetadata().height > 1)
+	{
+		ScratchImage mipChain;
+		ThrowIfFailed(GenerateMipMaps(
+			_image.GetImages(),
+			_image.GetImageCount(),
+			_image.GetMetadata(),
+			TEX_FILTER_DEFAULT,
+			0,
+			mipChain
+		));
 
-	_image = std::move(mipChain);
+		_image = std::move(mipChain);
+	}
+
 	_textureType = texType;
 
 	CreateBuffers(commandList);

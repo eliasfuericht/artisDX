@@ -62,7 +62,6 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 			size_t textureIndex = gltfMaterial.pbrData.baseColorTexture->textureIndex;
 			material.baseColorTextureIndex = textureIndex;
 
-
 			const fastgltf::Texture& assetTexture = asset->textures[textureIndex];
 			size_t imageIndex = assetTexture.imageIndex.value();
 			const fastgltf::Image& assetImage = asset->images[imageIndex];
@@ -114,7 +113,7 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 			textures.emplace_back(Texture(commandList, texType, scratchImage));
 		}
 
-		// 4. Emissive
+		// 5. Occlusion
 		if (gltfMaterial.occlusionTexture.has_value()) {
 			size_t textureIndex = gltfMaterial.occlusionTexture->textureIndex;
 			material.occlusionTextureIndex = textureIndex;
@@ -127,7 +126,6 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 			ScratchImage scratchImage = ExtractImageFromBuffer(asset.get(), assetImage);
 			textures.emplace_back(Texture(commandList, texType, scratchImage));
 		}
-
 		materials.push_back(material);
 	}
 
@@ -287,4 +285,47 @@ void GLTFLoader::GenerateTangents(std::vector<Vertex>& vertices, const std::vect
 		XMStoreFloat3(&tangent, T);
 		vertices[i].tangent = XMFLOAT4(tangent.x, tangent.y, tangent.z, handedness);
 	}
+}
+
+ScratchImage GLTFLoader::Create1x1Texture(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+{
+	ScratchImage image;
+	image.Initialize2D(DXGI_FORMAT_R8G8B8A8_UNORM, 1, 1, 1, 1);
+	uint8_t* pixels = image.GetImage(0, 0, 0)->pixels;
+	pixels[0] = r;
+	pixels[1] = g;
+	pixels[2] = b;
+	pixels[3] = a;
+	return image;
+}
+
+ScratchImage GLTFLoader::LoadFallbackAlbedoTexture()
+{
+	// Default albedo: mid-gray (e.g., base color = 0.5)
+	return Create1x1Texture(128, 128, 128);
+}
+
+ScratchImage GLTFLoader::LoadFallbackMetallicRoughnessTexture()
+{
+	// Default: fully rough (255), non-metal (0)
+	// In glTF, R = Occlusion, G = Roughness, B = Metallic
+	return Create1x1Texture(0, 255, 0);
+}
+
+ScratchImage GLTFLoader::LoadFallbackNormalTexture()
+{
+	// Default normal pointing along +Z in tangent space
+	return Create1x1Texture(128, 128, 255);
+}
+
+ScratchImage GLTFLoader::LoadFallbackEmissiveTexture()
+{
+	// Default: black (no emission)
+	return Create1x1Texture(0, 0, 0);
+}
+
+ScratchImage GLTFLoader::LoadFallbackOcclusionTexture()
+{
+	// Default: full occlusion (1.0) = white
+	return Create1x1Texture(255, 255, 255);
 }

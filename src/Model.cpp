@@ -22,11 +22,12 @@ void Model::DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 		for (Primitive& primitive : mesh._primitives)
 		{
 			Material& material = _materials[primitive._materialIndex];
-			_textures[material.baseColorTextureIndex].BindTexture(commandList);
-			_textures[material.metallicRoughnessTextureIndex].BindTexture(commandList);
-			_textures[material.normalTextureIndex].BindTexture(commandList);
-			_textures[material.emissiveTextureIndex].BindTexture(commandList);
-			_textures[material.occlusionTextureIndex].BindTexture(commandList);
+
+			material.baseColorTextureIndex != NOTOK ? _textures[material.baseColorTextureIndex].BindTexture(commandList) : PRINT("baseColorTextureIndex NOTOK");
+			material.metallicRoughnessTextureIndex != NOTOK ? _textures[material.metallicRoughnessTextureIndex].BindTexture(commandList) : PRINT("metallicRoughnessTextureIndex NOTOK");
+			material.normalTextureIndex != NOTOK ? _textures[material.normalTextureIndex].BindTexture(commandList) : PRINT("normalTextureIndex NOTOK");
+			material.emissiveTextureIndex != NOTOK ? _textures[material.emissiveTextureIndex].BindTexture(commandList) : PRINT("emissiveTextureIndex NOTOK");
+			material.occlusionTextureIndex != NOTOK ? _textures[material.occlusionTextureIndex].BindTexture(commandList) : PRINT("occlusionTextureIndex NOTOK");
 			primitive.BindPrimitiveData(commandList);
 		}
 	}
