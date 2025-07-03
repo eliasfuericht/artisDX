@@ -6,6 +6,11 @@ Texture2D emissiveTexture           : register(t3);
 Texture2D occlusionTexture          : register(t4);
 SamplerState mySampler              : register(s0);
 
+cbuffer cameraPosBuffer : register(b2)
+{
+    float3 c_camPos : packoffset(c0);
+};
+
 struct SPIRV_Cross_Input
 {
     float4 position : SV_Position;
@@ -20,9 +25,8 @@ struct SPIRV_Cross_Output
 };
 
 // Constants for light
-static const float3 lightDir = normalize(float3(1.0, 1.0, 1.0));
+static const float3 lightDir = normalize(float3(0.3, 0.5, 0.8));
 static const float3 lightColor = float3(1.0, 1.0, 1.0);
-static const float3 camPos = float3(0, 0, 0); // Assume camera at origin, adapt if needed
 
 // Helper functions for PBR
 float DistributionGGX(float3 N, float3 H, float roughness)
@@ -94,7 +98,7 @@ SPIRV_Cross_Output main(SPIRV_Cross_Input input)
 
     // Camera and lighting vectors
     float3 N = normal;
-    float3 V = normalize(camPos - input.position.xyz); // View vector
+    float3 V = normalize(c_camPos - input.position.xyz); // View vector
     float3 L = normalize(-lightDir); // Light vector, inverse because directional light points TO surface
     float3 H = normalize(V + L); // Halfway vector
 

@@ -3,8 +3,9 @@
 #include "precompiled/pch.h"
 
 #include "GUI.h"
+#include "IGUIComponent.h"
 
-class Camera
+class Camera : public IGUIComponent
 {
 public:
 	Camera() {};
@@ -15,6 +16,7 @@ public:
 	void Update();
 
 	void DrawGUI();
+	void RegisterWithGUI();
 
 	XMFLOAT4X4 GetViewMatrix() { return _viewMatrix; };
 	FLOAT _yaw;
@@ -32,4 +34,6 @@ private:
 
 	FLOAT _moveSpeed;
 	FLOAT _turnSpeed;
+
+	FLOAT _multiplier = 25.0f;
 };

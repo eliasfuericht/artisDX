@@ -26,6 +26,7 @@ set(ARTISDX_SOURCES
     src/Swapchain.cpp
     src/Texture.cpp
     src/Window.cpp
+    src/Light.cpp
 )
 
 set(ARTISDX_HEADERS 
@@ -47,6 +48,7 @@ set(ARTISDX_HEADERS
     include/Swapchain.h
     include/Texture.h
     include/Window.h
+    include/Light.h
 )
 
 add_executable(${APPLICATION_NAME} ${ARTISDX_SOURCES} ${ARTISDX_HEADERS})

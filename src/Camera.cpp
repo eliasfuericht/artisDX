@@ -6,6 +6,11 @@ Camera::Camera(XMVECTOR pos, XMVECTOR startUp, FLOAT startYaw, FLOAT startPitch,
 	_front = XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f);
 }
 
+void Camera::RegisterWithGUI()
+{
+	GUI::RegisterComponent(weak_from_this());
+}
+
 void Camera::ConsumeMouse(FLOAT xChange, FLOAT yChange)
 {
 	xChange *= _turnSpeed;
@@ -30,7 +35,7 @@ void Camera::ConsumeKey(BOOL* keys, FLOAT deltaTime)
 	FLOAT multiplier = 1.0f;
 	if (keys[KEYCODES::SHIFT])
 	{
-		multiplier = 25.0f;
+		multiplier = 100.0f;
 	}
 
 	FLOAT velocity = _moveSpeed * deltaTime * multiplier;
@@ -83,9 +88,7 @@ void Camera::DrawGUI()
 {
 	GUI::Begin("Camera Window");
 
-	XMFLOAT3 temp = { 0.0f, 0.0f, 0.0f };
-
-	GUI::SliderFloat3("position", temp, -100.0f, 100.0f);
+	GUI::InputFloat("Camera Speed", _multiplier);
 
 	GUI::End();
 }

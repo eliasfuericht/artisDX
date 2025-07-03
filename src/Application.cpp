@@ -119,21 +119,29 @@ void Application::InitResources()
 		if (FAILED(D3D12Core::GraphicsDevice::GetDevice()->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData,sizeof(featureData))))
 			featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
 
-		D3D12_DESCRIPTOR_RANGE1 cbvRangeViewProj = {};
-		cbvRangeViewProj.BaseShaderRegister = 0; // b0
-		cbvRangeViewProj.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-		cbvRangeViewProj.NumDescriptors = 1;
-		cbvRangeViewProj.RegisterSpace = 0;
-		cbvRangeViewProj.OffsetInDescriptorsFromTableStart = 0;
-		cbvRangeViewProj.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
+		D3D12_DESCRIPTOR_RANGE1 cbvRangeViewProjMatrix = {};
+		cbvRangeViewProjMatrix.BaseShaderRegister = 0; // b0
+		cbvRangeViewProjMatrix.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+		cbvRangeViewProjMatrix.NumDescriptors = 1;
+		cbvRangeViewProjMatrix.RegisterSpace = 0;
+		cbvRangeViewProjMatrix.OffsetInDescriptorsFromTableStart = 0;
+		cbvRangeViewProjMatrix.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
 
-		D3D12_DESCRIPTOR_RANGE1 cbvRangeModel = {};
-		cbvRangeModel.BaseShaderRegister = 1; // b1
-		cbvRangeModel.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-		cbvRangeModel.NumDescriptors = 1;
-		cbvRangeModel.RegisterSpace = 0;
-		cbvRangeModel.OffsetInDescriptorsFromTableStart = 0;
-		cbvRangeModel.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
+		D3D12_DESCRIPTOR_RANGE1 cbvRangeModelMatrix = {};
+		cbvRangeModelMatrix.BaseShaderRegister = 1; // b1
+		cbvRangeModelMatrix.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+		cbvRangeModelMatrix.NumDescriptors = 1;
+		cbvRangeModelMatrix.RegisterSpace = 0;
+		cbvRangeModelMatrix.OffsetInDescriptorsFromTableStart = 0;
+		cbvRangeModelMatrix.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
+
+		D3D12_DESCRIPTOR_RANGE1 cbvRangeCameraPos = {};
+		cbvRangeCameraPos.BaseShaderRegister = 2; // b2
+		cbvRangeCameraPos.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+		cbvRangeCameraPos.NumDescriptors = 1;
+		cbvRangeCameraPos.RegisterSpace = 0;
+		cbvRangeCameraPos.OffsetInDescriptorsFromTableStart = 0;
+		cbvRangeCameraPos.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
 
 		D3D12_DESCRIPTOR_RANGE1 srvRanges[5] = {};
 
@@ -146,26 +154,32 @@ void Application::InitResources()
 			srvRanges[i].Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
 		}
 
-		D3D12_ROOT_PARAMETER1 rootParameters[7] = {};
+		D3D12_ROOT_PARAMETER1 rootParameters[8] = {};
 
-		// View Projection Buffer
+		// View-Projection Matrix Buffer
 		rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 		rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 		rootParameters[0].DescriptorTable.NumDescriptorRanges = 1;
-		rootParameters[0].DescriptorTable.pDescriptorRanges = &cbvRangeViewProj;
+		rootParameters[0].DescriptorTable.pDescriptorRanges = &cbvRangeViewProjMatrix;
 
 		// Model Matrix Buffer
 		rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 		rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 		rootParameters[1].DescriptorTable.NumDescriptorRanges = 1;
-		rootParameters[1].DescriptorTable.pDescriptorRanges = &cbvRangeModel;
+		rootParameters[1].DescriptorTable.pDescriptorRanges = &cbvRangeModelMatrix;
+
+		// View Matrix Buffer
+		rootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+		rootParameters[2].DescriptorTable.NumDescriptorRanges = 1;
+		rootParameters[2].DescriptorTable.pDescriptorRanges = &cbvRangeCameraPos;
 
 		// textures ugly asf need to rethink
 		for (int i = 0; i < 5; ++i) {
-			rootParameters[i + 2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-			rootParameters[i + 2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-			rootParameters[i + 2].DescriptorTable.NumDescriptorRanges = 1;
-			rootParameters[i + 2].DescriptorTable.pDescriptorRanges = &srvRanges[i];
+			rootParameters[i + 3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			rootParameters[i + 3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+			rootParameters[i + 3].DescriptorTable.NumDescriptorRanges = 1;
+			rootParameters[i + 3].DescriptorTable.pDescriptorRanges = &srvRanges[i];
 		}
 
 		CD3DX12_STATIC_SAMPLER_DESC staticSampler{ 0, D3D12_FILTER_MIN_MAG_MIP_LINEAR };
@@ -245,21 +259,10 @@ void Application::InitResources()
 		std::vector<char> fsBytecodeData = readFile(fragCompiledPath);
 
 #endif
-		// Define the vertex input layout.
-		D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
-			{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
-					D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-			{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12,
-					D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-			{"TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 24,
-					D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-			{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 40,
-					D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
-		};
 
 		DescriptorAllocator::Instance().Initialize(D3D12Core::GraphicsDevice::GetDevice().Get(), NUM_MAX_DESCRIPTORS);
 
-		// Create the UBO.
+		// Constant buffers
 		{
 			D3D12_HEAP_PROPERTIES heapProps;
 			heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
@@ -272,35 +275,69 @@ void Application::InitResources()
 			heapDesc.NumDescriptors = 1;
 			heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 			heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-			ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_uniformBufferHeap)));
 
-			D3D12_RESOURCE_DESC uboResourceDesc;
-			uboResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-			uboResourceDesc.Alignment = 0;
-			uboResourceDesc.Width = (sizeof(_viewProjectionMatrix) + 255) & ~255;
-			uboResourceDesc.Height = 1;
-			uboResourceDesc.DepthOrArraySize = 1;
-			uboResourceDesc.MipLevels = 1;
-			uboResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
-			uboResourceDesc.SampleDesc.Count = 1;
-			uboResourceDesc.SampleDesc.Quality = 0;
-			uboResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-			uboResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+			ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_VPBufferHeap)));
+			ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_camPosBufferHeap)));
+
+			D3D12_RESOURCE_DESC vpCBResourceDesc;
+			vpCBResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+			vpCBResourceDesc.Alignment = 0;
+			vpCBResourceDesc.Width = (sizeof(XMFLOAT4X4) + 255) & ~255;
+			vpCBResourceDesc.Height = 1;
+			vpCBResourceDesc.DepthOrArraySize = 1;
+			vpCBResourceDesc.MipLevels = 1;
+			vpCBResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
+			vpCBResourceDesc.SampleDesc.Count = 1;
+			vpCBResourceDesc.SampleDesc.Quality = 0;
+			vpCBResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+			vpCBResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
 			ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommittedResource(
-				&heapProps, D3D12_HEAP_FLAG_NONE, &uboResourceDesc,
-				D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
-				IID_PPV_ARGS(&_uniformBuffer)));
-			_uniformBufferHeap->SetName(L"Constant Buffer Upload Resource Heap");
+				&heapProps, 
+				D3D12_HEAP_FLAG_NONE, 
+				&vpCBResourceDesc,
+				D3D12_RESOURCE_STATE_GENERIC_READ, 
+				nullptr,
+				IID_PPV_ARGS(&_VPBufferResource)));
 
-			D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-			cbvDesc.BufferLocation = _uniformBuffer->GetGPUVirtualAddress();
-			cbvDesc.SizeInBytes = (sizeof(_viewProjectionMatrix) + 255) & ~255; // CB size is required to be 256-byte aligned.
+			_VPBufferHeap->SetName(L"VP Constant Buffer Upload Heap");
 
-			D3D12_CPU_DESCRIPTOR_HANDLE cbvCpuHandle = DescriptorAllocator::Instance().Allocate();
-			D3D12Core::GraphicsDevice::GetDevice()->CreateConstantBufferView(&cbvDesc, cbvCpuHandle);
+			D3D12_RESOURCE_DESC camPosCBResourceDesc;
+			camPosCBResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+			camPosCBResourceDesc.Alignment = 0;
+			camPosCBResourceDesc.Width = (sizeof(XMFLOAT3) + 255) & ~255;
+			camPosCBResourceDesc.Height = 1;
+			camPosCBResourceDesc.DepthOrArraySize = 1;
+			camPosCBResourceDesc.MipLevels = 1;
+			camPosCBResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
+			camPosCBResourceDesc.SampleDesc.Count = 1;
+			camPosCBResourceDesc.SampleDesc.Quality = 0;
+			camPosCBResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+			camPosCBResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
-			_uniformBufferDescriptor = cbvCpuHandle; // Save this for binding later
+			ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommittedResource(
+				&heapProps,
+				D3D12_HEAP_FLAG_NONE,
+				&camPosCBResourceDesc,
+				D3D12_RESOURCE_STATE_GENERIC_READ,
+				nullptr,
+				IID_PPV_ARGS(&_camPosBufferResource)));
+
+			_camPosBufferHeap->SetName(L"Cam Pos Constant Buffer Upload Heap");
+
+			D3D12_CPU_DESCRIPTOR_HANDLE vpCbvCpuHandle = DescriptorAllocator::Instance().Allocate();
+			D3D12_CONSTANT_BUFFER_VIEW_DESC vpCbvDesc = {};
+			vpCbvDesc.BufferLocation = _VPBufferResource->GetGPUVirtualAddress();
+			vpCbvDesc.SizeInBytes = (sizeof(XMFLOAT4X4) + 255) & ~255; // CB size is required to be 256-byte aligned.
+			D3D12Core::GraphicsDevice::GetDevice()->CreateConstantBufferView(&vpCbvDesc, vpCbvCpuHandle);
+			_VPBufferDescriptor = vpCbvCpuHandle; // viewProjMatrix
+
+			D3D12_CPU_DESCRIPTOR_HANDLE viewCbvCpuHandle = DescriptorAllocator::Instance().Allocate();
+			D3D12_CONSTANT_BUFFER_VIEW_DESC viewCbvDesc = {};
+			viewCbvDesc.BufferLocation = _camPosBufferResource->GetGPUVirtualAddress();
+			viewCbvDesc.SizeInBytes = (sizeof(XMFLOAT3) + 255) & ~255; // CB size is required to be 256-byte aligned.
+			D3D12Core::GraphicsDevice::GetDevice()->CreateConstantBufferView(&viewCbvDesc, viewCbvCpuHandle);
+			_camPosBufferDescriptor = viewCbvCpuHandle; // viewMatrix
 
 			// setup matrices
 			XMStoreFloat4x4(&_projectionMatrix,
@@ -311,13 +348,30 @@ void Application::InitResources()
 					10000.0f)
 			);
 
-			// We do not intend to read from this resource on the CPU. (End is
-			// less than or equal to begin)
 			D3D12_RANGE readRange = { 0, 0 };
-			ThrowIfFailed(_uniformBuffer->Map(0, &readRange, reinterpret_cast<void**>(&_mappedUniformBuffer)));
-			memcpy(_mappedUniformBuffer, &_viewProjectionMatrix, sizeof(_viewProjectionMatrix));
-			_uniformBuffer->Unmap(0, nullptr);
+			ThrowIfFailed(_VPBufferResource->Map(0, &readRange, reinterpret_cast<void**>(&_mappedVPBuffer)));
+			memcpy(_mappedVPBuffer, &_viewProjectionMatrix, sizeof(XMFLOAT4X4));
+			_VPBufferResource->Unmap(0, nullptr);
+
+			XMFLOAT3 camPos;
+			XMStoreFloat3(&camPos, _camera._position);
+
+			ThrowIfFailed(_camPosBufferResource->Map(0, &readRange, reinterpret_cast<void**>(&_mappedCamPosBuffer)));
+			memcpy(_mappedCamPosBuffer, &camPos, sizeof(XMFLOAT3));
+			_camPosBufferResource->Unmap(0, nullptr);
 		}
+
+		// Define the vertex input layout.
+		D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
+			{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
+					D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12,
+					D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 24,
+					D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 40,
+					D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
+		};
 
 		// Describe and create the graphics pipeline state object (PSO).
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
@@ -415,11 +469,12 @@ void Application::InitResources()
 	// MODELLOADING
 	_modelManager = ModelManager(_commandList);
 
-	//_modelManager.LoadModel("../assets/helmet.glb");
+	_modelManager.LoadModel("../assets/helmet.glb");
 	//_modelManager.LoadModel("../assets/old_rusty_car.glb");
-	_modelManager.LoadModel("../assets/sponza.glb");
+	//_modelManager.LoadModel("../assets/sponza.glb");
 	//_modelManager.LoadModel("../assets/brick_wall.glb");
 	//_modelManager.LoadModel("../assets/DamagedHelmet.glb");
+	//_modelManager.LoadModel("../assets/cube.glb");
 
 	// upload all textures from models
 	ThrowIfFailed(_commandList->Close());
@@ -446,7 +501,8 @@ void Application::SetCommandList()
 	ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::Instance().GetHeap() };
 	_commandList->SetDescriptorHeaps(1, heaps);
 
-	_commandList->SetGraphicsRootDescriptorTable(0, DescriptorAllocator::Instance().GetGPUHandle(_uniformBufferDescriptor));
+	_commandList->SetGraphicsRootDescriptorTable(0, DescriptorAllocator::Instance().GetGPUHandle(_VPBufferDescriptor));
+	_commandList->SetGraphicsRootDescriptorTable(2, DescriptorAllocator::Instance().GetGPUHandle(_camPosBufferDescriptor));
 
 	// Transition the back buffer from present to render target state.
 	D3D12_RESOURCE_BARRIER renderTargetBarrier = {};
@@ -510,7 +566,7 @@ void Application::Run()
 			break;
 
 		UpdateFPS();
-		UpdateConstantBuffer();
+		UpdateConstantBuffers();
 		SetCommandList();
 		ExecuteCommandList();
 		GUI::Draw();
@@ -542,7 +598,7 @@ void Application::UpdateFPS()
 	}
 }
 
-void Application::UpdateConstantBuffer()
+void Application::UpdateConstantBuffers()
 {
 	std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 	std::chrono::duration<float> dt = now - _tLastTime;
@@ -554,9 +610,14 @@ void Application::UpdateConstantBuffer()
 	_camera.Update();
 	_viewMatrix = _camera.GetViewMatrix();
 
+	XMFLOAT3 camPos;
+	XMStoreFloat3(&camPos, _camera._position);
+
+	memcpy(_mappedCamPosBuffer, &camPos, sizeof(XMFLOAT3));
+
 	XMStoreFloat4x4(&_viewProjectionMatrix, XMMatrixMultiply(XMLoadFloat4x4(&_viewMatrix), XMLoadFloat4x4(&_projectionMatrix)));
 
-	memcpy(_mappedUniformBuffer, &_viewProjectionMatrix, sizeof(_viewProjectionMatrix));
+	memcpy(_mappedVPBuffer, &_viewProjectionMatrix, sizeof(_viewProjectionMatrix));
 }
 
 void Application::ExecuteCommandList()
@@ -594,9 +655,9 @@ Application::~Application()
 	_dsvHeap.Reset();
 	_depthStencilBuffer.Reset();
 
-	_uniformBuffer.Reset();
-	_uniformBufferHeap.Reset();
-	_mappedUniformBuffer = nullptr;
+	_VPBufferResource.Reset();
+	_VPBufferHeap.Reset();
+	_mappedVPBuffer = nullptr;
 
 	// Cleanup GUI
 #if defined(_DEBUG)

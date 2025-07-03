@@ -22,7 +22,7 @@ private:
 	void InitResources();
 	void InitGUI();
 	
-	void UpdateConstantBuffer();
+	void UpdateConstantBuffers();
 	void SetCommandList();
 	void ExecuteCommandList();
 	void WaitForFence();
@@ -53,11 +53,17 @@ private:
 	MSWRL::ComPtr<ID3D12Resource> _depthStencilBuffer;
 	MSWRL::ComPtr<ID3D12DescriptorHeap> _dsvHeap;
 
-	// ViewProj
-	MSWRL::ComPtr<ID3D12Resource> _uniformBuffer;
-	MSWRL::ComPtr<ID3D12DescriptorHeap> _uniformBufferHeap;
-	D3D12_CPU_DESCRIPTOR_HANDLE _uniformBufferDescriptor;
-	UINT8* _mappedUniformBuffer;
+	// ViewProjMatrix CBV
+	MSWRL::ComPtr<ID3D12Resource> _VPBufferResource;
+	MSWRL::ComPtr<ID3D12DescriptorHeap> _VPBufferHeap;
+	D3D12_CPU_DESCRIPTOR_HANDLE _VPBufferDescriptor;
+	UINT8* _mappedVPBuffer;
+
+	// ViewMatrix CBV
+	MSWRL::ComPtr<ID3D12Resource> _camPosBufferResource;
+	MSWRL::ComPtr<ID3D12DescriptorHeap> _camPosBufferHeap;
+	D3D12_CPU_DESCRIPTOR_HANDLE _camPosBufferDescriptor;
+	UINT8* _mappedCamPosBuffer;
 
 	XMFLOAT4X4 _projectionMatrix;
 	XMFLOAT4X4 _viewMatrix;

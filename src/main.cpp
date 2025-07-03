@@ -5,6 +5,6 @@
 
 int main()
 {
-	Application artisDX("artisDX", 1920, 1080);
+	Application artisDX("artisDX", 1280, 720);
 	artisDX.Run();
 }
