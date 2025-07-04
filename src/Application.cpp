@@ -471,9 +471,9 @@ void Application::InitResources()
 	// MODELLOADING
 	_modelManager = ModelManager(_commandList);
 
-	_modelManager.LoadModel("../assets/helmet.glb");
+	//_modelManager.LoadModel("../assets/helmet.glb");
 	//_modelManager.LoadModel("../assets/old_rusty_car.glb");
-	//_modelManager.LoadModel("../assets/sponza.glb");
+	_modelManager.LoadModel("../assets/sponza.glb");
 	//_modelManager.LoadModel("../assets/brick_wall.glb");
 	//_modelManager.LoadModel("../assets/DamagedHelmet.glb");
 	//_modelManager.LoadModel("../assets/cube.glb");

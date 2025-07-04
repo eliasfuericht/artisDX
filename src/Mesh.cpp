@@ -4,44 +4,4 @@ Mesh::Mesh(INT meshId, std::vector<Primitive> primitives)
 {
 	_id = meshId;
 	_primitives = primitives;
-	XMStoreFloat4x4(&_localTransform, XMMatrixIdentity());
-
-	CreateCBV();
-}
-
-void Mesh::CreateCBV()
-{
-	D3D12_CPU_DESCRIPTOR_HANDLE cbvCpuHandle = DescriptorAllocator::Instance().Allocate();
-
-	const UINT bufferSize = (sizeof(XMFLOAT4X4) + 255) & ~255;
-
-	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
-	CD3DX12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
-
-	D3D12Core::GraphicsDevice::GetDevice()->CreateCommittedResource(
-		&heapProps,
-		D3D12_HEAP_FLAG_NONE,
-		&bufferDesc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		IID_PPV_ARGS(&_constantBuffer));
-
-	CD3DX12_RANGE readRange(0, 0);
-	_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&_mappedPtr));
-
-	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-	cbvDesc.BufferLocation = _constantBuffer->GetGPUVirtualAddress();
-	cbvDesc.SizeInBytes = bufferSize;
-
-	D3D12Core::GraphicsDevice::GetDevice()->CreateConstantBufferView(&cbvDesc, cbvCpuHandle);
-
-	_cbvGpuHandle = DescriptorAllocator::Instance().GetGPUHandle(cbvCpuHandle);
-}
-
-void Mesh::BindPrimitives(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
-{
-	for (Primitive& primitive : _primitives)
-	{
-		primitive.BindPrimitiveData(commandList);
-	}
 }

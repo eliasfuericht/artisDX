@@ -1,21 +1,27 @@
 #include "Model.h"
 
-Model::Model(INT id, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, std::vector<Mesh> meshes, std::vector<Texture> textures, std::vector<Material> materials)
+Model::Model(INT id, std::string name, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, std::vector<Mesh> meshes, std::vector<Texture> textures, std::vector<Material> materials, std::vector<ModelNode> modelNodes)
 {
 	_id = id;
 	_meshes = meshes;
 	_textures = std::move(textures);
 	_materials = materials;
-	//_modelNodes = modelNodes;
+	_modelNodes = modelNodes;
 }
 
 void Model::DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
-	for (Mesh& mesh : _meshes)
-	{
-		memcpy(mesh._mappedPtr, &mesh._localTransform, sizeof(XMFLOAT4X4));
+	ComputeGlobalTransforms();
 
-		commandList->SetGraphicsRootDescriptorTable(1, mesh._cbvGpuHandle);
+	for (ModelNode& node : _modelNodes)
+	{
+		if (node._meshIndex == -1)
+			continue;
+
+		Mesh& mesh = _meshes[node._meshIndex];
+
+		memcpy(node._mappedCBVModelMatrixPtr, &node._globalMatrix, sizeof(XMFLOAT4X4));
+		commandList->SetGraphicsRootDescriptorTable(1, node._cbvModelMatrixGpuHandle);
 
 		for (Primitive& primitive : mesh._primitives)
 		{
@@ -31,32 +37,44 @@ void Model::DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 	}
 }
 
+void Model::ComputeGlobalTransforms() {
+	for (int i = 0; i < _modelNodes.size(); ++i) {
+		if (_modelNodes[i]._parentIndex == -1) {
+			ComputeNodeGlobal(i, XMMatrixIdentity());
+		}
+	}
+}
+
+void Model::ComputeNodeGlobal(int nodeIndex, const XMMATRIX& parentMatrix) {
+	ModelNode& modelNode = _modelNodes[nodeIndex];
+
+	XMMATRIX local = XMMatrixScalingFromVector(XMLoadFloat3(&modelNode._scale)) *
+		XMMatrixRotationQuaternion(XMLoadFloat4(&modelNode._rotation)) *
+		XMMatrixTranslationFromVector(XMLoadFloat3(&modelNode._translation));
+
+	XMMATRIX global = local * parentMatrix;
+	XMStoreFloat4x4(&modelNode._globalMatrix, global);
+
+	for (int childIndex : modelNode._children) {
+		ComputeNodeGlobal(childIndex, global);
+	}
+}
+
 INT Model::GetID()
 {
 	return _id;
 }
 
 void Model::DrawGUI() {
-	std::string windowName = "Model Window " + std::to_string(_id);
-
+	std::string windowName = "Model" + _name + " ID: " + std::to_string(_id);
 	GUI::Begin(windowName.c_str());
 	GUI::PushID(_id);
-	std::string partenTransformText = "Parent Transform";
-	GUI::Text(partenTransformText.c_str());
-	//GUI::DragFloat3("Parent Translation", _translation);
-	//GUI::DragFloat3("Parent Rotation", _rotation);
-	//GUI::DragFloat3("Parent Scaling", _scaling);
-
 	GUI::PopID();
 
-	for (Mesh& mesh : _meshes)
+	for (const ModelNode& node : _modelNodes)
 	{
-		GUI::PushID(mesh._id);
-		std::string meshTransformText = "Mesh " + std::to_string(mesh._id);
-		GUI::Text(meshTransformText.c_str());
-		GUI::DragFloat3("Translation", mesh._translation);
-		GUI::DragFloat3("Rotation", mesh._rotation);
-		GUI::DragFloat3("Scaling", mesh._scaling);
+		GUI::PushID(node._id);
+		
 		GUI::PopID();
 	}
 

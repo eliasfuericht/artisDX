@@ -15,20 +15,21 @@ class Model : public IGUIComponent
 {
 public:
 	Model() {};
-	Model(INT id, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, std::vector<Mesh> meshes, std::vector<Texture> textures, std::vector<Material> materials);
+	Model(INT id, std::string name, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, std::vector<Mesh> meshes, std::vector<Texture> textures, std::vector<Material> materials, std::vector<ModelNode> modelNodes);
 
 	void DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 
 	void DrawGUI();
 	INT GetID();
 
+private:
+	void ComputeGlobalTransforms();
+	void ComputeNodeGlobal(int nodeIndex, const XMMATRIX& parentMatrix);
+
+	std::string _name;
 	std::vector<Mesh> _meshes;
 	std::vector<Texture> _textures;
 	std::vector<Material> _materials;
 	std::vector<ModelNode> _modelNodes;
-
-private:
-	void ComputeGlobalTransforms();
-
 	INT _id = NOTOK;
 };

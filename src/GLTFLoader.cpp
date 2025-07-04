@@ -25,9 +25,11 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 		return;
 	}
 
+	std::string modelName;
+
 	// Extract Vertex and Index Information
 	std::vector<Mesh> meshes;
-		INT meshIdIncrementor = 0;
+	INT meshIdIncrementor = 0;
 	for (const fastgltf::Mesh& mesh : asset->meshes)
 	{
 		std::vector<Primitive> primitives;
@@ -54,14 +56,14 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 	std::vector<Material> materials;
 	std::vector<Texture> textures;
 	INT textureIndexIncrementor = 0;
-	
 	for (const fastgltf::Material& gltfMaterial : asset->materials) 
 	{
 		Material material;
 
 		// 1. BaseColor (Albedo)
 		material._baseColorTextureIndex = textureIndexIncrementor++;
-		if (gltfMaterial.pbrData.baseColorTexture.has_value()) {
+		if (gltfMaterial.pbrData.baseColorTexture.has_value()) 
+		{
 			size_t textureIndex = gltfMaterial.pbrData.baseColorTexture->textureIndex;
 
 			const fastgltf::Texture& assetTexture = asset->textures[textureIndex];
@@ -81,7 +83,8 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 
 		// 2. Metallic-Roughness
 		material._metallicRoughnessTextureIndex = textureIndexIncrementor++;
-		if (gltfMaterial.pbrData.metallicRoughnessTexture.has_value()) {
+		if (gltfMaterial.pbrData.metallicRoughnessTexture.has_value()) 
+		{
 			size_t textureIndex = gltfMaterial.pbrData.metallicRoughnessTexture->textureIndex;
 
 			const fastgltf::Texture& assetTexture = asset->textures[textureIndex];
@@ -101,7 +104,8 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 
 		// 3. Normal
 		material._normalTextureIndex = textureIndexIncrementor++;
-		if (gltfMaterial.normalTexture.has_value()) {
+		if (gltfMaterial.normalTexture.has_value()) 
+		{
 			size_t textureIndex = gltfMaterial.normalTexture->textureIndex;
 
 			const fastgltf::Texture& assetTexture = asset->textures[textureIndex];
@@ -121,7 +125,8 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 
 		// 4. Emissive
 		material._emissiveTextureIndex = textureIndexIncrementor++;
-		if (gltfMaterial.emissiveTexture.has_value()) {
+		if (gltfMaterial.emissiveTexture.has_value()) 
+		{
 			size_t textureIndex = gltfMaterial.emissiveTexture->textureIndex;
 
 			const fastgltf::Texture& assetTexture = asset->textures[textureIndex];
@@ -141,7 +146,8 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 
 		// 5. Occlusion
 		material._occlusionTextureIndex = textureIndexIncrementor++;
-		if (gltfMaterial.occlusionTexture.has_value()) {
+		if (gltfMaterial.occlusionTexture.has_value()) 
+		{
 			size_t textureIndex = gltfMaterial.occlusionTexture->textureIndex;
 
 			const fastgltf::Texture& assetTexture = asset->textures[textureIndex];
@@ -161,21 +167,56 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 		materials.push_back(material);
 	}
 
-	model = std::make_shared<Model>(_modelIdIncrementor++, commandList, meshes, std::move(textures), materials);
+	std::vector<ModelNode> modelNodes;
+	INT nodeIdIncrementor = 0;
+	modelNodes.reserve(asset->nodes.size());
+
+	for (const fastgltf::Node& node : asset->nodes) 
+	{
+		ModelNode modelNode;
+		modelNode._id = nodeIdIncrementor++;
+		modelNode._name = node.name.data() ? node.name : "UnnamedNode";
+		modelNode._meshIndex = node.meshIndex.has_value() ? static_cast<int>(*node.meshIndex) : -1;
+
+		modelNode._localMatrix = ToXMFloat4x4(fastgltf::getTransformMatrix(node));
+
+		XMMATRIX M = XMLoadFloat4x4(&modelNode._localMatrix);
+		XMVECTOR translation, rotation, scale;
+		XMMatrixDecompose(&scale, &rotation, &translation, M);
+		XMStoreFloat3(&modelNode._translation, translation);
+		XMStoreFloat3(&modelNode._scale, scale);
+		XMStoreFloat4(&modelNode._rotation, rotation);
+
+		modelNodes.push_back(modelNode);
+	}
+
+	for (size_t i = 0; i < asset->nodes.size(); ++i) 
+	{
+		const fastgltf::Node& node = asset->nodes[i];
+		for (uint32_t childIndex : node.children) {
+			modelNodes[i]._children.push_back(static_cast<int>(childIndex));
+			modelNodes[childIndex]._parentIndex = static_cast<int>(i);
+		}
+	}
+	
+	model = std::make_shared<Model>(_modelIdIncrementor++, modelName, commandList, meshes, std::move(textures), materials, modelNodes);
 }
 
 ScratchImage GLTFLoader::ExtractImageFromBuffer(const fastgltf::Asset& asset, const fastgltf::Image& assetImage)
 {
 	const uint8_t* pixelData = nullptr;
 	size_t pixelSize = 0;
+	ScratchImage scratchImage;
 
-	if (auto bufferViewPtr = std::get_if<fastgltf::sources::BufferView>(&assetImage.data)) {
+	if (auto bufferViewPtr = std::get_if<fastgltf::sources::BufferView>(&assetImage.data)) 
+	{
 		const fastgltf::sources::BufferView& view = *bufferViewPtr;
 		const auto& bufferViewMeta = asset.bufferViews[view.bufferViewIndex];
 		const auto& textureName = bufferViewMeta.name;
 		const auto& buffer = asset.buffers[bufferViewMeta.bufferIndex];
 
-		if (auto arrayPtr = std::get_if<fastgltf::sources::Array>(&buffer.data)) {
+		if (auto arrayPtr = std::get_if<fastgltf::sources::Array>(&buffer.data)) 
+		{
 			pixelData = reinterpret_cast<const uint8_t*>(arrayPtr->bytes.data()) + bufferViewMeta.byteOffset;
 			pixelSize = bufferViewMeta.byteLength;
 		}
@@ -183,8 +224,6 @@ ScratchImage GLTFLoader::ExtractImageFromBuffer(const fastgltf::Asset& asset, co
 
 	if (!pixelData || pixelSize == 0)
 		ThrowException("no pixeldata while loading image");
-
-	ScratchImage scratchImage;
 
 	ThrowIfFailed(LoadFromWICMemory(pixelData, pixelSize, WIC_FLAGS_NONE, nullptr, scratchImage));
 
