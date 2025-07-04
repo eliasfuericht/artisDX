@@ -3,6 +3,7 @@
 #include "pch.h"
 
 #include <hidusage.h>
+#include "Swapchain.h"
 
 class Window
 {
@@ -17,6 +18,9 @@ public:
 	HWND GetHWND();
 	UINT GetWidth() { return _windowWidth; };
 	UINT GetHeight() { return _windowHeight; };
+
+	void SetWidth(INT width) { _windowWidth = width; };
+	void SetHeight(INT height) { _windowHeight = height; };
 
 	BOOL* GetKeys() { return _keys; }
 	FLOAT GetXChange();

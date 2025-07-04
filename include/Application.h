@@ -49,10 +49,6 @@ private:
 	MSWRL::ComPtr<ID3D12RootSignature> _rootSignature;
 	MSWRL::ComPtr<ID3D12PipelineState> _pipelineState;
 
-	// DepthBuffer
-	MSWRL::ComPtr<ID3D12Resource> _depthStencilBuffer;
-	MSWRL::ComPtr<ID3D12DescriptorHeap> _dsvHeap;
-
 	// ViewProjMatrix CBV
 	MSWRL::ComPtr<ID3D12Resource> _VPBufferResource;
 	MSWRL::ComPtr<ID3D12DescriptorHeap> _VPBufferHeap;

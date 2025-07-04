@@ -104,7 +104,7 @@ void Application::Init()
 	// Create Command Allocator - still stored in application, think about better place
 	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_commandAllocator)));
 
-	D3D12Core::Swapchain::Init(_window);
+	D3D12Core::Swapchain::Init(_width, _height, _window.GetHWND());
 }
 
 void Application::InitResources()
@@ -411,58 +411,6 @@ void Application::InitResources()
 		{
 			std::cout << "Failed to create Graphics Pipeline!";
 		}
-
-		// Heap properties for creating the texture (GPU read/write)
-		D3D12_HEAP_PROPERTIES heapProps = {};
-		heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
-		heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-		heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-		heapProps.CreationNodeMask = 1;
-		heapProps.VisibleNodeMask = 1;
-
-		// Create Depth-Stencil Resource (Texture2D)
-		D3D12_RESOURCE_DESC depthResourceDesc = {};
-		depthResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-		depthResourceDesc.Alignment = 0;
-		depthResourceDesc.Width = _width;       
-		depthResourceDesc.Height = _height;     
-		depthResourceDesc.DepthOrArraySize = 1;
-		depthResourceDesc.MipLevels = 1;
-		depthResourceDesc.Format = DXGI_FORMAT_D32_FLOAT; 
-		depthResourceDesc.SampleDesc.Count = 1;
-		depthResourceDesc.SampleDesc.Quality = 0;
-		depthResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-		depthResourceDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-
-		D3D12_CLEAR_VALUE depthOptimizedClearValue = {};
-		depthOptimizedClearValue.Format = DXGI_FORMAT_D32_FLOAT;
-		depthOptimizedClearValue.DepthStencil.Depth = 1.0f;
-		depthOptimizedClearValue.DepthStencil.Stencil = 0; 
-
-		ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommittedResource(
-			&heapProps,
-			D3D12_HEAP_FLAG_NONE,
-			&depthResourceDesc,
-			D3D12_RESOURCE_STATE_DEPTH_WRITE,
-			&depthOptimizedClearValue,
-			IID_PPV_ARGS(&_depthStencilBuffer)
-		));
-
-		// Create the DSV Heap
-		D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
-		dsvHeapDesc.NumDescriptors = 1;
-		dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-		dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-
-		ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&_dsvHeap)));
-
-		D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
-		dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
-		dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-		dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
-
-		// Create the DSV for the depth-stencil buffer
-		D3D12Core::GraphicsDevice::GetDevice()->CreateDepthStencilView(_depthStencilBuffer.Get(), &dsvDesc, _dsvHeap->GetCPUDescriptorHandleForHeapStart());
 	}
 
 	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _commandAllocator.Get(), _pipelineState.Get(), IID_PPV_ARGS(&_commandList)));
@@ -472,11 +420,9 @@ void Application::InitResources()
 	_modelManager = ModelManager(_commandList);
 
 	//_modelManager.LoadModel("../assets/helmet.glb");
-	//_modelManager.LoadModel("../assets/old_rusty_car.glb");
-	//_modelManager.LoadModel("../assets/sponza.glb");
+	_modelManager.LoadModel("../assets/sponza.glb");
 	//_modelManager.LoadModel("../assets/brick_wall.glb");
-	_modelManager.LoadModel("../assets/DamagedHelmet.glb");
-	//_modelManager.LoadModel("../assets/cube.glb");
+	//_modelManager.LoadModel("../assets/DamagedHelmet.glb");
 
 	// upload all textures from models
 	ThrowIfFailed(_commandList->Close());
@@ -519,7 +465,7 @@ void Application::SetCommandList()
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = D3D12Core::Swapchain::_rtvHeap->GetCPUDescriptorHandleForHeapStart();
 	// increments pointer from buffer 0 to 1 if _frameindex is 1
 	rtvHandle.ptr += (D3D12Core::Swapchain::_frameIndex * D3D12Core::Swapchain::_rtvDescriptorSize);
-	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = _dsvHeap->GetCPUDescriptorHandleForHeapStart();
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = D3D12Core::Swapchain::_dsvHeap->GetCPUDescriptorHandleForHeapStart();
 	_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 	_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0.0f, 0, nullptr);
 
@@ -607,6 +553,21 @@ void Application::UpdateConstantBuffers()
 	FLOAT deltaTime = dt.count();
 	_tLastTime = now;
 
+	if (D3D12Core::Swapchain::_windowResized)
+	{
+		D3D12Core::Swapchain::_windowResized = false;
+
+		_width = D3D12Core::Swapchain::_width;
+		_height = D3D12Core::Swapchain::_height;
+
+		XMStoreFloat4x4(&_projectionMatrix,
+			XMMatrixPerspectiveFovLH(
+				XMConvertToRadians(45.0f),
+				static_cast<float>(_window.GetWidth()) / static_cast<float>(_window.GetHeight()),
+				0.1f,
+				10000.0f)
+		);
+	}
 	_camera->ConsumeKey(_window.GetKeys(), deltaTime);
 	_camera->ConsumeMouse(_window.GetXChange(), _window.GetYChange());
 	_camera->Update();
@@ -653,9 +614,6 @@ Application::~Application()
 	
 	_rootSignature.Reset();
 	_pipelineState.Reset();
-
-	_dsvHeap.Reset();
-	_depthStencilBuffer.Reset();
 
 	_VPBufferResource.Reset();
 	_VPBufferHeap.Reset();

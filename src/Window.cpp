@@ -8,12 +8,19 @@ LRESULT CALLBACK WindowProcess(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 		return true;
 
 	switch (msg) {
-		/*
-		case WM_SIZE:
+	case WM_SIZE:
+	{
+		UINT newWidth = LOWORD(lParam);
+		UINT newHeight = HIWORD(lParam);
+
+		if (windowInstance && wParam != SIZE_MINIMIZED) 
 		{
-			PRINT("entered");
+			D3D12Core::Swapchain::Resize(newWidth, newHeight);
+			windowInstance->SetWidth(newWidth);
+			windowInstance->SetHeight(newHeight);
 		}
-		*/
+		return 0;
+	}
 		case WM_MOUSEMOVE:
 		{
 			if (!windowInstance->_captureMouse)
