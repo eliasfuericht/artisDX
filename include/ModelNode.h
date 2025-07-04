@@ -4,7 +4,6 @@
 
 #include "GraphicsDevice.h"
 #include "DescriptorAllocator.h"
-#include "AABB.h"
 
 class ModelNode {
 public:
@@ -17,7 +16,7 @@ public:
 	std::vector<int> _children;
 
 	XMFLOAT3 _translation = { 0,0,0 };
-	XMFLOAT4 _rotation = { 0,0,0,1 };
+	XMFLOAT3 _rotation = { 0,0,0 };
 	XMFLOAT3 _scale = { 1,1,1 };
 
 	XMFLOAT4X4 _localMatrix = {}; 

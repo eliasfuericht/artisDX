@@ -24,6 +24,5 @@ public:
 	uint32_t _indexCount = 0;
 
 	INT _materialIndex = NOTOK;
-
 	AABB _aabb;
 };

@@ -25,7 +25,7 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 		return;
 	}
 
-	std::string modelName;
+	std::string modelName = path.filename().string();
 
 	// Extract Vertex and Index Information
 	std::vector<Mesh> meshes;
@@ -185,7 +185,7 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 		XMMatrixDecompose(&scale, &rotation, &translation, M);
 		XMStoreFloat3(&modelNode._translation, translation);
 		XMStoreFloat3(&modelNode._scale, scale);
-		XMStoreFloat4(&modelNode._rotation, rotation);
+		XMStoreFloat3(&modelNode._rotation, rotation);
 
 		modelNodes.push_back(modelNode);
 	}

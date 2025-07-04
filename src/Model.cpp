@@ -3,6 +3,7 @@
 Model::Model(INT id, std::string name, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, std::vector<Mesh> meshes, std::vector<Texture> textures, std::vector<Material> materials, std::vector<ModelNode> modelNodes)
 {
 	_id = id;
+	_name = name;
 	_meshes = meshes;
 	_textures = std::move(textures);
 	_materials = materials;
@@ -49,7 +50,7 @@ void Model::ComputeNodeGlobal(int nodeIndex, const XMMATRIX& parentMatrix) {
 	ModelNode& modelNode = _modelNodes[nodeIndex];
 
 	XMMATRIX local = XMMatrixScalingFromVector(XMLoadFloat3(&modelNode._scale)) *
-		XMMatrixRotationQuaternion(XMLoadFloat4(&modelNode._rotation)) *
+		XMMatrixRotationRollPitchYawFromVector(XMLoadFloat3(&modelNode._rotation)) *
 		XMMatrixTranslationFromVector(XMLoadFloat3(&modelNode._translation));
 
 	XMMATRIX global = local * parentMatrix;
@@ -66,15 +67,17 @@ INT Model::GetID()
 }
 
 void Model::DrawGUI() {
-	std::string windowName = "Model" + _name + " ID: " + std::to_string(_id);
+	std::string windowName = "Model: " + _name + " ID: " + std::to_string(_id);
 	GUI::Begin(windowName.c_str());
 	GUI::PushID(_id);
 	GUI::PopID();
 
-	for (const ModelNode& node : _modelNodes)
+	for (ModelNode& node : _modelNodes)
 	{
 		GUI::PushID(node._id);
-		
+		GUI::DragFloat3("Translation", node._translation);
+		GUI::DragFloat3("Rotation", node._rotation);
+		GUI::DragFloat3("Scale", node._scale);
 		GUI::PopID();
 	}
 
