@@ -10,7 +10,7 @@ Application::Application(const CHAR* name, INT w, INT h)
 	_commandAllocator = nullptr;
 	_commandList = nullptr;																														 
 
-	_camera = Camera(
+	_camera = std::make_shared<Camera>(
 		XMVectorSet(0.0f, 0.0f, 5.0f, 0.0f),
 		XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f),
 		90.0f,
@@ -18,6 +18,8 @@ Application::Application(const CHAR* name, INT w, INT h)
 		2.5f,
 		0.1f 
 	);
+
+	_camera->RegisterWithGUI();
 
 	Init();
 	InitResources();
@@ -354,7 +356,7 @@ void Application::InitResources()
 			_VPBufferResource->Unmap(0, nullptr);
 
 			XMFLOAT3 camPos;
-			XMStoreFloat3(&camPos, _camera._position);
+			XMStoreFloat3(&camPos, _camera->_position);
 
 			ThrowIfFailed(_camPosBufferResource->Map(0, &readRange, reinterpret_cast<void**>(&_mappedCamPosBuffer)));
 			memcpy(_mappedCamPosBuffer, &camPos, sizeof(XMFLOAT3));
@@ -605,13 +607,13 @@ void Application::UpdateConstantBuffers()
 	FLOAT deltaTime = dt.count();
 	_tLastTime = now;
 
-	_camera.ConsumeKey(_window.GetKeys(), deltaTime);
-	_camera.ConsumeMouse(_window.GetXChange(), _window.GetYChange());
-	_camera.Update();
-	_viewMatrix = _camera.GetViewMatrix();
+	_camera->ConsumeKey(_window.GetKeys(), deltaTime);
+	_camera->ConsumeMouse(_window.GetXChange(), _window.GetYChange());
+	_camera->Update();
+	_viewMatrix = _camera->GetViewMatrix();
 
 	XMFLOAT3 camPos;
-	XMStoreFloat3(&camPos, _camera._position);
+	XMStoreFloat3(&camPos, _camera->_position);
 
 	memcpy(_mappedCamPosBuffer, &camPos, sizeof(XMFLOAT3));
 

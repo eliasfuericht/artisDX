@@ -5,23 +5,11 @@ ImGuiIO* GUI::_imguiIO = nullptr;
 MSWRL::ComPtr<ID3D12GraphicsCommandList> GUI::_commandList;
 MSWRL::ComPtr<ID3D12CommandAllocator> GUI::_commandAllocator;
 MSWRL::ComPtr<ID3D12DescriptorHeap> GUI::_srvHeap;
-MSWRL::ComPtr<IDXGISwapChain3> GUI::_swapchain;
-MSWRL::ComPtr<ID3D12DescriptorHeap> GUI::_rtvHeap;
-MSWRL::ComPtr<ID3D12Resource> GUI::_renderTargets[2];
-UINT GUI::_rtvDescriptorSize;
 
 std::vector<std::weak_ptr<IGUIComponent>> GUI::_guiComponents;
 
 void GUI::Init(Window window)
 {
-	_swapchain = D3D12Core::Swapchain::_swapchain;
-	_rtvHeap = D3D12Core::Swapchain::_rtvHeap;
-	for (UINT n = 0; n < 2; n++)
-	{
-		_renderTargets[n] = D3D12Core::Swapchain::_renderTargets[n];
-	}
-	_rtvDescriptorSize = D3D12Core::Swapchain::_rtvDescriptorSize;
-
 	// init imgui
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -96,14 +84,17 @@ void GUI::Draw()
 {
 	GUI::NewFrame();
 
-	for (auto it = _guiComponents.begin(); it != _guiComponents.end(); )
+	std::vector<std::shared_ptr<IGUIComponent>> components;
+	components.reserve(_guiComponents.size());
+	for (auto const& weak : _guiComponents)
 	{
-		auto component = it->lock();
-		if (component)
-		{
-			component->DrawGUI();
-			++it;
-		}
+		if (auto shared = weak.lock())
+			components.push_back(std::move(shared));
+	}
+
+	for (auto const& component : components)
+	{
+		component->DrawGUI();
 	}
 
 	GUI::Render();
@@ -127,16 +118,16 @@ void GUI::Render()
 	ID3D12DescriptorHeap* heaps[] = { _srvHeap.Get() };
 	_commandList->SetDescriptorHeaps(1, heaps);
 
-	UINT frameIndex = _swapchain->GetCurrentBackBufferIndex();
+	UINT frameIndex = D3D12Core::Swapchain::_frameIndex;
 
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = _rtvHeap->GetCPUDescriptorHandleForHeapStart();
-	rtvHandle.ptr += (frameIndex * _rtvDescriptorSize);
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = D3D12Core::Swapchain::_rtvHeap->GetCPUDescriptorHandleForHeapStart();
+	rtvHandle.ptr += (frameIndex * D3D12Core::Swapchain::_rtvDescriptorSize);
 	
 	// Transition backbuffer from PRESENT -> RENDER_TARGET
 	D3D12_RESOURCE_BARRIER renderTargetBarrier = {};
 	renderTargetBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	renderTargetBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	renderTargetBarrier.Transition.pResource = _renderTargets[frameIndex].Get();
+	renderTargetBarrier.Transition.pResource = D3D12Core::Swapchain::_renderTargets[frameIndex].Get();
 	renderTargetBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
 	renderTargetBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	renderTargetBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
@@ -156,7 +147,7 @@ void GUI::Render()
 	D3D12_RESOURCE_BARRIER presentBarrier = {};
 	presentBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	presentBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	presentBarrier.Transition.pResource = _renderTargets[frameIndex].Get();
+	presentBarrier.Transition.pResource = D3D12Core::Swapchain::_renderTargets[frameIndex].Get();
 	presentBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	presentBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 	presentBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
@@ -174,15 +165,12 @@ void GUI::Shutdown()
 	ImGui_ImplDX12_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
-
-	// Clear all components
-	//_guiComponents.clear();
 }
 
 
 // ----------------------------------------------------//
 // 																										 //
-// Some wrappers for the most common imgui ui features //
+// Some wrappers for common imgui ui features //
 // 																										 //
 // ----------------------------------------------------//
 

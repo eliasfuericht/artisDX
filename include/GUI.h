@@ -72,10 +72,6 @@ private:
 	static MSWRL::ComPtr<ID3D12DescriptorHeap> _srvHeap;
 	static MSWRL::ComPtr<ID3D12GraphicsCommandList> _commandList;
 	static MSWRL::ComPtr<ID3D12CommandAllocator> _commandAllocator;
-	static MSWRL::ComPtr<IDXGISwapChain3> _swapchain;
-	static MSWRL::ComPtr<ID3D12DescriptorHeap> _rtvHeap;
-	static UINT _rtvDescriptorSize;
-	static MSWRL::ComPtr<ID3D12Resource> _renderTargets[2];
 
 	static std::vector<std::weak_ptr<IGUIComponent>> _guiComponents;
 };

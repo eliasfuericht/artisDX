@@ -16,7 +16,6 @@ public:
 	void Update();
 
 	void DrawGUI();
-	void RegisterWithGUI();
 
 	XMFLOAT4X4 GetViewMatrix() { return _viewMatrix; };
 	FLOAT _yaw;
@@ -35,5 +34,5 @@ private:
 	FLOAT _moveSpeed;
 	FLOAT _turnSpeed;
 
-	FLOAT _multiplier = 25.0f;
+	FLOAT _multiplier = 15.0f;
 };

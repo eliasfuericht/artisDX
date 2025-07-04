@@ -31,7 +31,7 @@ private:
 	void UpdateFPS();
 
 	Window _window;
-	Camera _camera;
+	std::shared_ptr<Camera> _camera;
 	INT _width, _height;
 
 	std::chrono::steady_clock::time_point _tLastTime = std::chrono::steady_clock::now();

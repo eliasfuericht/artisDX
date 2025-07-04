@@ -8,27 +8,6 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 set(APPLICATION_NAME "artisDX")
 
-set(ARTISDX_SOURCES 
-    src/AABB.cpp
-    src/Application.cpp
-    src/Camera.cpp
-    src/CommandQueue.cpp
-    src/DescriptorAllocator.cpp
-    src/GLTFLoader.cpp
-    src/GraphicsDevice.cpp
-    src/GUI.cpp
-    src/main.cpp
-    src/Material.cpp
-    src/Primitive.cpp
-    src/Mesh.cpp
-    src/Model.cpp
-    src/ModelManager.cpp
-    src/Swapchain.cpp
-    src/Texture.cpp
-    src/Window.cpp
-    src/Light.cpp
-)
-
 set(ARTISDX_HEADERS 
     include/pch.h
     include/AABB.h
@@ -49,6 +28,30 @@ set(ARTISDX_HEADERS
     include/Texture.h
     include/Window.h
     include/Light.h
+    include/ModelNode.h
+)
+
+set(ARTISDX_SOURCES 
+    src/AABB.cpp
+    src/Application.cpp
+    src/Camera.cpp
+    src/CommandQueue.cpp
+    src/DescriptorAllocator.cpp
+    src/GLTFLoader.cpp
+    src/GraphicsDevice.cpp
+    src/GUI.cpp
+    src/main.cpp
+    src/Material.cpp
+    src/Primitive.cpp
+    src/Mesh.cpp
+    src/Model.cpp
+    src/ModelManager.cpp
+    src/Swapchain.cpp
+    src/Texture.cpp
+    src/Window.cpp
+    src/Light.cpp
+    src/ModelNode.cpp
+    src/IGUIComponent.cpp
 )
 
 add_executable(${APPLICATION_NAME} ${ARTISDX_SOURCES} ${ARTISDX_HEADERS})
