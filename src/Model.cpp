@@ -49,9 +49,23 @@ void Model::ComputeGlobalTransforms() {
 void Model::ComputeNodeGlobal(int nodeIndex, const XMMATRIX& parentMatrix) {
 	ModelNode& modelNode = _modelNodes[nodeIndex];
 
-	XMMATRIX local = XMMatrixScalingFromVector(XMLoadFloat3(&modelNode._scale)) *
-		XMMatrixRotationRollPitchYawFromVector(XMLoadFloat3(&modelNode._rotation)) *
-		XMMatrixTranslationFromVector(XMLoadFloat3(&modelNode._translation));
+	XMVECTOR originalQuat = XMLoadFloat4(&modelNode._rotationQuat);
+
+	XMVECTOR userQuat = XMQuaternionRotationRollPitchYawFromVector(XMLoadFloat3(&modelNode._rotationEuler));
+
+	XMStoreFloat3(&modelNode._rotationEuler, XMVECTOR());
+
+	XMVECTOR combinedQuat = XMQuaternionMultiply(userQuat, originalQuat);
+
+	combinedQuat = XMQuaternionNormalize(combinedQuat);
+
+	XMStoreFloat4(&modelNode._rotationQuat, combinedQuat);
+
+	XMMATRIX local =	XMMatrixScalingFromVector(XMLoadFloat3(&modelNode._scale)) * 
+										XMMatrixRotationQuaternion(XMLoadFloat4(&modelNode._rotationQuat)) * 
+										XMMatrixTranslationFromVector(XMLoadFloat3(&modelNode._translation));
+
+	XMStoreFloat4x4(&modelNode._localMatrix, local);
 
 	XMMATRIX global = local * parentMatrix;
 	XMStoreFloat4x4(&modelNode._globalMatrix, global);
@@ -76,7 +90,7 @@ void Model::DrawGUI() {
 	{
 		GUI::PushID(node._id);
 		GUI::DragFloat3("Translation", node._translation);
-		GUI::DragFloat3("Rotation", node._rotation);
+		GUI::DragFloat3("Rotation", node._rotationEuler);
 		GUI::DragFloat3("Scale", node._scale);
 		GUI::PopID();
 	}

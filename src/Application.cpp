@@ -420,9 +420,9 @@ void Application::InitResources()
 	_modelManager = ModelManager(_commandList);
 
 	//_modelManager.LoadModel("../assets/helmet.glb");
-	_modelManager.LoadModel("../assets/sponza.glb");
+	//_modelManager.LoadModel("../assets/sponza.glb");
 	//_modelManager.LoadModel("../assets/brick_wall.glb");
-	//_modelManager.LoadModel("../assets/DamagedHelmet.glb");
+	_modelManager.LoadModel("../assets/DamagedHelmet.glb");
 
 	// upload all textures from models
 	ThrowIfFailed(_commandList->Close());

@@ -183,9 +183,10 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 		XMMATRIX M = XMLoadFloat4x4(&modelNode._localMatrix);
 		XMVECTOR translation, rotation, scale;
 		XMMatrixDecompose(&scale, &rotation, &translation, M);
+
 		XMStoreFloat3(&modelNode._translation, translation);
 		XMStoreFloat3(&modelNode._scale, scale);
-		XMStoreFloat3(&modelNode._rotation, rotation);
+		XMStoreFloat4(&modelNode._rotationQuat, rotation);
 
 		modelNodes.push_back(modelNode);
 	}

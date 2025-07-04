@@ -106,6 +106,30 @@ inline XMFLOAT4X4 ToXMFloat4x4(const fastgltf::math::fmat4x4& m)
 	);
 }
 
+inline XMVECTOR XMQuaternionToRollPitchYaw(FXMVECTOR q) {
+	float qx = XMVectorGetX(q);
+	float qy = XMVectorGetY(q);
+	float qz = XMVectorGetZ(q);
+	float qw = XMVectorGetW(q);
+
+	float sinr_cosp = 2 * (qw * qx + qy * qz);
+	float cosr_cosp = 1 - 2 * (qx * qx + qy * qy);
+	float roll = std::atan2(sinr_cosp, cosr_cosp);
+
+	float sinp = 2 * (qw * qy - qz * qx);
+	float pitch;
+	if (std::abs(sinp) >= 1)
+		pitch = std::copysign(XM_PIDIV2, sinp);
+	else
+		pitch = std::asin(sinp);
+
+	float siny_cosp = 2 * (qw * qz + qx * qy);
+	float cosy_cosp = 1 - 2 * (qy * qy + qz * qz);
+	float yaw = std::atan2(siny_cosp, cosy_cosp);
+
+	return XMVectorSet(yaw, pitch, roll, 0.0f);
+}
+
 enum KEYCODES
 {
 	W = 87,
