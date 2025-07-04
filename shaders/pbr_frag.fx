@@ -11,6 +11,11 @@ cbuffer cameraPosBuffer : register(b2)
     float3 c_camPos : packoffset(c0);
 };
 
+cbuffer directLightBuffer : register(b3)
+{
+    float3 c_dLightDirection : packoffset(c0);
+};
+
 struct SPIRV_Cross_Input
 {
     float4 position : SV_Position;
@@ -25,7 +30,6 @@ struct SPIRV_Cross_Output
 };
 
 // Constants for light
-static const float3 lightDir = normalize(float3(0.3, 0.5, 0.8));
 static const float3 lightColor = float3(1.0, 1.0, 1.0);
 
 // Helper functions for PBR
@@ -99,7 +103,7 @@ SPIRV_Cross_Output main(SPIRV_Cross_Input input)
     // Camera and lighting vectors
     float3 N = normal;
     float3 V = normalize(c_camPos - input.position.xyz); // View vector
-    float3 L = normalize(-lightDir); // Light vector, inverse because directional light points TO surface
+    float3 L = normalize(-c_dLightDirection); // Light vector, inverse because directional light points TO surface
     float3 H = normalize(V + L); // Halfway vector
 
     // Calculate reflectance at normal incidence; if metallic use albedo else use dielectric F0

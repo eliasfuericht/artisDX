@@ -105,6 +105,8 @@ void Application::Init()
 	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_commandAllocator)));
 
 	D3D12Core::Swapchain::Init(_width, _height, _window.GetHWND());
+
+	DescriptorAllocator::Instance().Initialize(D3D12Core::GraphicsDevice::GetDevice().Get(), NUM_MAX_DESCRIPTORS);
 }
 
 void Application::InitResources()
@@ -144,6 +146,14 @@ void Application::InitResources()
 		cbvRangeCameraPos.RegisterSpace = 0;
 		cbvRangeCameraPos.OffsetInDescriptorsFromTableStart = 0;
 		cbvRangeCameraPos.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
+		
+		D3D12_DESCRIPTOR_RANGE1 cbvRangeDirectLight = {};
+		cbvRangeDirectLight.BaseShaderRegister = 3; // b3
+		cbvRangeDirectLight.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+		cbvRangeDirectLight.NumDescriptors = 1;
+		cbvRangeDirectLight.RegisterSpace = 0;
+		cbvRangeDirectLight.OffsetInDescriptorsFromTableStart = 0;
+		cbvRangeDirectLight.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
 
 		D3D12_DESCRIPTOR_RANGE1 srvRanges[5] = {};
 
@@ -156,7 +166,7 @@ void Application::InitResources()
 			srvRanges[i].Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
 		}
 
-		D3D12_ROOT_PARAMETER1 rootParameters[8] = {};
+		D3D12_ROOT_PARAMETER1 rootParameters[9] = {};
 
 		// View-Projection Matrix Buffer
 		rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
@@ -175,13 +185,19 @@ void Application::InitResources()
 		rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 		rootParameters[2].DescriptorTable.NumDescriptorRanges = 1;
 		rootParameters[2].DescriptorTable.pDescriptorRanges = &cbvRangeCameraPos;
+		
+		// DirectLight Buffer
+		rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+		rootParameters[3].DescriptorTable.NumDescriptorRanges = 1;
+		rootParameters[3].DescriptorTable.pDescriptorRanges = &cbvRangeDirectLight;
 
 		// textures ugly asf need to rethink
 		for (int i = 0; i < 5; ++i) {
-			rootParameters[i + 3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-			rootParameters[i + 3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-			rootParameters[i + 3].DescriptorTable.NumDescriptorRanges = 1;
-			rootParameters[i + 3].DescriptorTable.pDescriptorRanges = &srvRanges[i];
+			rootParameters[i + 4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			rootParameters[i + 4].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+			rootParameters[i + 4].DescriptorTable.NumDescriptorRanges = 1;
+			rootParameters[i + 4].DescriptorTable.pDescriptorRanges = &srvRanges[i];
 		}
 
 		CD3DX12_STATIC_SAMPLER_DESC staticSampler{ 0, D3D12_FILTER_MIN_MAG_MIP_LINEAR };
@@ -262,7 +278,8 @@ void Application::InitResources()
 
 #endif
 
-		DescriptorAllocator::Instance().Initialize(D3D12Core::GraphicsDevice::GetDevice().Get(), NUM_MAX_DESCRIPTORS);
+		_dLight = std::make_shared<Light>(1.0f, 1.0f, 1.0f);
+		_dLight->RegisterWithGUI();
 
 		// Constant buffers
 		{
@@ -357,7 +374,6 @@ void Application::InitResources()
 
 			XMFLOAT3 camPos;
 			XMStoreFloat3(&camPos, _camera->_position);
-
 			ThrowIfFailed(_camPosBufferResource->Map(0, &readRange, reinterpret_cast<void**>(&_mappedCamPosBuffer)));
 			memcpy(_mappedCamPosBuffer, &camPos, sizeof(XMFLOAT3));
 			_camPosBufferResource->Unmap(0, nullptr);
@@ -451,6 +467,7 @@ void Application::SetCommandList()
 
 	_commandList->SetGraphicsRootDescriptorTable(0, DescriptorAllocator::Instance().GetGPUHandle(_VPBufferDescriptor));
 	_commandList->SetGraphicsRootDescriptorTable(2, DescriptorAllocator::Instance().GetGPUHandle(_camPosBufferDescriptor));
+	_commandList->SetGraphicsRootDescriptorTable(3, DescriptorAllocator::Instance().GetGPUHandle(_dLight->_cbvdLightCPUHandle));
 
 	// Transition the back buffer from present to render target state.
 	D3D12_RESOURCE_BARRIER renderTargetBarrier = {};
@@ -577,6 +594,8 @@ void Application::UpdateConstantBuffers()
 	XMStoreFloat3(&camPos, _camera->_position);
 
 	memcpy(_mappedCamPosBuffer, &camPos, sizeof(XMFLOAT3));
+
+	_dLight->UpdateBuffer();
 
 	XMStoreFloat4x4(&_viewProjectionMatrix, XMMatrixMultiply(XMLoadFloat4x4(&_viewMatrix), XMLoadFloat4x4(&_projectionMatrix)));
 

@@ -115,5 +115,5 @@ void Texture::BindTexture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 	commandList->SetDescriptorHeaps(1, heaps);
 
 	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = DescriptorAllocator::Instance().GetGPUHandle(_srvCpuHandle);
-	commandList->SetGraphicsRootDescriptorTable(_textureType + 3, gpuHandle);
+	commandList->SetGraphicsRootDescriptorTable(_textureType + 4, gpuHandle);
 }

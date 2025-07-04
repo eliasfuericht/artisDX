@@ -6,6 +6,16 @@ Texture2D emissiveTexture           : register(t3);
 Texture2D occlusionTexture          : register(t4);
 SamplerState mySampler              : register(s0);
 
+cbuffer cameraPosBuffer : register(b2)
+{
+    float3 c_camPos : packoffset(c0);
+};
+
+cbuffer directLightBuffer : register(b3)
+{
+    float3 c_dLightDirection : packoffset(c0);
+};
+
 struct SPIRV_Cross_Input
 {
     float4 position : SV_Position;
@@ -19,7 +29,6 @@ struct SPIRV_Cross_Output
     float4 outFragColor : SV_Target0;
 };
 
-static const float3 lightDir = normalize(float3(-0.5, -1.0, -0.3));
 static const float3 lightColor = float3(1.0, 1.0, 1.0);
 
 float3 getNormalFromMap(float2 uv, float3 normal, float4 tangent)
@@ -48,7 +57,7 @@ SPIRV_Cross_Output main(SPIRV_Cross_Input input)
     float3 normal = getNormalFromMap(input.inUV, input.inNormal, input.inTangent);
 
     // Diffuse Lambertian lighting
-    float NdotL = max(dot(normal, -lightDir), 0.0f); // -lightDir = direction *from* light
+    float NdotL = max(dot(normal, -c_dLightDirection), 0.0f); // -lightDir = direction *from* light
     float3 diffuse = texColor.rgb * (lightColor * NdotL);
 
     stage_output.outFragColor = float4(diffuse, texColor.a);
