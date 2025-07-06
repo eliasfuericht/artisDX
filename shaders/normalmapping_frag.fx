@@ -4,6 +4,7 @@ Texture2D metallicRoughnessTexture  : register(t1);
 Texture2D normalTexture             : register(t2);
 Texture2D emissiveTexture           : register(t3);
 Texture2D occlusionTexture          : register(t4);
+
 SamplerState mySampler              : register(s0);
 
 cbuffer cameraPosBuffer : register(b2)
@@ -11,15 +12,16 @@ cbuffer cameraPosBuffer : register(b2)
     float3 c_camPos : packoffset(c0);
 };
 
-cbuffer directLightBuffer : register(b3)
+cbuffer LightPosBuffer : register(b3)
 {
     float3 c_dLightPosition : packoffset(c0);
 };
 
 struct StageInput
 {
-    float4 position : SV_Position;
-    float2 inUV : TEXCOORD;
+    float4 inPosition : SV_Position;
+    float3 inWorldPos : TEXCOORD0;
+    float2 inUV : TEXCOORD1;
     float3 inNormal : NORMAL;
     float4 inTangent : TANGENT;
 };
@@ -31,37 +33,28 @@ struct StageOutput
 
 static const float3 lightColor = float3(1.0, 1.0, 1.0);
 
-float3 getNormalFromMap(float2 uv, float3 normal, float4 tangent)
-{
-    // Sample normal map in tangent space
-    float3 tangentNormal = normalTexture.Sample(mySampler, uv).xyz;
-
-    // Reconstruct tangent space basis
-    float3 T = normalize(tangent.xyz);
-    float3 N = normalize(normal);
-    float3 B = cross(N, T) * tangent.w;
-
-    // Transform tangent space normal to world space
-    float3x3 TBN = float3x3(T, B, N);
-    return normalize(mul(TBN, tangentNormal));
-}
-
 StageOutput main(StageInput stageInput)
 {
-    StageOutput stageOutput;
-
-    // Sample base color
+    StageOutput output;
+    
     float4 texColor = albedoTexture.Sample(mySampler, stageInput.inUV);
+    
+    float3 tangentNormal = normalTexture.Sample(mySampler, stageInput.inUV).rgb;
+    tangentNormal = normalize(tangentNormal * 2.0f - 1.0f);
+    
+    float3 N = normalize(stageInput.inNormal);
+    float3 T = normalize(stageInput.inTangent.xyz);
+    float3 B = normalize(cross(N, T) * stageInput.inTangent.w);
 
-    // Sample and decode normal map (Tangent space)
-    float3 normal = getNormalFromMap(stageInput.inUV, stageInput.inNormal, stageInput.inTangent);
-    normal = normalize(normal);
+    float3x3 TBN = float3x3(T, B, N);
+    
+    float3 worldNormal = normalize(mul(tangentNormal, TBN));
+    
+    float3 lightDir = normalize(c_dLightPosition - stageInput.inWorldPos);
+    float NdotL = max(dot(worldNormal, lightDir), 0.0);
 
-    // Diffuse Lambertian lighting
-    float NdotL = max(dot(normal, normalize(c_dLightPosition - stageInput.position.xyz)), 0.0f); // -lightDir = direction *from* light
-    float3 diffuse = texColor.rgb * (lightColor * NdotL);
+    float3 finalColor = texColor.rgb * lightColor * NdotL;
 
-    stageOutput.outFragColor = float4(diffuse, texColor.a);
-    //stageOutput.outFragColor = normalTexture.Sample(mySampler, stageInput.inUV);
-    return stageOutput;
+    output.outFragColor = float4(finalColor, texColor.a);
+    return output;
 }

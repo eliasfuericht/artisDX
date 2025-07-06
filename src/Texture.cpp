@@ -21,7 +21,7 @@ Texture::Texture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, Texture::
 		_image = std::move(converted);
 	}
 
-	// dont generate mipmaps for fallbacktextures
+	// dont generate mipmaps for fallbacktextures -> throws error
 	if (_image.GetMetadata().width > 1 && _image.GetMetadata().height > 1)
 	{
 		ScratchImage mipChain;
@@ -115,5 +115,5 @@ void Texture::BindTexture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 	commandList->SetDescriptorHeaps(1, heaps);
 
 	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = DescriptorAllocator::Instance().GetGPUHandle(_srvCpuHandle);
-	commandList->SetGraphicsRootDescriptorTable(_textureType + 4, gpuHandle);
+	commandList->SetGraphicsRootDescriptorTable(_textureType + 4, gpuHandle); // <- this is scuffed af
 }

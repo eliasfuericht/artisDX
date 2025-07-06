@@ -18,26 +18,28 @@ struct StageInput
 
 struct StageOutput
 {
-    float4 position : SV_Position;
-    float2 outUV : TEXCOORD;
+    float4 outPosition : SV_Position;
+    float3 outWorldPos : TEXCOORD0;
+    float2 outUV : TEXCOORD1;
     float3 outNormal : NORMAL;
     float4 outTangent : TANGENT;
 };
 
 StageOutput main(StageInput stageInput)
 {
-    StageOutput stageOutput;
-
+    StageOutput output;
+    
     float4 worldPos = mul(float4(stageInput.inPos, 1.0f), c_modelMatrix);
-    stageOutput.position = mul(worldPos, c_viewProjectionMatrix);
+    output.outWorldPos = worldPos.xyz;
+    
+    output.outPosition = mul(worldPos, c_viewProjectionMatrix);
+    
+    output.outNormal = normalize(mul(float4(stageInput.inNormal, 0.0f), c_modelMatrix).xyz);
+    
+    float3 tangentWorld = normalize(mul(float4(stageInput.inTangent.xyz, 0.0f), c_modelMatrix).xyz);
+    output.outTangent = float4(tangentWorld, stageInput.inTangent.w);
 
-    // Transform normal and tangent to world space
-    float3 worldNormal = mul(stageInput.inNormal, (float3x3) c_modelMatrix);
-    float3 worldTangent = mul(stageInput.inTangent.xyz, (float3x3) c_modelMatrix);
+    output.outUV = stageInput.inUV;
 
-    stageOutput.outNormal = normalize(worldNormal);
-    stageOutput.outTangent = float4(normalize(worldTangent), stageInput.inTangent.w);
-
-    stageOutput.outUV = stageInput.inUV;
-    return stageOutput;
+    return output;
 }

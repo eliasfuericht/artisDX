@@ -4,6 +4,7 @@ Texture2D metallicRoughnessTexture  : register(t1);
 Texture2D normalTexture             : register(t2);
 Texture2D emissiveTexture           : register(t3);
 Texture2D occlusionTexture          : register(t4);
+
 SamplerState mySampler              : register(s0);
 
 cbuffer cameraPosBuffer : register(b2)
@@ -11,15 +12,16 @@ cbuffer cameraPosBuffer : register(b2)
     float3 c_camPos : packoffset(c0);
 };
 
-cbuffer directLightBuffer : register(b3)
+cbuffer LightPosBuffer : register(b3)
 {
-    float3 c_dLightDirection : packoffset(c0);
+    float3 c_dLightPosition : packoffset(c0);
 };
 
 struct StageInput
 {
-    float4 position : SV_Position;
-    float2 inUV : TEXCOORD;
+    float4 inPosition : SV_Position;
+    float3 inWorldPos : TEXCOORD0;
+    float2 inUV : TEXCOORD1;
     float3 inNormal : NORMAL;
     float4 inTangent : TANGENT;
 };
@@ -29,7 +31,6 @@ struct StageOutput
     float4 outFragColor : SV_Target0;
 };
 
-// Constants for light
 static const float3 lightColor = float3(1.0, 1.0, 1.0);
 
 // Helper functions for PBR
@@ -70,28 +71,11 @@ float3 FresnelSchlick(float cosTheta, float3 F0)
     return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 }
 
-float3 getNormalFromMap(float2 uv, float3 normal, float4 tangent)
-{
-    // Sample normal map in tangent space
-    float3 tangentNormal = normalTexture.Sample(mySampler, uv).xyz * 2.0 - 1.0;
-
-    // Reconstruct tangent space basis
-    float3 T = normalize(tangent.xyz);
-    float3 N = normalize(normal);
-    float3 B = cross(N, T) * tangent.w;
-
-    // Transform tangent space normal to world space
-    float3x3 TBN = float3x3(T, B, N);
-    return normalize(mul(TBN, tangentNormal));
-}
-
 StageOutput main(StageInput stageInput)
 {
     StageOutput stageOutput;
     
-    // Sample textures
-    float3 albedo = pow(albedoTexture.Sample(mySampler, stageInput.inUV).rgb, 2.2); // Gamma to linear
-    float3 normal = getNormalFromMap(stageInput.inUV, stageInput.inNormal, stageInput.inTangent);
+    float3 albedo = pow(albedoTexture.Sample(mySampler, stageInput.inUV).rgb, 2.2);
 
     float4 mr = metallicRoughnessTexture.Sample(mySampler, stageInput.inUV);
     float metallic = mr.b; // Assume metallic stored in blue channel
@@ -99,42 +83,53 @@ StageOutput main(StageInput stageInput)
 
     float3 emissive = emissiveTexture.Sample(mySampler, stageInput.inUV).rgb;
     float ao = occlusionTexture.Sample(mySampler, stageInput.inUV).r;
+    
+    // Decode tangent-space normal from normal map
+    float3 tangentNormal = normalTexture.Sample(mySampler, stageInput.inUV).rgb;
+    tangentNormal = normalize(tangentNormal * 2.0f - 1.0f); // [-1,1] range
+
+    // Prepare TBN matrix
+    float3 N = normalize(stageInput.inNormal);
+    float3 T = normalize(stageInput.inTangent.xyz);
+    float3 B = normalize(cross(N, T) * stageInput.inTangent.w); // bitangent from cross product and handedness
+
+    float3x3 TBN = float3x3(T, B, N);
+
+    // Transform from tangent space to world space
+    float3 worldNormal = normalize(mul(tangentNormal, TBN));
+
+    // Lighting (simple Lambert diffuse for demonstration)
+    float3 lightDir = normalize(c_dLightPosition - stageInput.inWorldPos);
+    float NdotL = max(dot(worldNormal, lightDir), 0.0);
 
     // Camera and lighting vectors
-    float3 N = normal;
-    float3 V = normalize(c_camPos - stageInput.position.xyz); // View vector
-    // one light but looks like two
-    float3 L = normalize(stageInput.position.xyz - c_dLightDirection); // Light vector, inverse because directional light points TO surface
-    float3 H = normalize(V + L); // Halfway vector
+    float3 viewDir = normalize(c_camPos - stageInput.inWorldPos); // View vector
+    float3 H = normalize(viewDir + lightDir); // Halfway vector
 
     // Calculate reflectance at normal incidence; if metallic use albedo else use dielectric F0
     float3 F0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);
 
     // Cook-Torrance BRDF
-    float NDF = DistributionGGX(N, H, roughness);
-    float G = GeometrySmith(N, V, L, roughness);
-    float3 F = FresnelSchlick(max(dot(H, V), 0.0), F0);
+    float NDF = DistributionGGX(worldNormal, H, roughness);
+    float G = GeometrySmith(worldNormal, viewDir, lightDir, roughness);
+    float3 F = FresnelSchlick(max(dot(H, viewDir), 0.0), F0);
 
     float3 numerator = NDF * G * F;
-    float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.001;
+    float denominator = 4.0 * max(dot(worldNormal, viewDir), 0.0) * max(dot(worldNormal, lightDir), 0.0) + 0.001;
     float3 specular = numerator / denominator;
 
     // kS is specular reflectance, kD is diffuse component
     float3 kS = F;
     float3 kD = 1.0 - kS;
     kD *= 1.0 - metallic;
-
-    float NdotL = max(dot(N, L), 0.0);
-
-    // Lambert diffuse
+    
     float3 diffuse = kD * albedo / 3.14159265;
-
-    // Final color
+    
     float3 ambient = float3(0.03, 0.03, 0.03) * albedo * ao;
 
     float3 color = ambient + (diffuse + specular) * lightColor * NdotL + emissive;
-
-    // Gamma correction
+    
+    // gammacorrection
     color = pow(color, 1.0 / 2.2);
 
     stageOutput.outFragColor = float4(color, 1.0);
