@@ -147,13 +147,13 @@ void Application::InitResources()
 		cbvRangeCameraPos.OffsetInDescriptorsFromTableStart = 0;
 		cbvRangeCameraPos.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
 		
-		D3D12_DESCRIPTOR_RANGE1 cbvRangeDirectLight = {};
-		cbvRangeDirectLight.BaseShaderRegister = 3; // b3
-		cbvRangeDirectLight.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-		cbvRangeDirectLight.NumDescriptors = 1;
-		cbvRangeDirectLight.RegisterSpace = 0;
-		cbvRangeDirectLight.OffsetInDescriptorsFromTableStart = 0;
-		cbvRangeDirectLight.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
+		D3D12_DESCRIPTOR_RANGE1 cbvRangePointLight = {};
+		cbvRangePointLight.BaseShaderRegister = 3; // b3
+		cbvRangePointLight.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+		cbvRangePointLight.NumDescriptors = 1;
+		cbvRangePointLight.RegisterSpace = 0;
+		cbvRangePointLight.OffsetInDescriptorsFromTableStart = 0;
+		cbvRangePointLight.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
 
 		D3D12_DESCRIPTOR_RANGE1 srvRanges[5] = {};
 
@@ -186,11 +186,11 @@ void Application::InitResources()
 		rootParameters[2].DescriptorTable.NumDescriptorRanges = 1;
 		rootParameters[2].DescriptorTable.pDescriptorRanges = &cbvRangeCameraPos;
 		
-		// DirectLight Buffer
+		// PointLight Buffer
 		rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 		rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 		rootParameters[3].DescriptorTable.NumDescriptorRanges = 1;
-		rootParameters[3].DescriptorTable.pDescriptorRanges = &cbvRangeDirectLight;
+		rootParameters[3].DescriptorTable.pDescriptorRanges = &cbvRangePointLight;
 
 		// textures ugly asf need to rethink
 		for (int i = 0; i < 5; ++i) {
@@ -278,8 +278,8 @@ void Application::InitResources()
 
 #endif
 
-		_dLight = std::make_shared<Light>(1.0f, 1.0f, 1.0f);
-		_dLight->RegisterWithGUI();
+		_pLight = std::make_shared<PointLight>(1.0f, 1.0f, 1.0f);
+		_pLight->RegisterWithGUI();
 
 		// Constant buffers
 		{
@@ -410,7 +410,25 @@ void Application::InitResources()
 		psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 		psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
 		psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
-		psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+
+		D3D12_RENDER_TARGET_BLEND_DESC transparencyBlendDesc = {};
+		transparencyBlendDesc.BlendEnable = true;
+		transparencyBlendDesc.LogicOpEnable = false;
+		transparencyBlendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+		transparencyBlendDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+		transparencyBlendDesc.BlendOp = D3D12_BLEND_OP_ADD;
+		transparencyBlendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
+		transparencyBlendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
+		transparencyBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+		transparencyBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
+		transparencyBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+		D3D12_BLEND_DESC blendDesc = {};
+		blendDesc.AlphaToCoverageEnable = FALSE;
+		blendDesc.IndependentBlendEnable = FALSE;
+		blendDesc.RenderTarget[0] = transparencyBlendDesc;
+
+		psoDesc.BlendState = blendDesc;
 		psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 		psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 		psoDesc.SampleMask = UINT_MAX;
@@ -436,9 +454,10 @@ void Application::InitResources()
 	_modelManager = ModelManager(_commandList);
 
 	//_modelManager.LoadModel("../assets/helmet.glb");
-	_modelManager.LoadModel("../assets/sponza.glb");
+	//_modelManager.LoadModel("../assets/sponza.glb");
 	//_modelManager.LoadModel("../assets/brick_wall.glb");
 	//_modelManager.LoadModel("../assets/DamagedHelmet.glb");
+	_modelManager.LoadModel("../assets/apollo.glb");
 
 	// upload all textures from models
 	ThrowIfFailed(_commandList->Close());
@@ -467,7 +486,7 @@ void Application::SetCommandList()
 
 	_commandList->SetGraphicsRootDescriptorTable(0, DescriptorAllocator::Instance().GetGPUHandle(_VPBufferDescriptor));
 	_commandList->SetGraphicsRootDescriptorTable(2, DescriptorAllocator::Instance().GetGPUHandle(_camPosBufferDescriptor));
-	_commandList->SetGraphicsRootDescriptorTable(3, DescriptorAllocator::Instance().GetGPUHandle(_dLight->_cbvdLightCPUHandle));
+	_commandList->SetGraphicsRootDescriptorTable(3, DescriptorAllocator::Instance().GetGPUHandle(_pLight->_cbvpLightCPUHandle));
 
 	// Transition the back buffer from present to render target state.
 	D3D12_RESOURCE_BARRIER renderTargetBarrier = {};
@@ -595,7 +614,7 @@ void Application::UpdateConstantBuffers()
 
 	memcpy(_mappedCamPosBuffer, &camPos, sizeof(XMFLOAT3));
 
-	_dLight->UpdateBuffer();
+	_pLight->UpdateBuffer();
 
 	XMStoreFloat4x4(&_viewProjectionMatrix, XMMatrixMultiply(XMLoadFloat4x4(&_viewMatrix), XMLoadFloat4x4(&_projectionMatrix)));
 

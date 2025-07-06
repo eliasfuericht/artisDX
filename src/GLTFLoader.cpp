@@ -60,6 +60,8 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 	{
 		Material material;
 
+		material._alphaMode = gltfMaterial.alphaMode;
+
 		// 1. BaseColor (Albedo)
 		material._baseColorTextureIndex = textureIndexIncrementor++;
 		if (gltfMaterial.pbrData.baseColorTexture.has_value()) 

@@ -4,6 +4,7 @@
 
 struct Material 
 {
+
 	Material() {};
 
 	std::string _name;
@@ -17,4 +18,8 @@ struct Material
 	XMFLOAT4 _baseColorFactor = { 1.0f, 1.0f, 1.0f, 1.0f };
 	FLOAT _metallicFactor = 1.0f;
 	FLOAT _roughnessFactor = 1.0f;
+
+	BOOL _isTransparent = false;
+
+	fastgltf::AlphaMode _alphaMode;
 };

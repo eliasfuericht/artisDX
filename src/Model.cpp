@@ -24,6 +24,8 @@ void Model::DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 		memcpy(node._mappedCBVModelMatrixPtr, &node._globalMatrix, sizeof(XMFLOAT4X4));
 		commandList->SetGraphicsRootDescriptorTable(1, node._cbvModelMatrixGpuHandle);
 
+		std::vector<Primitive> transparentPrimitives;
+
 		for (Primitive& primitive : mesh._primitives)
 		{
 			Material& material = _materials[primitive._materialIndex];

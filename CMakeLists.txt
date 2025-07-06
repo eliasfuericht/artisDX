@@ -27,7 +27,7 @@ set(ARTISDX_HEADERS
     include/Swapchain.h
     include/Texture.h
     include/Window.h
-    include/Light.h
+    include/PointLight.h
     include/ModelNode.h
 )
 
@@ -49,7 +49,7 @@ set(ARTISDX_SOURCES
     src/Swapchain.cpp
     src/Texture.cpp
     src/Window.cpp
-    src/Light.cpp
+    src/PointLight.cpp
     src/ModelNode.cpp
     src/IGUIComponent.cpp
 )

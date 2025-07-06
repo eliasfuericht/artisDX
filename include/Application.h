@@ -9,7 +9,7 @@
 #include "Camera.h"
 #include "ModelManager.h"
 #include "DescriptorAllocator.h"
-#include "Light.h"
+#include "PointLight.h"
 
 class Application
 {
@@ -31,7 +31,7 @@ private:
 
 	void UpdateFPS();
 
-	std::shared_ptr<Light> _dLight;
+	std::shared_ptr<PointLight> _pLight;
 
 	Window _window;
 	std::shared_ptr<Camera> _camera;
