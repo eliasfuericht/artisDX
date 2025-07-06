@@ -8,7 +8,7 @@ cbuffer modelMatrixBuffer : register(b1)
     row_major float4x4 c_modelMatrix : packoffset(c0);
 };
 
-struct SPIRV_Cross_Input
+struct StageInput
 {
     float3 inPos : POSITION;
     float3 inNormal : NORMAL;
@@ -16,7 +16,7 @@ struct SPIRV_Cross_Input
     float2 inUV : TEXCOORD;
 };
 
-struct SPIRV_Cross_Output
+struct StageOutput
 {
     float4 position : SV_Position;
     float2 outUV : TEXCOORD;
@@ -24,20 +24,20 @@ struct SPIRV_Cross_Output
     float4 outTangent : TANGENT;
 };
 
-SPIRV_Cross_Output main(SPIRV_Cross_Input stage_input)
+StageOutput main(StageInput stageInput)
 {
-    SPIRV_Cross_Output stage_output;
+    StageOutput stageOutput;
 
-    float4 worldPos = mul(float4(stage_input.inPos, 1.0f), c_modelMatrix);
-    stage_output.position = mul(worldPos, c_viewProjectionMatrix);
+    float4 worldPos = mul(float4(stageInput.inPos, 1.0f), c_modelMatrix);
+    stageOutput.position = mul(worldPos, c_viewProjectionMatrix);
 
     // Transform normal and tangent to world space
-    float3 worldNormal = mul(stage_input.inNormal, (float3x3) c_modelMatrix);
-    float3 worldTangent = mul(stage_input.inTangent.xyz, (float3x3) c_modelMatrix);
+    float3 worldNormal = mul(stageInput.inNormal, (float3x3) c_modelMatrix);
+    float3 worldTangent = mul(stageInput.inTangent.xyz, (float3x3) c_modelMatrix);
 
-    stage_output.outNormal = normalize(worldNormal);
-    stage_output.outTangent = float4(normalize(worldTangent), stage_input.inTangent.w);
+    stageOutput.outNormal = normalize(worldNormal);
+    stageOutput.outTangent = float4(normalize(worldTangent), stageInput.inTangent.w);
 
-    stage_output.outUV = stage_input.inUV;
-    return stage_output;
+    stageOutput.outUV = stageInput.inUV;
+    return stageOutput;
 }

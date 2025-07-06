@@ -16,7 +16,7 @@ cbuffer directLightBuffer : register(b3)
     float3 c_dLightDirection : packoffset(c0);
 };
 
-struct SPIRV_Cross_Input
+struct StageInput
 {
     float4 position : SV_Position;
     float2 inUV : TEXCOORD;
@@ -24,7 +24,7 @@ struct SPIRV_Cross_Input
     float4 inTangent : TANGENT;
 };
 
-struct SPIRV_Cross_Output
+struct StageOutput
 {
     float4 outFragColor : SV_Target0;
 };
@@ -85,25 +85,26 @@ float3 getNormalFromMap(float2 uv, float3 normal, float4 tangent)
     return normalize(mul(TBN, tangentNormal));
 }
 
-SPIRV_Cross_Output main(SPIRV_Cross_Input input)
+StageOutput main(StageInput stageInput)
 {
-    SPIRV_Cross_Output stage_output;
+    StageOutput stageOutput;
     
     // Sample textures
-    float3 albedo = pow(albedoTexture.Sample(mySampler, input.inUV).rgb, 2.2); // Gamma to linear
-    float3 normal = getNormalFromMap(input.inUV, input.inNormal, input.inTangent);
+    float3 albedo = pow(albedoTexture.Sample(mySampler, stageInput.inUV).rgb, 2.2); // Gamma to linear
+    float3 normal = getNormalFromMap(stageInput.inUV, stageInput.inNormal, stageInput.inTangent);
 
-    float4 mr = metallicRoughnessTexture.Sample(mySampler, input.inUV);
+    float4 mr = metallicRoughnessTexture.Sample(mySampler, stageInput.inUV);
     float metallic = mr.b; // Assume metallic stored in blue channel
     float roughness = mr.g; // Assume roughness stored in green channel
 
-    float3 emissive = emissiveTexture.Sample(mySampler, input.inUV).rgb;
-    float ao = occlusionTexture.Sample(mySampler, input.inUV).r;
+    float3 emissive = emissiveTexture.Sample(mySampler, stageInput.inUV).rgb;
+    float ao = occlusionTexture.Sample(mySampler, stageInput.inUV).r;
 
     // Camera and lighting vectors
     float3 N = normal;
-    float3 V = normalize(c_camPos - input.position.xyz); // View vector
-    float3 L = normalize(-c_dLightDirection); // Light vector, inverse because directional light points TO surface
+    float3 V = normalize(c_camPos - stageInput.position.xyz); // View vector
+    // one light but looks like two
+    float3 L = normalize(stageInput.position.xyz - c_dLightDirection); // Light vector, inverse because directional light points TO surface
     float3 H = normalize(V + L); // Halfway vector
 
     // Calculate reflectance at normal incidence; if metallic use albedo else use dielectric F0
@@ -136,6 +137,6 @@ SPIRV_Cross_Output main(SPIRV_Cross_Input input)
     // Gamma correction
     color = pow(color, 1.0 / 2.2);
 
-    stage_output.outFragColor = float4(color, 1.0);
-    return stage_output;
+    stageOutput.outFragColor = float4(color, 1.0);
+    return stageOutput;
 }

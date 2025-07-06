@@ -7,7 +7,7 @@ Texture2D occlusionTexture          : register(t4);
 
 SamplerState mySampler              : register(s0);
 
-struct SPIRV_Cross_Input
+struct StageInput
 {
     float4 position : SV_Position;
     float2 inUV : TEXCOORD;
@@ -15,16 +15,16 @@ struct SPIRV_Cross_Input
     float4 inTangent : TANGENT;
 };
 
-struct SPIRV_Cross_Output
+struct StageOutput
 {
     float4 outFragColor : SV_Target0;
 };
 
-SPIRV_Cross_Output main(SPIRV_Cross_Input input)
+StageOutput main(StageInput stageInput)
 {
-    SPIRV_Cross_Output stage_output;
+    StageOutput stageOutput;
     
-    stage_output.outFragColor = albedoTexture.Sample(mySampler, input.inUV);
+    stageOutput.outFragColor = albedoTexture.Sample(mySampler, stageInput.inUV);
     
-    return stage_output;
+    return stageOutput;
 }

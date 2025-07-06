@@ -13,10 +13,10 @@ cbuffer cameraPosBuffer : register(b2)
 
 cbuffer directLightBuffer : register(b3)
 {
-    float3 c_dLightDirection : packoffset(c0);
+    float3 c_dLightPosition : packoffset(c0);
 };
 
-struct SPIRV_Cross_Input
+struct StageInput
 {
     float4 position : SV_Position;
     float2 inUV : TEXCOORD;
@@ -24,7 +24,7 @@ struct SPIRV_Cross_Input
     float4 inTangent : TANGENT;
 };
 
-struct SPIRV_Cross_Output
+struct StageOutput
 {
     float4 outFragColor : SV_Target0;
 };
@@ -34,7 +34,7 @@ static const float3 lightColor = float3(1.0, 1.0, 1.0);
 float3 getNormalFromMap(float2 uv, float3 normal, float4 tangent)
 {
     // Sample normal map in tangent space
-    float3 tangentNormal = normalTexture.Sample(mySampler, uv).xyz * 2.0 - 1.0;
+    float3 tangentNormal = normalTexture.Sample(mySampler, uv).xyz;
 
     // Reconstruct tangent space basis
     float3 T = normalize(tangent.xyz);
@@ -46,20 +46,22 @@ float3 getNormalFromMap(float2 uv, float3 normal, float4 tangent)
     return normalize(mul(TBN, tangentNormal));
 }
 
-SPIRV_Cross_Output main(SPIRV_Cross_Input input)
+StageOutput main(StageInput stageInput)
 {
-    SPIRV_Cross_Output stage_output;
+    StageOutput stageOutput;
 
     // Sample base color
-    float4 texColor = albedoTexture.Sample(mySampler, input.inUV);
+    float4 texColor = albedoTexture.Sample(mySampler, stageInput.inUV);
 
     // Sample and decode normal map (Tangent space)
-    float3 normal = getNormalFromMap(input.inUV, input.inNormal, input.inTangent);
+    float3 normal = getNormalFromMap(stageInput.inUV, stageInput.inNormal, stageInput.inTangent);
+    normal = normalize(normal);
 
     // Diffuse Lambertian lighting
-    float NdotL = max(dot(normal, -c_dLightDirection), 0.0f); // -lightDir = direction *from* light
+    float NdotL = max(dot(normal, normalize(c_dLightPosition - stageInput.position.xyz)), 0.0f); // -lightDir = direction *from* light
     float3 diffuse = texColor.rgb * (lightColor * NdotL);
 
-    stage_output.outFragColor = float4(diffuse, texColor.a);
-    return stage_output;
+    stageOutput.outFragColor = float4(diffuse, texColor.a);
+    //stageOutput.outFragColor = normalTexture.Sample(mySampler, stageInput.inUV);
+    return stageOutput;
 }
