@@ -9,26 +9,26 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(APPLICATION_NAME "artisDX")
 
 set(ARTISDX_HEADERS 
-    include/pch.h
-    include/AABB.h
-    include/Application.h
-    include/Camera.h
-    include/CommandQueue.h
-    include/DescriptorAllocator.h
-    include/GLTFLoader.h
-    include/GraphicsDevice.h
-    include/GUI.h
-    include/IGUIComponent.h
-    include/Material.h
-    include/Primitive.h
-    include/Mesh.h
-    include/Model.h
-    include/ModelManager.h
-    include/Swapchain.h
-    include/Texture.h
-    include/Window.h
-    include/PointLight.h
-    include/ModelNode.h
+    src/pch.h
+    src/AABB.h
+    src/Application.h
+    src/Camera.h
+    src/CommandQueue.h
+    src/DescriptorAllocator.h
+    src/GLTFLoader.h
+    src/GraphicsDevice.h
+    src/GUI.h
+    src/IGUIComponent.h
+    src/Material.h
+    src/Primitive.h
+    src/Mesh.h
+    src/Model.h
+    src/ModelManager.h
+    src/Swapchain.h
+    src/Texture.h
+    src/Window.h
+    src/PointLight.h
+    src/ModelNode.h
 )
 
 set(ARTISDX_SOURCES 
@@ -56,7 +56,7 @@ set(ARTISDX_SOURCES
 
 add_executable(${APPLICATION_NAME} ${ARTISDX_SOURCES} ${ARTISDX_HEADERS})
 
-target_precompile_headers(${APPLICATION_NAME} PRIVATE include/pch.h)
+target_precompile_headers(${APPLICATION_NAME} PRIVATE src/pch.h)
 
 message(STATUS "Configuring external libraries...")
 
@@ -98,7 +98,7 @@ source_group(TREE "${CMAKE_SOURCE_DIR}/shaders" PREFIX "shaders" FILES ${ARTISDX
 
 # Create filters
 source_group(TREE "${CMAKE_SOURCE_DIR}/src" PREFIX "src" FILES ${ARTISDX_SOURCES})
-source_group(TREE "${CMAKE_SOURCE_DIR}/include" PREFIX "include" FILES ${ARTISDX_HEADERS})
+source_group(TREE "${CMAKE_SOURCE_DIR}/src" PREFIX "include" FILES ${ARTISDX_HEADERS})
 
 # hidding pch filters
 source_group("precompiled" FILES
