@@ -29,6 +29,23 @@ void Model::DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 		for (Primitive& primitive : mesh._primitives)
 		{
 			Material& material = _materials[primitive._materialIndex];
+			if (material._alphaMode == fastgltf::AlphaMode::Blend || material._alphaMode == fastgltf::AlphaMode::Mask)
+			{
+				transparentPrimitives.push_back(primitive);
+				continue;
+			}
+
+			material._baseColorTextureIndex != NOTOK ? _textures[material._baseColorTextureIndex].BindTexture(commandList) : PRINT("baseColorTextureIndex NOTOK");
+			material._metallicRoughnessTextureIndex != NOTOK ? _textures[material._metallicRoughnessTextureIndex].BindTexture(commandList) : PRINT("metallicRoughnessTextureIndex NOTOK");
+			material._normalTextureIndex != NOTOK ? _textures[material._normalTextureIndex].BindTexture(commandList) : PRINT("normalTextureIndex NOTOK");
+			material._emissiveTextureIndex != NOTOK ? _textures[material._emissiveTextureIndex].BindTexture(commandList) : PRINT("emissiveTextureIndex NOTOK");
+			material._occlusionTextureIndex != NOTOK ? _textures[material._occlusionTextureIndex].BindTexture(commandList) : PRINT("occlusionTextureIndex NOTOK");
+			primitive.BindPrimitiveData(commandList);
+		}
+
+		for (Primitive& primitive : transparentPrimitives)
+		{
+			Material& material = _materials[primitive._materialIndex];
 
 			material._baseColorTextureIndex != NOTOK ? _textures[material._baseColorTextureIndex].BindTexture(commandList) : PRINT("baseColorTextureIndex NOTOK");
 			material._metallicRoughnessTextureIndex != NOTOK ? _textures[material._metallicRoughnessTextureIndex].BindTexture(commandList) : PRINT("metallicRoughnessTextureIndex NOTOK");

@@ -75,7 +75,8 @@ StageOutput main(StageInput stageInput)
 {
     StageOutput stageOutput;
     
-    float3 albedo = pow(albedoTexture.Sample(mySampler, stageInput.inUV).rgb, 2.2);
+    float4 albedoalpha = pow(albedoTexture.Sample(mySampler, stageInput.inUV), 2.2);
+    float3 albedo = albedoalpha.rgb;
 
     float4 mr = metallicRoughnessTexture.Sample(mySampler, stageInput.inUV);
     float metallic = mr.b; // Assume metallic stored in blue channel
@@ -132,6 +133,6 @@ StageOutput main(StageInput stageInput)
     // gammacorrection
     color = pow(color, 1.0 / 2.2);
 
-    stageOutput.outFragColor = float4(color, 1.0);
+    stageOutput.outFragColor = float4(color, albedoalpha.a);
     return stageOutput;
 }
