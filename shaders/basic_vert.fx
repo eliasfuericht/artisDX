@@ -12,16 +12,15 @@ struct StageInput
 {
     float3 inPos : POSITION;
     float3 inNormal : NORMAL;
-    float4 inTangent : TANGENT;
     float2 inUV : TEXCOORD;
+    float4 inTangent : TANGENT;
+    float3 inBiTangent : BITANGENT;
 };
 
 struct StageOutput
 {
     float4 position : SV_Position;
     float2 outUV : TEXCOORD;
-    float3 outNormal : NORMAL;
-    float4 outTangent : TANGENT;
 };
 
 StageOutput main(StageInput stageInput)
@@ -30,12 +29,6 @@ StageOutput main(StageInput stageInput)
 
     float4 worldPos = mul(float4(stageInput.inPos, 1.0f), c_modelMatrix);
     stageOutput.position = mul(worldPos, c_viewProjectionMatrix);
-    
-    float3 worldNormal = mul(stageInput.inNormal, (float3x3) c_modelMatrix);
-    float3 worldTangent = mul(stageInput.inTangent.xyz, (float3x3) c_modelMatrix);
-
-    stageOutput.outNormal = normalize(worldNormal);
-    stageOutput.outTangent = float4(normalize(worldTangent), stageInput.inTangent.w);
 
     stageOutput.outUV = stageInput.inUV;
     return stageOutput;

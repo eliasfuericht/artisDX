@@ -12,8 +12,9 @@ struct StageInput
 {
     float3 inPos : POSITION;
     float3 inNormal : NORMAL;
-    float4 inTangent : TANGENT;
     float2 inUV : TEXCOORD;
+    float4 inTangent : TANGENT;
+    float3 inBiTangent : BITANGENT;
 };
 
 struct StageOutput
@@ -23,6 +24,7 @@ struct StageOutput
     float2 outUV : TEXCOORD1;
     float3 outNormal : NORMAL;
     float4 outTangent : TANGENT;
+    float3 outBiTangent : BITANGENT;
 };
 
 StageOutput main(StageInput stageInput)
@@ -38,6 +40,8 @@ StageOutput main(StageInput stageInput)
     
     float3 tangentWorld = normalize(mul(float4(stageInput.inTangent.xyz, 0.0f), c_modelMatrix).xyz);
     output.outTangent = float4(tangentWorld, stageInput.inTangent.w);
+    
+    output.outBiTangent = normalize(mul(float4(stageInput.inBiTangent.xyz, 0.0f), c_modelMatrix).xyz);
 
     output.outUV = stageInput.inUV;
 

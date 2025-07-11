@@ -1,9 +1,6 @@
 // Texture and sampler bound from root signature
 Texture2D albedoTexture             : register(t0);
-Texture2D metallicRoughnessTexture  : register(t1);
 Texture2D normalTexture             : register(t2);
-Texture2D emissiveTexture           : register(t3);
-Texture2D occlusionTexture          : register(t4);
 
 SamplerState mySampler              : register(s0);
 
@@ -24,6 +21,7 @@ struct StageInput
     float2 inUV : TEXCOORD1;
     float3 inNormal : NORMAL;
     float4 inTangent : TANGENT;
+    float3 inBiTangent : BITANGENT;
 };
 
 struct StageOutput
@@ -44,7 +42,7 @@ StageOutput main(StageInput stageInput)
     
     float3 N = normalize(stageInput.inNormal);
     float3 T = normalize(stageInput.inTangent.xyz);
-    float3 B = normalize(cross(N, T) * stageInput.inTangent.w);
+    float3 B = normalize(stageInput.inBiTangent);
 
     float3x3 TBN = float3x3(T, B, N);
     

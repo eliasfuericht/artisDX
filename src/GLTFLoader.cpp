@@ -45,6 +45,8 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 			if (generateTangents)
 				GenerateTangents(vertices, indices);
 
+			GenerateBiTangents(vertices, indices);
+
 			INT materialIndex = primitive.materialIndex.value();
 			primitives.emplace_back(Primitive(vertices, indices, materialIndex));
 		}
@@ -402,5 +404,19 @@ void GLTFLoader::GenerateTangents(std::vector<Vertex>& vertices, const std::vect
 		XMFLOAT3 tangent;
 		XMStoreFloat3(&tangent, T);
 		vertices[i].tangent = XMFLOAT4(tangent.x, tangent.y, tangent.z, handedness);
+	}
+}
+
+void GLTFLoader::GenerateBiTangents(std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices)
+{
+	for (size_t i = 0; i < vertices.size(); ++i) {
+		XMVECTOR N = XMLoadFloat3(&vertices[i].normal);
+		XMVECTOR T = { vertices[i].tangent.x, vertices[i].tangent.y, vertices[i].tangent.z, 0.0f };
+
+		XMVECTOR B = XMVector3Normalize(XMVector3Cross(N, T) * vertices[i].tangent.w);
+
+		XMFLOAT3 biTangent;
+		XMStoreFloat3(&biTangent, B);
+		vertices[i].bitangent = XMFLOAT3(biTangent.x, biTangent.y, biTangent.z);
 	}
 }

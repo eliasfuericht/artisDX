@@ -13,6 +13,7 @@ private:
 	static void ExtractIndices(const fastgltf::Asset& asset, const fastgltf::Primitive& primitive, std::vector<uint32_t>& indices);
 	static void ExtractVertices(const fastgltf::Asset& asset, const fastgltf::Primitive& primitive, std::vector<Vertex>& vertices, bool& generateTangents);
 	static void GenerateTangents(std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
+	static void GenerateBiTangents(std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
 
 	static ScratchImage ExtractImageFromBuffer(const fastgltf::Asset& asset, const fastgltf::Image& assetImage);
 
