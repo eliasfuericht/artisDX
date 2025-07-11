@@ -8,19 +8,19 @@ LRESULT CALLBACK WindowProcess(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 		return true;
 
 	switch (msg) {
-	case WM_SIZE:
-	{
-		UINT newWidth = LOWORD(lParam);
-		UINT newHeight = HIWORD(lParam);
-
-		if (windowInstance && wParam != SIZE_MINIMIZED) 
+		case WM_SIZE:
 		{
-			D3D12Core::Swapchain::Resize(newWidth, newHeight);
-			windowInstance->SetWidth(newWidth);
-			windowInstance->SetHeight(newHeight);
+			UINT newWidth = LOWORD(lParam);
+			UINT newHeight = HIWORD(lParam);
+
+			if (windowInstance && wParam != SIZE_MINIMIZED) 
+			{
+				D3D12Core::Swapchain::Resize(newWidth, newHeight);
+				windowInstance->SetWidth(newWidth);
+				windowInstance->SetHeight(newHeight);
+			}
+			return 0;
 		}
-		return 0;
-	}
 		case WM_MOUSEMOVE:
 		{
 			if (!windowInstance->_captureMouse)
@@ -116,16 +116,33 @@ void Window::HandleMouse(FLOAT x, FLOAT y)
 	_yChange += y;
 }
 
-Window::Window(const CHAR* title, UINT w, UINT h)
-	: _windowTitle(title), _windowWidth(w), _windowHeight(h)
+Window::Window(const CHAR* title, UINT w, UINT h, bool fullscreen) 
 {
+	if (fullscreen)
+	{
+		_windowWidth = GetSystemMetrics(SM_CXSCREEN);
+		_windowHeight = GetSystemMetrics(SM_CYSCREEN);
+		_windowMode = WS_POPUP;
+	}
+	else
+	{
+		_windowWidth = w;
+		_windowHeight = h;
+		_windowMode = WS_OVERLAPPEDWINDOW;
+	}
+
+	_windowTitle = title;
+
 	_captureMouse = true;
+
 	_xChange = 0.0f;
 	_yChange = 0.0f;
+	
 	for (INT i = 0; i < 1024; i++)
 	{
 		_keys[i] = 0;
 	}
+	
 	Create();
 }
 
@@ -147,7 +164,7 @@ void Window::Create()
 
 	RegisterClassEx(&_windowClassEx);
 
-	_hWindow = CreateWindow(windowClassName, _windowTitle, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0,
+	_hWindow = CreateWindow(windowClassName, _windowTitle, _windowMode, CW_USEDEFAULT, 0,
 		_windowWidth, _windowHeight, nullptr, nullptr, GetHInstance(), nullptr);
 
 	if (!_hWindow)

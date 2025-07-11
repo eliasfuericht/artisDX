@@ -14,7 +14,7 @@
 class Application
 {
 public:
-	Application(const CHAR* name, INT w, INT h);
+	Application(const CHAR* name, INT w, INT h, bool fullscreen);
 	void Run();
 	~Application();
 

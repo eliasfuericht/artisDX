@@ -1,11 +1,18 @@
 #include "Application.h"
 
-Application::Application(const CHAR* name, INT w, INT h)
-	: _window(name, w, h)
+Application::Application(const CHAR* name, INT w, INT h, bool fullscreen)
+	: _window(name, w, h, fullscreen)
 {
-
-	_width = w;
-	_height = h;
+	if (fullscreen)
+	{
+		_width = GetSystemMetrics(SM_CXSCREEN);
+		_height = GetSystemMetrics(SM_CYSCREEN);
+	}
+	else
+	{
+		_width = w;
+		_height = h;
+	}
 		
 	_commandAllocator = nullptr;
 	_commandList = nullptr;																														 
@@ -246,8 +253,8 @@ void Application::InitResources()
 
 #define COMPILESHADERS
 #ifdef COMPILESHADERS
-		std::wstring vertPath = wpath + L"shaders\\normal_vert.fx";
-		std::wstring fragPath = wpath + L"shaders\\normal_frag.fx";
+		std::wstring vertPath = wpath + L"shaders\\pbr_vert.fx";
+		std::wstring fragPath = wpath + L"shaders\\pbr_frag.fx";
 				
 		try
 		{

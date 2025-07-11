@@ -8,7 +8,7 @@
 class Window
 {
 public:
-	Window(const CHAR* title, UINT w, UINT h);
+	Window(const CHAR* title, UINT w, UINT h, bool fullscreen);
 
 	void Create();
 	void Show();
@@ -31,6 +31,7 @@ public:
 private:
 	WNDCLASSEX _windowClassEx;
 	const CHAR* _windowTitle;
+	ULONG _windowMode;
 	UINT _windowWidth;
 	UINT _windowHeight;
 	HWND _hWindow;
