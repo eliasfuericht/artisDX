@@ -29,9 +29,8 @@ MSWRL::ComPtr<ID3D12CommandQueue> D3D12Core::CommandQueue::GetCommandQueue()
 void D3D12Core::CommandQueue::WaitForFence()
 {
 	_fenceValue++;
+	_commandQueue->Signal(_fence.Get(), _fenceValue);
 	const UINT64 fence = _fenceValue;
-	ThrowIfFailed(_commandQueue->Signal(_fence.Get(), fence));
-	_fenceValue++;
 	if (_fence->GetCompletedValue() < fence)
 	{
 		ThrowIfFailed(_fence->SetEventOnCompletion(fence, _fenceEvent));

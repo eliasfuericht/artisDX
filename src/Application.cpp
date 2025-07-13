@@ -465,7 +465,12 @@ void Application::InitResources()
 
 	// upload all textures from models
 	ThrowIfFailed(_commandList->Close());
-	ExecuteCommandList();
+
+	// Execute the command list.
+	ID3D12CommandList* ppCommandLists[] = { _commandList.Get() };
+	D3D12Core::CommandQueue::GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+	D3D12Core::CommandQueue::GetCommandQueue()->Signal(D3D12Core::CommandQueue::_fence.Get(), D3D12Core::CommandQueue::_fenceValue);
 }
 
 void Application::InitGUI()
@@ -515,7 +520,7 @@ void Application::SetCommandList()
 
 	_modelManager.DrawAll();
 
-	// Transition back buffer to present state for the swap chain.
+	// Transition back buffer to present state for the swap chain (gets transitioned again in the GUI but I#ll leave it like this for now)
 	D3D12_RESOURCE_BARRIER presentBarrier = {};
 	presentBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	presentBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
@@ -553,6 +558,7 @@ void Application::Run()
 		if (!running)
 			break;
 
+		D3D12Core::CommandQueue::WaitForFence();
 		UpdateFPS();
 		UpdateConstantBuffers();
 		SetCommandList();
@@ -561,6 +567,7 @@ void Application::Run()
 		Present();
 	}
 
+	D3D12Core::CommandQueue::WaitForFence();
 	GUI::Shutdown();
 }
 
@@ -630,15 +637,11 @@ void Application::ExecuteCommandList()
 	// Execute the command list.
 	ID3D12CommandList* ppCommandLists[] = { _commandList.Get() };
 	D3D12Core::CommandQueue::GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-
-	D3D12Core::CommandQueue::WaitForFence();
 }
 
 void Application::Present()
 {
-	D3D12Core::Swapchain::_swapchain->Present(1, 0);
-
-	D3D12Core::CommandQueue::WaitForFence();
+	D3D12Core::Swapchain::_swapchain->Present(0, 0);
 
 	D3D12Core::Swapchain::_frameIndex = D3D12Core::Swapchain::_swapchain->GetCurrentBackBufferIndex();
 }
@@ -647,8 +650,6 @@ Application::~Application()
 {
 	CoUninitialize();
 	_window.Shutdown();
-	// Ensure GPU has finished executing commands before releasing resources
-	D3D12Core::CommandQueue::WaitForFence();
 
 	// Explicitly release all DX12 objects
 	_commandList.Reset();

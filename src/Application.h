@@ -26,7 +26,6 @@ private:
 	void UpdateConstantBuffers();
 	void SetCommandList();
 	void ExecuteCommandList();
-	void WaitForFence();
 	void Present();
 
 	void UpdateFPS();

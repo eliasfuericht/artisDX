@@ -14,7 +14,6 @@ namespace D3D12Core
 
 		static void WaitForFence();
 
-	private:
 		static MSWRL::ComPtr<ID3D12CommandQueue> _commandQueue;
 		static MSWRL::ComPtr<ID3D12Fence> _fence;
 
