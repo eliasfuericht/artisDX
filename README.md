@@ -1,10 +1,11 @@
-# artisDX
-[WIP] DirectX12 Renderer
+# artisDX - DirectX12 Renderer
+<img width="2559" height="1439" alt="project1img1" src="https://github.com/user-attachments/assets/0a2f0221-02ff-4fe4-8c36-aad8ac6a557f" />
 
 ## Current Features:
 - .glb Modelloading
 - Normal Mapping
 - Physically Based Rendering
+- others are coming...
 
 ## Clone
 ```git clone https://github.com/eliasfuericht/artisDX.git```
