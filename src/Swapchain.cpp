@@ -21,7 +21,7 @@ MSWRL::ComPtr<ID3D12DescriptorHeap> D3D12Core::Swapchain::_dsvHeap;
 
 BOOL D3D12Core::Swapchain::_windowResized = false;
 
-void D3D12Core::Swapchain::Init(INT width, INT height, HWND hwnd)
+void D3D12Core::Swapchain::InitializeSwapchain(INT width, INT height, HWND hwnd)
 {
 	_width = width;
 	_height = height;
@@ -46,7 +46,7 @@ void D3D12Core::Swapchain::Init(INT width, INT height, HWND hwnd)
 	swapchainDesc.SampleDesc.Count = 1;
 
 	MSWRL::ComPtr<IDXGISwapChain1> swapchain;
-	ThrowIfFailed(D3D12Core::GraphicsDevice::GetFactory()->CreateSwapChainForHwnd(D3D12Core::CommandQueue::GetCommandQueue().Get(), hwnd, &swapchainDesc, nullptr, nullptr, &swapchain), "Failed to create swapchain");
+	ThrowIfFailed(D3D12Core::GraphicsDevice::GetFactory()->CreateSwapChainForHwnd(D3D12Core::CommandQueue::_commandQueue.Get(), hwnd, &swapchainDesc, nullptr, nullptr, &swapchain), "Failed to create swapchain");
 
 	MSWRL::ComPtr<IDXGISwapChain3> swapchain3;
 	ThrowIfFailed(swapchain->QueryInterface(__uuidof(IDXGISwapChain3), (void**)&swapchain3), "QueryInterface for swapchain failed.");

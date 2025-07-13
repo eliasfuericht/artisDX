@@ -1,13 +1,14 @@
 #pragma once
 
 #include "pch.h"
+#include "GraphicsDevice.h"
 
 class DescriptorAllocator
 {
 public:
 	static DescriptorAllocator& Instance();
 
-	void Initialize(ID3D12Device* device, UINT numDescriptors);
+	void Initialize(UINT numDescriptors);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE Allocate();
 	D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle) const;

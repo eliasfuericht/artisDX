@@ -35,85 +35,34 @@ Application::Application(const CHAR* name, INT w, INT h, bool fullscreen)
 
 void Application::Init()
 {
-	CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-	// Create Factory
-	UINT dxgiFactoryFlags = 0;
+	ThrowIfFailed(CoInitializeEx(nullptr, COINIT_MULTITHREADED));
 
+	UINT dxgiFactoryFlags = 0;
 #if defined(_DEBUG)
-	{
-		MSWRL::ComPtr<ID3D12Debug> debugBase;
-		MSWRL::ComPtr<ID3D12Debug1> debugController;
-		ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugBase)));
-		ThrowIfFailed(debugBase->QueryInterface(IID_PPV_ARGS(&debugController)));
-		D3D12Core::GraphicsDevice::InitializeDebugController(debugController);
-		D3D12Core::GraphicsDevice::GetDebugController()->EnableDebugLayer();
-		D3D12Core::GraphicsDevice::GetDebugController()->SetEnableGPUBasedValidation(TRUE);
-	}
 	dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
+	D3D12Core::GraphicsDevice::InitializeDebugController();
 #endif
 
-	MSWRL::ComPtr<IDXGIFactory4> factory;
-	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
-	D3D12Core::GraphicsDevice::InitializeFactory(factory);
-
-	SIZE_T maxMemSize = 0;
-
-	// iterate over all available adapters
-	for (UINT adapterIndex = 0; ; ++adapterIndex)
-	{
-		MSWRL::ComPtr<IDXGIAdapter1> adapter;
-		if (D3D12Core::GraphicsDevice::GetFactory()->EnumAdapters1(adapterIndex, &adapter) == DXGI_ERROR_NOT_FOUND)
-			break;
-
-		DXGI_ADAPTER_DESC1 desc;
-		adapter->GetDesc1(&desc);
-
-		// Skip software adapters
-		if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
-			continue;
-
-		if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_0, __uuidof(ID3D12Device), nullptr)))
-		{
-			if (desc.DedicatedVideoMemory > maxMemSize)
-			{
-				maxMemSize = desc.DedicatedVideoMemory;
-				D3D12Core::GraphicsDevice::InitializeAdapter(adapter);
-			}
-		}
-	}
-
-	MSWRL::ComPtr<ID3D12Device> device;
-	ThrowIfFailed(D3D12CreateDevice(D3D12Core::GraphicsDevice::GetAdapter().Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&device)), "Device creation failed!");
-	D3D12Core::GraphicsDevice::InitializeDevice(device);
-	D3D12Core::GraphicsDevice::GetDevice()->SetName(L"artisDX_Device");
+	D3D12Core::GraphicsDevice::InitializeFactory(dxgiFactoryFlags);
+	D3D12Core::GraphicsDevice::InitializeAdapter();
+	D3D12Core::GraphicsDevice::InitializeDevice();
 
 #if defined(_DEBUG)
-	{
-		// Get debug device
-		MSWRL::ComPtr<ID3D12DebugDevice> ddevice;
-		ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->QueryInterface(ddevice.GetAddressOf()));
-		D3D12Core::GraphicsDevice::IntializeDebugDevice(ddevice);
-	}
+	D3D12Core::GraphicsDevice::IntializeDebugDevice();
 #endif
 
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
-	MSWRL::ComPtr<ID3D12CommandQueue> commandQueue;
-	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&commandQueue)),"CommandQueue creation failed!");
-	D3D12Core::CommandQueue::InitializeCommandQueue(commandQueue);
-
-	MSWRL::ComPtr<ID3D12Fence> fence;
-	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
-	D3D12Core::CommandQueue::InitializeFence(fence);
+	D3D12Core::CommandQueue::InitializeCommandQueue(queueDesc);
 
 	// Create Command Allocator - still stored in application, think about better place
-	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_commandAllocator)));
+	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_commandAllocator)), "CommandAllocator creation failed!");
 
-	D3D12Core::Swapchain::Init(_width, _height, _window.GetHWND());
+	D3D12Core::Swapchain::InitializeSwapchain(_width, _height, _window.GetHWND());
 
-	DescriptorAllocator::Instance().Initialize(D3D12Core::GraphicsDevice::GetDevice().Get(), NUM_MAX_DESCRIPTORS);
+	DescriptorAllocator::Instance().Initialize(NUM_MAX_DESCRIPTORS);
 }
 
 void Application::InitResources()
@@ -221,7 +170,7 @@ void Application::InitResources()
 		MSWRL::ComPtr<ID3DBlob> error;
 
 		ThrowIfFailed(D3D12SerializeVersionedRootSignature(&rootSignatureDesc, &signature, &error));
-		ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&_rootSignature)));
+		ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&_rootSignature)), "Root Signature creation failed!");
 		_rootSignature->SetName(L"artisDX_rootSignature");
 	}
 
@@ -441,26 +390,19 @@ void Application::InitResources()
 		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 		psoDesc.SampleDesc.Count = 1;
 
-		try
-		{
-			ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&_pipelineState)));
-		}
-		catch (std::exception e)
-		{
-			std::cout << "Failed to create Graphics Pipeline!";
-		}
+		ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&_pipelineState)), "Graphics Pipeline creation failed!");
 	}
 
-	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _commandAllocator.Get(), _pipelineState.Get(), IID_PPV_ARGS(&_commandList)));
-	_commandList->SetName(L"artisDX CommandList");
+	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _commandAllocator.Get(), _pipelineState.Get(), IID_PPV_ARGS(&_commandList)), "CommandList creation failed!");
+	_commandList->SetName(L"Render CommandList");
 	
 	// MODELLOADING
 	_modelManager = ModelManager(_commandList);
 
 	//_modelManager.LoadModel("../assets/helmet.glb");
-	_modelManager.LoadModel("../assets/sponza.glb");
+	//_modelManager.LoadModel("../assets/sponza.glb");
 	//_modelManager.LoadModel("../assets/brick_wall.glb");
-	//_modelManager.LoadModel("../assets/DamagedHelmet.glb");
+	_modelManager.LoadModel("../assets/DamagedHelmet.glb");
 	//_modelManager.LoadModel("../assets/apollo.glb");
 
 	// upload all textures from models
@@ -468,9 +410,9 @@ void Application::InitResources()
 
 	// Execute the command list.
 	ID3D12CommandList* ppCommandLists[] = { _commandList.Get() };
-	D3D12Core::CommandQueue::GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+	D3D12Core::CommandQueue::_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
-	D3D12Core::CommandQueue::GetCommandQueue()->Signal(D3D12Core::CommandQueue::_fence.Get(), D3D12Core::CommandQueue::_fenceValue);
+	D3D12Core::CommandQueue::WaitForFence();
 }
 
 void Application::InitGUI()
@@ -573,10 +515,8 @@ void Application::Run()
 
 void Application::UpdateFPS()
 {
-	using namespace std::chrono;
-
-	auto now = high_resolution_clock::now();
-	double deltaTime = duration<double>(now - _lastTime).count();
+	auto now = std::chrono::high_resolution_clock::now();
+	double deltaTime = std::chrono::duration<double>(now - _lastTime).count();
 	_lastTime = now;
 
 	_elapsedTime += deltaTime;
@@ -636,7 +576,7 @@ void Application::ExecuteCommandList()
 {
 	// Execute the command list.
 	ID3D12CommandList* ppCommandLists[] = { _commandList.Get() };
-	D3D12Core::CommandQueue::GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+	D3D12Core::CommandQueue::_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 }
 
 void Application::Present()

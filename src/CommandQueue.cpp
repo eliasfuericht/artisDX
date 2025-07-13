@@ -5,25 +5,17 @@ MSWRL::ComPtr<ID3D12Fence> D3D12Core::CommandQueue::_fence = nullptr;
 UINT64 D3D12Core::CommandQueue::_fenceValue = 0;
 HANDLE D3D12Core::CommandQueue::_fenceEvent = nullptr;
 
-void D3D12Core::CommandQueue::InitializeCommandQueue(MSWRL::ComPtr<ID3D12CommandQueue> commandQueue)
+void D3D12Core::CommandQueue::InitializeCommandQueue(D3D12_COMMAND_QUEUE_DESC queueDesc)
 {
-	_commandQueue = commandQueue;
-}
+	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&_commandQueue)), "CommandQueue creation failed!");
 
-void D3D12Core::CommandQueue::InitializeFence(MSWRL::ComPtr<ID3D12Fence> fence)
-{
-	_fence = fence;
+	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence)));
 
 	_fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 	if (_fenceEvent == nullptr)
 	{
 		ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
 	}
-}
-
-MSWRL::ComPtr<ID3D12CommandQueue> D3D12Core::CommandQueue::GetCommandQueue()
-{
-	return _commandQueue;
 }
 
 void D3D12Core::CommandQueue::WaitForFence()

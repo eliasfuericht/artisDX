@@ -42,6 +42,7 @@ void GUI::Init(Window window)
 	// Create Command Allocator & Command List
 	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_commandAllocator)));
 	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _commandAllocator.Get(), nullptr, IID_PPV_ARGS(&_commandList)));
+	_commandList->SetName(L"GUI CommandList");
 	_commandList->Close();
 
 	ImGui_ImplWin32_Init(window.GetHWND());
@@ -156,7 +157,7 @@ void GUI::Render()
 	// Close & Execute
 	ThrowIfFailed(_commandList->Close());
 	ID3D12CommandList* lists[] = { _commandList.Get() };
-	D3D12Core::CommandQueue::GetCommandQueue()->ExecuteCommandLists(_countof(lists), lists);
+	D3D12Core::CommandQueue::_commandQueue->ExecuteCommandLists(_countof(lists), lists);
 }
 
 void GUI::Shutdown()

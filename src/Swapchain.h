@@ -10,7 +10,7 @@ namespace D3D12Core
 	class Swapchain
 	{
 	public:
-		static void Init(INT width, INT height, HWND window);
+		static void InitializeSwapchain(INT width, INT height, HWND window);
 		static void CreateDepthBuffer(INT newWidth, INT newHeight);
 
 		static void Resize(INT newWidth, INT newHeight);
