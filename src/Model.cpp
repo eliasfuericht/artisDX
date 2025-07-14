@@ -127,7 +127,8 @@ void Model::DrawGUI() {
 		if (node._meshIndex != NOTOK)
 		{
 			GUI::PushID(node._id);
-			GUI::Text("next");
+			std::string nodeString = "MeshNode: " + node._name + " ID: " + std::to_string(node._id);
+			GUI::Text(nodeString.c_str());
 			GUI::DragFloat3("Translation", node._translation);
 			GUI::DragFloat3("Rotation", node._rotationEuler);
 			GUI::DragFloat3("Scale", node._scale);

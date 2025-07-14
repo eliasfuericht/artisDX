@@ -2,35 +2,30 @@
 
 #include "pch.h"
 
-namespace D3D12Core 
+namespace D3D12Core::GraphicsDevice
 {
-	class GraphicsDevice
-	{
-	public:
-		static void InitializeFactory(UINT flags);
-		static void InitializeAdapter();
-		static void InitializeDevice();
+	void InitializeFactory(UINT flags);
+	void InitializeAdapter();
+	void InitializeDevice();
 
-		static MSWRL::ComPtr<IDXGIFactory4> GetFactory();
-		static MSWRL::ComPtr<IDXGIAdapter1> GetAdapter();
-		static MSWRL::ComPtr<ID3D12Device> GetDevice();
+	MSWRL::ComPtr<IDXGIFactory4> GetFactory();
+	MSWRL::ComPtr<IDXGIAdapter1> GetAdapter();
+	MSWRL::ComPtr<ID3D12Device> GetDevice();
 
 #if defined(_DEBUG)
-		static void InitializeDebugController();
-		static void IntializeDebugDevice();
+	void InitializeDebugController();
+	void IntializeDebugDevice();
 
-		static MSWRL::ComPtr<ID3D12Debug1> GetDebugController();
-		static MSWRL::ComPtr<ID3D12DebugDevice> GetDebugDevice();
+	MSWRL::ComPtr<ID3D12Debug1> GetDebugController();
+	MSWRL::ComPtr<ID3D12DebugDevice> GetDebugDevice();
 #endif
 
-	private:
-		static MSWRL::ComPtr<IDXGIFactory4> _factory;
-		static MSWRL::ComPtr<IDXGIAdapter1> _adapter;
-		static MSWRL::ComPtr<ID3D12Device> _device;
+	extern MSWRL::ComPtr<IDXGIFactory4> _factory;
+	extern MSWRL::ComPtr<IDXGIAdapter1> _adapter;
+	extern MSWRL::ComPtr<ID3D12Device> _device;
 
 #if defined(_DEBUG)
-		static MSWRL::ComPtr<ID3D12Debug1> _debugController;
-		static MSWRL::ComPtr<ID3D12DebugDevice> _debugDevice;
+	extern MSWRL::ComPtr<ID3D12Debug1> _debugController;
+	extern MSWRL::ComPtr<ID3D12DebugDevice> _debugDevice;
 #endif
-	};
 };

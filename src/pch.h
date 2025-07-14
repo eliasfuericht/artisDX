@@ -13,6 +13,8 @@
 #include <d3dcompiler.h>
 #include <dxgi1_4.h>
 #include <DirectXMath.h>
+#include <dxcapi.h>
+#include <d3d12shader.h>
 
 // STL
 #include <memory>
