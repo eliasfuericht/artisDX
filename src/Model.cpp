@@ -117,6 +117,7 @@ void Model::DrawGUI() {
 	std::string windowName = "Model: " + _name + " ID: " + std::to_string(_id);
 	GUI::Begin(windowName.c_str());
 	GUI::PushID(_id);
+	GUI::Text("Model Transforms");
 	GUI::DragFloat3("Translation", _translation);
 	GUI::DragFloat3("Rotation", _rotationEuler);
 	GUI::DragFloat3("Scale", _scale);

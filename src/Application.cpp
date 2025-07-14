@@ -204,6 +204,8 @@ void Application::InitResources()
 #ifdef COMPILESHADERS
 		std::wstring vertPath = wpath + L"shaders\\pbr_vert.fx";
 		std::wstring fragPath = wpath + L"shaders\\pbr_frag.fx";
+
+		Shader testShader("../shaders/pbr_vert.fx", SHADERTYPE::VERTEX);
 				
 		try
 		{
@@ -233,108 +235,6 @@ void Application::InitResources()
 		std::vector<char> fsBytecodeData = readFile(fragCompiledPath);
 
 #endif
-
-		_pLight = std::make_shared<PointLight>(1.0f, 1.0f, 1.0f);
-		_pLight->RegisterWithGUI();
-
-		// Constant buffers
-		{
-			D3D12_HEAP_PROPERTIES heapProps;
-			heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
-			heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-			heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-			heapProps.CreationNodeMask = 1;
-			heapProps.VisibleNodeMask = 1;
-
-			D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
-			heapDesc.NumDescriptors = 1;
-			heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-			heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-
-			ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_VPBufferHeap)));
-			ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_camPosBufferHeap)));
-
-			D3D12_RESOURCE_DESC vpCBResourceDesc;
-			vpCBResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-			vpCBResourceDesc.Alignment = 0;
-			vpCBResourceDesc.Width = (sizeof(XMFLOAT4X4) + 255) & ~255;
-			vpCBResourceDesc.Height = 1;
-			vpCBResourceDesc.DepthOrArraySize = 1;
-			vpCBResourceDesc.MipLevels = 1;
-			vpCBResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
-			vpCBResourceDesc.SampleDesc.Count = 1;
-			vpCBResourceDesc.SampleDesc.Quality = 0;
-			vpCBResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-			vpCBResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-			ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommittedResource(
-				&heapProps, 
-				D3D12_HEAP_FLAG_NONE, 
-				&vpCBResourceDesc,
-				D3D12_RESOURCE_STATE_GENERIC_READ, 
-				nullptr,
-				IID_PPV_ARGS(&_VPBufferResource)));
-
-			_VPBufferHeap->SetName(L"VP Constant Buffer Upload Heap");
-
-			D3D12_RESOURCE_DESC camPosCBResourceDesc;
-			camPosCBResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-			camPosCBResourceDesc.Alignment = 0;
-			camPosCBResourceDesc.Width = (sizeof(XMFLOAT3) + 255) & ~255;
-			camPosCBResourceDesc.Height = 1;
-			camPosCBResourceDesc.DepthOrArraySize = 1;
-			camPosCBResourceDesc.MipLevels = 1;
-			camPosCBResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
-			camPosCBResourceDesc.SampleDesc.Count = 1;
-			camPosCBResourceDesc.SampleDesc.Quality = 0;
-			camPosCBResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-			camPosCBResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-			ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommittedResource(
-				&heapProps,
-				D3D12_HEAP_FLAG_NONE,
-				&camPosCBResourceDesc,
-				D3D12_RESOURCE_STATE_GENERIC_READ,
-				nullptr,
-				IID_PPV_ARGS(&_camPosBufferResource)));
-
-			_camPosBufferHeap->SetName(L"Cam Pos Constant Buffer Upload Heap");
-
-			D3D12_CPU_DESCRIPTOR_HANDLE vpCbvCpuHandle = DescriptorAllocator::Instance().Allocate();
-			D3D12_CONSTANT_BUFFER_VIEW_DESC vpCbvDesc = {};
-			vpCbvDesc.BufferLocation = _VPBufferResource->GetGPUVirtualAddress();
-			vpCbvDesc.SizeInBytes = (sizeof(XMFLOAT4X4) + 255) & ~255; // CB size is required to be 256-byte aligned.
-			D3D12Core::GraphicsDevice::GetDevice()->CreateConstantBufferView(&vpCbvDesc, vpCbvCpuHandle);
-			_VPBufferDescriptor = vpCbvCpuHandle; // viewProjMatrix
-
-			D3D12_CPU_DESCRIPTOR_HANDLE viewCbvCpuHandle = DescriptorAllocator::Instance().Allocate();
-			D3D12_CONSTANT_BUFFER_VIEW_DESC viewCbvDesc = {};
-			viewCbvDesc.BufferLocation = _camPosBufferResource->GetGPUVirtualAddress();
-			viewCbvDesc.SizeInBytes = (sizeof(XMFLOAT3) + 255) & ~255; // CB size is required to be 256-byte aligned.
-			D3D12Core::GraphicsDevice::GetDevice()->CreateConstantBufferView(&viewCbvDesc, viewCbvCpuHandle);
-			_camPosBufferDescriptor = viewCbvCpuHandle; // viewMatrix
-
-			// setup matrices
-			XMStoreFloat4x4(&_projectionMatrix,
-				XMMatrixPerspectiveFovLH(
-					XMConvertToRadians(45.0f),
-					static_cast<float>(_window.GetWidth()) / static_cast<float>(_window.GetHeight()),
-					0.1f,
-					10000.0f)
-			);
-
-			D3D12_RANGE readRange = { 0, 0 };
-			ThrowIfFailed(_VPBufferResource->Map(0, &readRange, reinterpret_cast<void**>(&_mappedVPBuffer)));
-			memcpy(_mappedVPBuffer, &_viewProjectionMatrix, sizeof(XMFLOAT4X4));
-			_VPBufferResource->Unmap(0, nullptr);
-
-			XMFLOAT3 camPos;
-			XMStoreFloat3(&camPos, _camera->_position);
-			ThrowIfFailed(_camPosBufferResource->Map(0, &readRange, reinterpret_cast<void**>(&_mappedCamPosBuffer)));
-			memcpy(_mappedCamPosBuffer, &camPos, sizeof(XMFLOAT3));
-			_camPosBufferResource->Unmap(0, nullptr);
-		}
-
 		// Define the vertex input layout.
 		D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
 			{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
@@ -395,13 +295,115 @@ void Application::InitResources()
 
 	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _commandAllocator.Get(), _pipelineState.Get(), IID_PPV_ARGS(&_commandList)), "CommandList creation failed!");
 	_commandList->SetName(L"Render CommandList");
+
+
+	_pLight = std::make_shared<PointLight>(1.0f, 1.0f, 1.0f);
+	_pLight->RegisterWithGUI();
+
+	// Constant buffers
+	{
+		D3D12_HEAP_PROPERTIES heapProps;
+		heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+		heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		heapProps.CreationNodeMask = 1;
+		heapProps.VisibleNodeMask = 1;
+
+		D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
+		heapDesc.NumDescriptors = 1;
+		heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+		heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+
+		ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_VPBufferHeap)));
+		ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_camPosBufferHeap)));
+
+		D3D12_RESOURCE_DESC vpCBResourceDesc;
+		vpCBResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+		vpCBResourceDesc.Alignment = 0;
+		vpCBResourceDesc.Width = (sizeof(XMFLOAT4X4) + 255) & ~255;
+		vpCBResourceDesc.Height = 1;
+		vpCBResourceDesc.DepthOrArraySize = 1;
+		vpCBResourceDesc.MipLevels = 1;
+		vpCBResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
+		vpCBResourceDesc.SampleDesc.Count = 1;
+		vpCBResourceDesc.SampleDesc.Quality = 0;
+		vpCBResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+		vpCBResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+		ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommittedResource(
+			&heapProps,
+			D3D12_HEAP_FLAG_NONE,
+			&vpCBResourceDesc,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(&_VPBufferResource)));
+
+		_VPBufferHeap->SetName(L"VP Constant Buffer Upload Heap");
+
+		D3D12_RESOURCE_DESC camPosCBResourceDesc;
+		camPosCBResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+		camPosCBResourceDesc.Alignment = 0;
+		camPosCBResourceDesc.Width = (sizeof(XMFLOAT3) + 255) & ~255;
+		camPosCBResourceDesc.Height = 1;
+		camPosCBResourceDesc.DepthOrArraySize = 1;
+		camPosCBResourceDesc.MipLevels = 1;
+		camPosCBResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
+		camPosCBResourceDesc.SampleDesc.Count = 1;
+		camPosCBResourceDesc.SampleDesc.Quality = 0;
+		camPosCBResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+		camPosCBResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+		ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommittedResource(
+			&heapProps,
+			D3D12_HEAP_FLAG_NONE,
+			&camPosCBResourceDesc,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(&_camPosBufferResource)));
+
+		_camPosBufferHeap->SetName(L"Cam Pos Constant Buffer Upload Heap");
+
+		D3D12_CPU_DESCRIPTOR_HANDLE vpCbvCpuHandle = DescriptorAllocator::Instance().Allocate();
+		D3D12_CONSTANT_BUFFER_VIEW_DESC vpCbvDesc = {};
+		vpCbvDesc.BufferLocation = _VPBufferResource->GetGPUVirtualAddress();
+		vpCbvDesc.SizeInBytes = (sizeof(XMFLOAT4X4) + 255) & ~255; // CB size is required to be 256-byte aligned.
+		D3D12Core::GraphicsDevice::GetDevice()->CreateConstantBufferView(&vpCbvDesc, vpCbvCpuHandle);
+		_VPBufferDescriptor = vpCbvCpuHandle; // viewProjMatrix
+
+		D3D12_CPU_DESCRIPTOR_HANDLE viewCbvCpuHandle = DescriptorAllocator::Instance().Allocate();
+		D3D12_CONSTANT_BUFFER_VIEW_DESC viewCbvDesc = {};
+		viewCbvDesc.BufferLocation = _camPosBufferResource->GetGPUVirtualAddress();
+		viewCbvDesc.SizeInBytes = (sizeof(XMFLOAT3) + 255) & ~255; // CB size is required to be 256-byte aligned.
+		D3D12Core::GraphicsDevice::GetDevice()->CreateConstantBufferView(&viewCbvDesc, viewCbvCpuHandle);
+		_camPosBufferDescriptor = viewCbvCpuHandle; // viewMatrix
+
+		// setup matrices
+		XMStoreFloat4x4(&_projectionMatrix,
+			XMMatrixPerspectiveFovLH(
+				XMConvertToRadians(45.0f),
+				static_cast<float>(_window.GetWidth()) / static_cast<float>(_window.GetHeight()),
+				0.1f,
+				10000.0f)
+		);
+
+		D3D12_RANGE readRange = { 0, 0 };
+		ThrowIfFailed(_VPBufferResource->Map(0, &readRange, reinterpret_cast<void**>(&_mappedVPBuffer)));
+		memcpy(_mappedVPBuffer, &_viewProjectionMatrix, sizeof(XMFLOAT4X4));
+		_VPBufferResource->Unmap(0, nullptr);
+
+		XMFLOAT3 camPos;
+		XMStoreFloat3(&camPos, _camera->_position);
+		ThrowIfFailed(_camPosBufferResource->Map(0, &readRange, reinterpret_cast<void**>(&_mappedCamPosBuffer)));
+		memcpy(_mappedCamPosBuffer, &camPos, sizeof(XMFLOAT3));
+		_camPosBufferResource->Unmap(0, nullptr);
+	}
 	
 	// MODELLOADING
 	_modelManager = ModelManager(_commandList);
 
-	//_modelManager.LoadModel("../assets/helmet.glb");
-	//_modelManager.LoadModel("../assets/sponza.glb");
-	_modelManager.LoadModel("../assets/brick_wall.glb");
+	_modelManager.LoadModel("../assets/helmet.glb");
+	_modelManager.LoadModel("../assets/sponza.glb");
+	//_modelManager.LoadModel("../assets/brick_wall.glb");
 	//_modelManager.LoadModel("../assets/DamagedHelmet.glb");
 	//_modelManager.LoadModel("../assets/apollo.glb");
 

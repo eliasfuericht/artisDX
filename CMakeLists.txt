@@ -29,6 +29,7 @@ set(ARTISDX_HEADERS
     src/Window.h
     src/PointLight.h
     src/ModelNode.h
+    src/Shader.h
 )
 
 set(ARTISDX_SOURCES 
@@ -40,6 +41,7 @@ set(ARTISDX_SOURCES
     src/GLTFLoader.cpp
     src/GraphicsDevice.cpp
     src/GUI.cpp
+    src/IGUIComponent.cpp
     src/main.cpp
     src/Material.cpp
     src/Primitive.cpp
@@ -51,7 +53,7 @@ set(ARTISDX_SOURCES
     src/Window.cpp
     src/PointLight.cpp
     src/ModelNode.cpp
-    src/IGUIComponent.cpp
+    src/Shader.cpp 
 )
 
 add_executable(${APPLICATION_NAME} ${ARTISDX_SOURCES} ${ARTISDX_HEADERS})
@@ -85,6 +87,7 @@ target_link_libraries(
   dxgi        
   dxguid      
   D3DCompiler 
+  dxcompiler
   DearImGui
   fastgltf
   DirectXTex

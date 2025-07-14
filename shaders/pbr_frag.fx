@@ -133,7 +133,7 @@ StageOutput main(StageInput stageInput)
     
     // gammacorrection
     color = pow(color, 1.0 / 2.2);
-
+    
     stageOutput.outFragColor = float4(color, albedoalpha.a);
     return stageOutput;
 }

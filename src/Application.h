@@ -10,6 +10,7 @@
 #include "ModelManager.h"
 #include "DescriptorAllocator.h"
 #include "PointLight.h"
+#include "Shader.h"
 
 class Application
 {
