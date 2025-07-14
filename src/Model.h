@@ -26,10 +26,16 @@ private:
 	void ComputeGlobalTransforms();
 	void ComputeNodeGlobal(int nodeIndex, const XMMATRIX& parentMatrix);
 
+	INT _id = NOTOK;
 	std::string _name;
 	std::vector<Mesh> _meshes;
 	std::vector<Texture> _textures;
 	std::vector<Material> _materials;
 	std::vector<ModelNode> _modelNodes;
-	INT _id = NOTOK;
+
+	XMFLOAT3 _translation = { 0,0,0 };
+	XMFLOAT3 _rotationEuler = { 0,0,0 };
+	XMFLOAT3 _scale = { 1,1,1 };
+
+	XMFLOAT4X4 _globalMatrix = {};
 };

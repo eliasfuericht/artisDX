@@ -8,6 +8,7 @@ Model::Model(INT id, std::string name, MSWRL::ComPtr<ID3D12GraphicsCommandList> 
 	_textures = std::move(textures);
 	_materials = materials;
 	_modelNodes = modelNodes;
+	XMStoreFloat4x4(&_globalMatrix, XMMatrixIdentity()) ;
 }
 
 void Model::DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
@@ -20,6 +21,8 @@ void Model::DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 			continue;
 
 		Mesh& mesh = _meshes[node._meshIndex];
+
+		//XMStoreFloat4x4(&node._globalMatrix, XMMatrixMultiply(XMLoadFloat4x4(&node._globalMatrix), XMLoadFloat4x4(&_globalMatrix)));
 
 		memcpy(node._mappedCBVModelMatrixPtr, &node._globalMatrix, sizeof(XMFLOAT4X4));
 		commandList->SetGraphicsRootDescriptorTable(1, node._cbvModelMatrixGpuHandle);
@@ -57,15 +60,25 @@ void Model::DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 	}
 }
 
-void Model::ComputeGlobalTransforms() {
-	for (int i = 0; i < _modelNodes.size(); ++i) {
-		if (_modelNodes[i]._parentIndex == -1) {
-			ComputeNodeGlobal(i, XMMatrixIdentity());
+void Model::ComputeGlobalTransforms() 
+{
+	XMMATRIX local = XMMatrixScalingFromVector(XMLoadFloat3(&_scale)) * XMMatrixRotationRollPitchYawFromVector(XMLoadFloat3(&_rotationEuler)) * XMMatrixTranslationFromVector(XMLoadFloat3(&_translation));
+
+	XMStoreFloat4x4(&_globalMatrix, XMMatrixMultiply(XMLoadFloat4x4(&_globalMatrix), local));
+
+	for (int i = 0; i < _modelNodes.size(); ++i) 
+	{
+		if (_modelNodes[i]._parentIndex == -1) 
+		{
+			ComputeNodeGlobal(i, XMLoadFloat4x4(&_globalMatrix));
 		}
 	}
+
+	XMStoreFloat4x4(&_globalMatrix, XMMatrixIdentity());
 }
 
-void Model::ComputeNodeGlobal(int nodeIndex, const XMMATRIX& parentMatrix) {
+void Model::ComputeNodeGlobal(int nodeIndex, const XMMATRIX& parentMatrix) 
+{
 	ModelNode& modelNode = _modelNodes[nodeIndex];
 
 	XMVECTOR originalQuat = XMLoadFloat4(&modelNode._rotationQuat);
@@ -89,7 +102,8 @@ void Model::ComputeNodeGlobal(int nodeIndex, const XMMATRIX& parentMatrix) {
 	XMMATRIX global = local * parentMatrix;
 	XMStoreFloat4x4(&modelNode._globalMatrix, global);
 
-	for (int childIndex : modelNode._children) {
+	for (int childIndex : modelNode._children) 
+	{
 		ComputeNodeGlobal(childIndex, global);
 	}
 }
@@ -103,15 +117,22 @@ void Model::DrawGUI() {
 	std::string windowName = "Model: " + _name + " ID: " + std::to_string(_id);
 	GUI::Begin(windowName.c_str());
 	GUI::PushID(_id);
+	GUI::DragFloat3("Translation", _translation);
+	GUI::DragFloat3("Rotation", _rotationEuler);
+	GUI::DragFloat3("Scale", _scale);
 	GUI::PopID();
 
 	for (ModelNode& node : _modelNodes)
 	{
-		GUI::PushID(node._id);
-		GUI::DragFloat3("Translation", node._translation);
-		GUI::DragFloat3("Rotation", node._rotationEuler);
-		GUI::DragFloat3("Scale", node._scale);
-		GUI::PopID();
+		if (node._meshIndex != NOTOK)
+		{
+			GUI::PushID(node._id);
+			GUI::Text("next");
+			GUI::DragFloat3("Translation", node._translation);
+			GUI::DragFloat3("Rotation", node._rotationEuler);
+			GUI::DragFloat3("Scale", node._scale);
+			GUI::PopID();
+		}
 	}
 
 	GUI::End();
