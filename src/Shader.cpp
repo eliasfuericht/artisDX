@@ -145,7 +145,6 @@ Shader::Shader(std::filesystem::path path, SHADERTYPE shaderType)
 	rootDesc.Desc_1_1.pStaticSamplers = nullptr;
 	rootDesc.Desc_1_1.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
-	// Serialize & create
 	MSWRL::ComPtr<ID3DBlob> sigBlob;
 	MSWRL::ComPtr<ID3DBlob> errorBlob;
 

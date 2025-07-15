@@ -61,7 +61,7 @@ using namespace DirectX;
 template<typename... Args>
 void PrintHelper(Args&&... args) {
 	std::ostringstream oss;
-	(oss << ... << args);  // C++17 fold expression
+	(oss << ... << args);
 	oss << "\n";
 	OutputDebugStringA(oss.str().c_str());
 }
@@ -108,30 +108,6 @@ inline XMFLOAT4X4 ToXMFloat4x4(const fastgltf::math::fmat4x4& m)
 	);
 }
 
-inline XMVECTOR XMQuaternionToRollPitchYaw(FXMVECTOR q) {
-	float qx = XMVectorGetX(q);
-	float qy = XMVectorGetY(q);
-	float qz = XMVectorGetZ(q);
-	float qw = XMVectorGetW(q);
-
-	float sinr_cosp = 2 * (qw * qx + qy * qz);
-	float cosr_cosp = 1 - 2 * (qx * qx + qy * qy);
-	float roll = std::atan2(sinr_cosp, cosr_cosp);
-
-	float sinp = 2 * (qw * qy - qz * qx);
-	float pitch;
-	if (std::abs(sinp) >= 1)
-		pitch = std::copysign(XM_PIDIV2, sinp);
-	else
-		pitch = std::asin(sinp);
-
-	float siny_cosp = 2 * (qw * qz + qx * qy);
-	float cosy_cosp = 1 - 2 * (qy * qy + qz * qz);
-	float yaw = std::atan2(siny_cosp, cosy_cosp);
-
-	return XMVectorSet(yaw, pitch, roll, 0.0f);
-}
-
 enum KEYCODES
 {
 	W = 87,
@@ -151,3 +127,37 @@ struct Vertex {
 	XMFLOAT4 tangent;
 	XMFLOAT3 bitangent;
 };
+
+namespace Utils::Timer
+{
+	inline std::chrono::high_resolution_clock::time_point& start_time()
+	{
+		static auto start = std::chrono::high_resolution_clock::now();
+		return start;
+	}
+
+	inline void StartTimer()
+	{
+		start_time() = std::chrono::high_resolution_clock::now();
+	}
+
+	inline void PrintElapsedSeconds()
+	{
+		PRINT(std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time()).count(), "s");
+	}
+
+	inline void PrintElapsedMilliseconds()
+	{
+		PRINT(std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - start_time()).count(), "ms");
+	}
+
+	inline double GetElapsedSeconds()
+	{
+		return std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time()).count();
+	}
+
+	inline double GetElapsedMilliseconds()
+	{
+		return std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - start_time()).count();
+	}
+}
