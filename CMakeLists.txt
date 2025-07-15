@@ -28,6 +28,7 @@ set(ARTISDX_HEADERS
     src/Window.h
     src/PointLight.h
     src/ModelNode.h
+    src/ShaderPass.h
     src/Shader.h
 )
 
@@ -51,6 +52,7 @@ set(ARTISDX_SOURCES
     src/Window.cpp
     src/PointLight.cpp
     src/ModelNode.cpp
+    src/ShaderPass.cpp
     src/Shader.cpp 
 )
 

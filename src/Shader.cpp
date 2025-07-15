@@ -42,110 +42,22 @@ Shader::Shader(std::filesystem::path path, SHADERTYPE shaderType)
 	sourceBuffer.Size = sourceBlob->GetBufferSize();
 	sourceBuffer.Encoding = 0u;
 
-	MSWRL::ComPtr<IDxcResult> compiledShaderBuffer{};
-
 	ThrowIfFailed(D3D12Core::ShaderCompiler::_compiler->Compile(&sourceBuffer,
 		compilationArguments.data(),
 		static_cast<uint32_t>(compilationArguments.size()),
 		D3D12Core::ShaderCompiler::_includeHandler.Get(),
-		IID_PPV_ARGS(&compiledShaderBuffer)), "Failed to compile shader with path: " + path.string());
+		IID_PPV_ARGS(&_compiledShaderBuffer)), "Failed to compile shader with path: " + path.string());
 
 	MSWRL::ComPtr<IDxcBlobUtf8> errors{};
-	ThrowIfFailed(compiledShaderBuffer->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&errors), nullptr), "Failed to retrieve Shader Compilation Errors!");
+	ThrowIfFailed(_compiledShaderBuffer->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&errors), 0), "Failed to retrieve Shader Compilation Errors!");
 	if (errors && errors->GetStringLength() > 0)
 	{
 		const LPCSTR errorMessage = errors->GetStringPointer();
 		ThrowException(errorMessage);
 	}
 
-	ThrowIfFailed(compiledShaderBuffer->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&_shaderBlob), nullptr), "Failed to retrieve Shader Blob!");
+	ThrowIfFailed(_compiledShaderBuffer->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&_shaderBlob), 0), "Failed to retrieve Shader Blob!");
 
 	_shaderByteCode.pShaderBytecode = _shaderBlob->GetBufferPointer();
 	_shaderByteCode.BytecodeLength = _shaderBlob->GetBufferSize();
-
-	MSWRL::ComPtr<IDxcBlob> reflectionBlob{};
-	ThrowIfFailed(compiledShaderBuffer->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(&reflectionBlob), nullptr) , "Failed to retrieve Shader Reflection Data!");
-
-	DxcBuffer reflectionBuffer {};
-	reflectionBuffer.Ptr = reflectionBlob->GetBufferPointer();
-	reflectionBuffer.Size = reflectionBlob->GetBufferSize();
-	reflectionBuffer.Encoding = 0;
-
-	MSWRL::ComPtr<ID3D12ShaderReflection> shaderReflection{};
-	D3D12Core::ShaderCompiler::_utils->CreateReflection(&reflectionBuffer, IID_PPV_ARGS(&shaderReflection));
-	D3D12_SHADER_DESC shaderDesc{};
-	shaderReflection->GetDesc(&shaderDesc);
-	
-	std::vector<D3D12_DESCRIPTOR_RANGE1> srvRanges;
-	std::vector<D3D12_DESCRIPTOR_RANGE1> samplerRanges;
-	std::vector<D3D12_ROOT_PARAMETER1> rootParams;
-
-	for (UINT i = 0; i < shaderDesc.BoundResources; i++)
-	{
-		D3D12_SHADER_INPUT_BIND_DESC bindDesc{};
-		shaderReflection->GetResourceBindingDesc(i, &bindDesc);
-
-		if (bindDesc.Type == D3D_SIT_CBUFFER)
-		{
-			// Root CBV at register bX
-			D3D12_ROOT_PARAMETER1 param{};
-			param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-			param.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-			param.Descriptor.ShaderRegister = bindDesc.BindPoint;
-			param.Descriptor.RegisterSpace = bindDesc.Space;
-			rootParams.push_back(param);
-		}
-		else if (bindDesc.Type == D3D_SIT_TEXTURE)
-		{
-			// SRV table entry
-			D3D12_DESCRIPTOR_RANGE1 range{};
-			range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-			range.NumDescriptors = bindDesc.BindCount;
-			range.BaseShaderRegister = bindDesc.BindPoint;
-			range.RegisterSpace = bindDesc.Space;
-			range.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-			srvRanges.push_back(range);
-		}
-		else if (bindDesc.Type == D3D_SIT_SAMPLER)
-		{
-			// Sampler table entry
-			D3D12_DESCRIPTOR_RANGE1 range{};
-			range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
-			range.NumDescriptors = bindDesc.BindCount;
-			range.BaseShaderRegister = bindDesc.BindPoint;
-			range.RegisterSpace = bindDesc.Space;
-			range.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-			samplerRanges.push_back(range);
-		}
-		else if (bindDesc.Type == D3D_SIT_UAV_RWTYPED)
-		{
-			// UAV table entry
-			D3D12_DESCRIPTOR_RANGE1 range{};
-			range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-			range.NumDescriptors = bindDesc.BindCount;
-			range.BaseShaderRegister = bindDesc.BindPoint;
-			range.RegisterSpace = bindDesc.Space;
-			range.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-			srvRanges.push_back(range);
-		}
-	}
-
-	D3D12_VERSIONED_ROOT_SIGNATURE_DESC rootDesc{};
-	rootDesc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
-	rootDesc.Desc_1_1.NumParameters = (UINT)rootParams.size();
-	rootDesc.Desc_1_1.pParameters = rootParams.data();
-	rootDesc.Desc_1_1.NumStaticSamplers = 0;
-	rootDesc.Desc_1_1.pStaticSamplers = nullptr;
-	rootDesc.Desc_1_1.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-
-	MSWRL::ComPtr<ID3DBlob> sigBlob;
-	MSWRL::ComPtr<ID3DBlob> errorBlob;
-
-	ThrowIfFailed(D3D12SerializeVersionedRootSignature(&rootDesc, &sigBlob, &errorBlob));
-
-	ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateRootSignature(
-		0,
-		sigBlob->GetBufferPointer(),
-		sigBlob->GetBufferSize(),
-		IID_PPV_ARGS(&_rootSignature)), "Root Signature creation failed!");
 }

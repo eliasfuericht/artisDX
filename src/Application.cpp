@@ -66,6 +66,14 @@ void Application::Init()
 
 void Application::InitResources()
 {
+
+	ShaderPass mainPass;
+
+	mainPass.AddShader("../shaders/pbr_vert.fx", SHADERTYPE::VERTEX);
+	mainPass.AddShader("../shaders/pbr_frag.fx", SHADERTYPE::PIXEL);
+
+	mainPass.GenerateRootSignature();
+
 	// Create the root signature.
 	{
 		D3D12_DESCRIPTOR_RANGE1 cbvRangeViewProjMatrix = {};
@@ -181,8 +189,8 @@ void Application::InitResources()
 		MSWRL::ComPtr<ID3DBlob> error;
 
 		ThrowIfFailed(D3D12SerializeVersionedRootSignature(&rootSignatureDesc, &signature, &error));
-		ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&_rootSignature)), "Root Signature creation failed!");
-		_rootSignature->SetName(L"artisDX_rootSignature");
+		// ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&_rootSignature)), "Root Signature creation failed!");
+		_rootSignature = mainPass._rootSignature;
 	}
 
 	// Create the pipeline state, which includes compiling and loading shaders.
@@ -412,8 +420,8 @@ void Application::InitResources()
 	// MODELLOADING
 	_modelManager = ModelManager(_commandList);
 
-	//_modelManager.LoadModel("../assets/helmet.glb");
-	_modelManager.LoadModel("../assets/sponza.glb");
+	_modelManager.LoadModel("../assets/helmet.glb");
+	//_modelManager.LoadModel("../assets/sponza.glb");
 	//_modelManager.LoadModel("../assets/brick_wall.glb");
 	//_modelManager.LoadModel("../assets/DamagedHelmet.glb");
 	//_modelManager.LoadModel("../assets/apollo.glb");

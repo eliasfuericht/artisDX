@@ -10,6 +10,7 @@
 #include "DescriptorAllocator.h"
 #include "PointLight.h"
 #include "Shader.h"
+#include "ShaderPass.h"
 
 class Application
 {
