@@ -112,5 +112,5 @@ void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList
 void Texture::BindTexture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
 	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = DescriptorAllocator::Resource::GetGPUHandle(_srvCpuHandle);
-	commandList->SetGraphicsRootDescriptorTable(_textureType + 5, gpuHandle); // <- this is scuffed af
+	//commandList->SetGraphicsRootDescriptorTable(_textureType + 5, gpuHandle); // <- this is scuffed af
 }

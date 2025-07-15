@@ -49,15 +49,12 @@ Shader::Shader(std::filesystem::path path, SHADERTYPE shaderType)
 		IID_PPV_ARGS(&_compiledShaderBuffer)), "Failed to compile shader with path: " + path.string());
 
 	MSWRL::ComPtr<IDxcBlobUtf8> errors{};
-	ThrowIfFailed(_compiledShaderBuffer->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&errors), 0), "Failed to retrieve Shader Compilation Errors!");
+	ThrowIfFailed(_compiledShaderBuffer->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&errors), nullptr), "Failed to retrieve Shader Compilation Errors!");
 	if (errors && errors->GetStringLength() > 0)
 	{
 		const LPCSTR errorMessage = errors->GetStringPointer();
 		ThrowException(errorMessage);
 	}
 
-	ThrowIfFailed(_compiledShaderBuffer->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&_shaderBlob), 0), "Failed to retrieve Shader Blob!");
-
-	_shaderByteCode.pShaderBytecode = _shaderBlob->GetBufferPointer();
-	_shaderByteCode.BytecodeLength = _shaderBlob->GetBufferSize();
+	ThrowIfFailed(_compiledShaderBuffer->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&_shaderBlob), nullptr), "Failed to retrieve Shader Blob!");
 }

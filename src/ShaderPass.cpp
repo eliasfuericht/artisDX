@@ -5,15 +5,15 @@ void ShaderPass::AddShader(std::filesystem::path path, SHADERTYPE shaderType)
 	_shaders.try_emplace(shaderType, Shader(path, shaderType));
 }
 
-void ShaderPass::GenerateRootSignature()
+void ShaderPass::GenerateGraphicsRootSignature()
 {
-	std::vector<D3D12_DESCRIPTOR_RANGE1> ranges;
+	std::vector<std::pair<SHADERTYPE, D3D12_DESCRIPTOR_RANGE1>> ranges;
 	std::vector<D3D12_ROOT_PARAMETER1> rootParams;
 
 	for (const auto& shader : _shaders)
 	{
 		MSWRL::ComPtr<IDxcBlob> reflectionBlob{};
-		ThrowIfFailed(shader.second._compiledShaderBuffer->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(&reflectionBlob), 0), "Failed to retrieve Shader Reflection Data!");
+		ThrowIfFailed(shader.second._compiledShaderBuffer->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(&reflectionBlob), nullptr), "Failed to retrieve Shader Reflection Data!");
 
 		DxcBuffer reflectionBuffer{};
 		reflectionBuffer.Ptr = reflectionBlob->GetBufferPointer();
@@ -38,7 +38,7 @@ void ShaderPass::GenerateRootSignature()
 				cbvRange.BaseShaderRegister = bindDesc.BindPoint;
 				cbvRange.RegisterSpace = bindDesc.Space;
 				cbvRange.OffsetInDescriptorsFromTableStart = 0;
-				ranges.push_back(cbvRange);
+				ranges.emplace_back(shader.first, cbvRange);
 			}
 			else if (bindDesc.Type == D3D_SIT_TEXTURE)
 			{
@@ -49,7 +49,7 @@ void ShaderPass::GenerateRootSignature()
 				srvRange.BaseShaderRegister = bindDesc.BindPoint;
 				srvRange.RegisterSpace = bindDesc.Space;
 				srvRange.OffsetInDescriptorsFromTableStart = 0;
-				ranges.push_back(srvRange);
+				ranges.emplace_back(shader.first, srvRange);
 			}
 			else if (bindDesc.Type == D3D_SIT_SAMPLER)
 			{
@@ -60,7 +60,7 @@ void ShaderPass::GenerateRootSignature()
 				samplerRange.BaseShaderRegister = bindDesc.BindPoint;
 				samplerRange.RegisterSpace = bindDesc.Space;
 				samplerRange.OffsetInDescriptorsFromTableStart = 0;
-				ranges.push_back(samplerRange);
+				ranges.emplace_back(shader.first, samplerRange);
 			}
 			else if (bindDesc.Type == D3D_SIT_UAV_RWTYPED)
 			{
@@ -71,18 +71,27 @@ void ShaderPass::GenerateRootSignature()
 				uavRange.BaseShaderRegister = bindDesc.BindPoint;
 				uavRange.RegisterSpace = bindDesc.Space;
 				uavRange.OffsetInDescriptorsFromTableStart = 0;
-				ranges.push_back(uavRange);
+				ranges.emplace_back(shader.first, uavRange);
 			}
 		}
 	}
 
-	for (const auto& range : ranges)
+	for (const std::pair<SHADERTYPE, D3D12_DESCRIPTOR_RANGE1>& range : ranges)
 	{
 		D3D12_ROOT_PARAMETER1 param{};
 		param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		param.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-		param.DescriptorTable.NumDescriptorRanges = (UINT)range.NumDescriptors;
-		param.DescriptorTable.pDescriptorRanges = &range;
+
+		switch (range.first)
+		{
+		case VERTEX:
+			param.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+			break;
+		case PIXEL:
+			param.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+			break;
+		}
+		param.DescriptorTable.NumDescriptorRanges = (UINT)range.second.NumDescriptors;
+		param.DescriptorTable.pDescriptorRanges = &range.second;
 		rootParams.push_back(param);
 	}
 
@@ -97,11 +106,69 @@ void ShaderPass::GenerateRootSignature()
 	MSWRL::ComPtr<ID3DBlob> sigBlob;
 	MSWRL::ComPtr<ID3DBlob> errorBlob;
 
-	ThrowIfFailed(D3D12SerializeVersionedRootSignature(&rootDesc, &sigBlob, &errorBlob));
+	ThrowIfFailed(D3D12SerializeVersionedRootSignature(&rootDesc, &sigBlob, &errorBlob), "idk what this is tbh");
 
 	ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateRootSignature(
 		0,
 		sigBlob->GetBufferPointer(),
 		sigBlob->GetBufferSize(),
-		IID_PPV_ARGS(&_rootSignature)), "Root Signature creation failed!");
+		IID_PPV_ARGS(&_rootSignature)), "RootSignature creation failed!");
+}
+
+void ShaderPass::GeneratePipeLineStateObject()
+{
+	D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		{"TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		{"BITANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 48, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+	};
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+	psoDesc.InputLayout = { inputElementDescs, _countof(inputElementDescs) };
+	psoDesc.pRootSignature = _rootSignature.Get();
+
+	D3D12_SHADER_BYTECODE vsBytecode;
+	D3D12_SHADER_BYTECODE psBytecode;
+
+	vsBytecode.pShaderBytecode = _shaders.find(SHADERTYPE::VERTEX)->second._shaderBlob->GetBufferPointer();
+	vsBytecode.BytecodeLength = _shaders.find(SHADERTYPE::VERTEX)->second._shaderBlob->GetBufferSize();
+	psoDesc.VS = vsBytecode;
+
+	psBytecode.pShaderBytecode = _shaders.find(SHADERTYPE::PIXEL)->second._shaderBlob->GetBufferPointer();
+	psBytecode.BytecodeLength = _shaders.find(SHADERTYPE::PIXEL)->second._shaderBlob->GetBufferSize();
+	psoDesc.PS = psBytecode;
+
+	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+
+	D3D12_RENDER_TARGET_BLEND_DESC transparencyBlendDesc = {};
+	transparencyBlendDesc.BlendEnable = true;
+	transparencyBlendDesc.LogicOpEnable = false;
+	transparencyBlendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	transparencyBlendDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	transparencyBlendDesc.BlendOp = D3D12_BLEND_OP_ADD;
+	transparencyBlendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
+	transparencyBlendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
+	transparencyBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	transparencyBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
+	transparencyBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+	D3D12_BLEND_DESC blendDesc = {};
+	blendDesc.AlphaToCoverageEnable = FALSE;
+	blendDesc.IndependentBlendEnable = FALSE;
+	blendDesc.RenderTarget[0] = transparencyBlendDesc;
+
+	psoDesc.BlendState = blendDesc;
+	psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+	psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+	psoDesc.SampleMask = UINT_MAX;
+	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	psoDesc.NumRenderTargets = 1;
+	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	psoDesc.SampleDesc.Count = 1;
+
+	ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&_pipelineState)), "PipelineStateObject creation failed!");
 }

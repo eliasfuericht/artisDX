@@ -301,7 +301,7 @@ ScratchImage GLTFLoader::Create1x1Texture(uint8_t r, uint8_t g, uint8_t b, uint8
 ScratchImage GLTFLoader::LoadFallbackAlbedoTexture()
 {
 	// Default albedo: mid-gray (e.g., base color = 0.5)
-	return Create1x1Texture(255, 0, 200);
+	return Create1x1Texture(255, 0, 200, 120);
 }
 
 ScratchImage GLTFLoader::LoadFallbackMetallicRoughnessTexture()

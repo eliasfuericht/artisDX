@@ -48,9 +48,8 @@ private:
 	// DX12 Specific
 	MSWRL::ComPtr<ID3D12CommandAllocator> _commandAllocator;
 	MSWRL::ComPtr<ID3D12GraphicsCommandList> _commandList;
-
-	MSWRL::ComPtr<ID3D12RootSignature> _rootSignature;
-	MSWRL::ComPtr<ID3D12PipelineState> _pipelineState;
+	
+	ShaderPass _mainPass;
 
 	// ViewProjMatrix CBV
 	MSWRL::ComPtr<ID3D12Resource> _VPBufferResource;

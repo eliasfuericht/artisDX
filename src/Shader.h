@@ -21,5 +21,4 @@ public:
 	SHADERTYPE _shaderType = INVALID;
 	MSWRL::ComPtr<IDxcResult> _compiledShaderBuffer;
 	MSWRL::ComPtr<IDxcBlob> _shaderBlob;
-	D3D12_SHADER_BYTECODE _shaderByteCode;
 };
