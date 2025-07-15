@@ -7,20 +7,13 @@ namespace D3D12Core
 {
 	namespace GraphicsDevice
 	{
-		void InitializeFactory(UINT flags);
+		void InitializeFactory();
 		void InitializeAdapter();
 		void InitializeDevice();
-
-		MSWRL::ComPtr<IDXGIFactory4> GetFactory();
-		MSWRL::ComPtr<IDXGIAdapter1> GetAdapter();
-		MSWRL::ComPtr<ID3D12Device> GetDevice();
 
 #if defined(_DEBUG)
 		void InitializeDebugController();
 		void IntializeDebugDevice();
-
-		MSWRL::ComPtr<ID3D12Debug1> GetDebugController();
-		MSWRL::ComPtr<ID3D12DebugDevice> GetDebugDevice();
 #endif
 
 		extern MSWRL::ComPtr<IDXGIFactory4> _factory;
@@ -37,11 +30,11 @@ namespace D3D12Core
 	{
 		void InitializeSwapchain(INT width, INT height, HWND window);
 		void CreateDepthBuffer(INT newWidth, INT newHeight);
-
 		void Resize(INT newWidth, INT newHeight);
 
 		extern UINT _width;
 		extern UINT _height;
+		extern BOOL _windowResized;
 
 		extern MSWRL::ComPtr<IDXGISwapChain3> _swapchain;
 		extern D3D12_VIEWPORT _viewport;
@@ -56,10 +49,16 @@ namespace D3D12Core
 		extern D3D12_CPU_DESCRIPTOR_HANDLE _rtvCPUHandle[_backBufferCount];
 		extern MSWRL::ComPtr<ID3D12Resource> _renderTargets[_backBufferCount];
 
-		// DepthBuffer
 		extern MSWRL::ComPtr<ID3D12Resource> _depthStencilBuffer;
 		extern MSWRL::ComPtr<ID3D12DescriptorHeap> _dsvHeap;
+	}
 
-		extern BOOL _windowResized;
+	namespace ShaderCompiler
+	{
+		void InitializeShaderCompiler();
+
+		extern MSWRL::ComPtr<IDxcUtils> _utils;
+		extern MSWRL::ComPtr<IDxcCompiler3> _compiler;
+		extern MSWRL::ComPtr<IDxcIncludeHandler> _includeHandler;
 	}
 };

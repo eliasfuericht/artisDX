@@ -7,14 +7,14 @@ ModelNode::ModelNode()
 
 void ModelNode::CreateCBV()
 {
-	D3D12_CPU_DESCRIPTOR_HANDLE cbvCpuHandle = DescriptorAllocator::Allocate();
+	D3D12_CPU_DESCRIPTOR_HANDLE cbvCpuHandle = DescriptorAllocator::Resource::Allocate();
 
 	const UINT bufferSize = (sizeof(XMFLOAT4X4) + 255) & ~255;
 
 	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
 	CD3DX12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
 
-	D3D12Core::GraphicsDevice::GetDevice()->CreateCommittedResource(
+	D3D12Core::GraphicsDevice::_device->CreateCommittedResource(
 		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
 		&bufferDesc,
@@ -29,7 +29,7 @@ void ModelNode::CreateCBV()
 	cbvDesc.BufferLocation = _ModelMatrixBufferResource->GetGPUVirtualAddress();
 	cbvDesc.SizeInBytes = bufferSize;
 
-	D3D12Core::GraphicsDevice::GetDevice()->CreateConstantBufferView(&cbvDesc, cbvCpuHandle);
+	D3D12Core::GraphicsDevice::_device->CreateConstantBufferView(&cbvDesc, cbvCpuHandle);
 
-	_cbvModelMatrixGpuHandle = DescriptorAllocator::GetGPUHandle(cbvCpuHandle);
+	_cbvModelMatrixGpuHandle = DescriptorAllocator::Resource::GetGPUHandle(cbvCpuHandle);
 }

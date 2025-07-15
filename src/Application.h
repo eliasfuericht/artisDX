@@ -67,5 +67,7 @@ private:
 	XMFLOAT4X4 _viewMatrix;
 	XMFLOAT4X4 _viewProjectionMatrix;
 
+	D3D12_CPU_DESCRIPTOR_HANDLE _samplerCPUHandle;
+
 	ModelManager _modelManager;
 };

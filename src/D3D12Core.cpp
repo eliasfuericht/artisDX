@@ -13,13 +13,20 @@ namespace D3D12Core
 		MSWRL::ComPtr<ID3D12DebugDevice> _debugDevice;
 #endif
 
-		void InitializeFactory(UINT flags)
+		void InitializeFactory()
 		{
+			UINT flags = 0;
+#if defined(_DEBUG)
+			flags |= DXGI_CREATE_FACTORY_DEBUG;
+#endif
 			ThrowIfFailed(CreateDXGIFactory2(flags, IID_PPV_ARGS(&_factory)), "Factory creation failed!");
 		}
 
 		void InitializeAdapter()
 		{
+			if (!_factory)
+				InitializeFactory();
+
 			SIZE_T maxMemSize = 0;
 
 			// iterate over all available adapters
@@ -49,23 +56,11 @@ namespace D3D12Core
 
 		void InitializeDevice()
 		{
+			if (!_adapter)
+				InitializeAdapter();
+
 			ThrowIfFailed(D3D12CreateDevice(_adapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&_device)), "Device creation failed!");
 			_device->SetName(L"artisDX_Device");
-		}
-
-		MSWRL::ComPtr<IDXGIAdapter1> GetAdapter()
-		{
-			return _adapter;
-		}
-
-		MSWRL::ComPtr<IDXGIFactory4> GetFactory()
-		{
-			return _factory;
-		}
-
-		MSWRL::ComPtr<ID3D12Device> GetDevice()
-		{
-			return _device;
 		}
 
 #if defined(_DEBUG)
@@ -81,16 +76,6 @@ namespace D3D12Core
 		void IntializeDebugDevice()
 		{
 			ThrowIfFailed(_device->QueryInterface(_debugDevice.GetAddressOf()), "DebugDevice creation failed!");
-		}
-
-		MSWRL::ComPtr<ID3D12Debug1> D3D12Core::GraphicsDevice::GetDebugController()
-		{
-			return _debugController;
-		}
-
-		MSWRL::ComPtr<ID3D12DebugDevice> D3D12Core::GraphicsDevice::GetDebugDevice()
-		{
-			return _debugDevice;
 		}
 #endif
 	}
@@ -142,7 +127,7 @@ namespace D3D12Core
 			swapchainDesc.SampleDesc.Count = 1;
 
 			MSWRL::ComPtr<IDXGISwapChain1> swapchain;
-			ThrowIfFailed(D3D12Core::GraphicsDevice::GetFactory()->CreateSwapChainForHwnd(CommandQueue::_commandQueue.Get(), hwnd, &swapchainDesc, nullptr, nullptr, &swapchain), "Failed to create swapchain");
+			ThrowIfFailed(D3D12Core::GraphicsDevice::_factory->CreateSwapChainForHwnd(CommandQueue::_commandQueue.Get(), hwnd, &swapchainDesc, nullptr, nullptr, &swapchain), "Failed to create swapchain");
 
 			MSWRL::ComPtr<IDXGISwapChain3> swapchain3;
 			ThrowIfFailed(swapchain->QueryInterface(__uuidof(IDXGISwapChain3), (void**)&swapchain3), "QueryInterface for swapchain failed.");
@@ -155,16 +140,16 @@ namespace D3D12Core
 			rtvHeapDesc.NumDescriptors = _backBufferCount;
 			rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 			rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-			ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&_rtvHeap)));
+			ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&_rtvHeap)));
 
-			_rtvDescriptorSize = D3D12Core::GraphicsDevice::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+			_rtvDescriptorSize = D3D12Core::GraphicsDevice::_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
 			// Create frame resources
 			D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle(_rtvHeap->GetCPUDescriptorHandleForHeapStart());
 			for (UINT i = 0; i < _backBufferCount; i++)
 			{
 				ThrowIfFailed(_swapchain->GetBuffer(i, IID_PPV_ARGS(&_renderTargets[i])));
-				D3D12Core::GraphicsDevice::GetDevice()->CreateRenderTargetView(_renderTargets[i].Get(), nullptr, rtvHandle);
+				D3D12Core::GraphicsDevice::_device->CreateRenderTargetView(_renderTargets[i].Get(), nullptr, rtvHandle);
 				rtvHandle.ptr += _rtvDescriptorSize;
 				_rtvCPUHandle[i] = rtvHandle;
 			}
@@ -201,7 +186,7 @@ namespace D3D12Core
 			depthOptimizedClearValue.DepthStencil.Depth = 1.0f;
 			depthOptimizedClearValue.DepthStencil.Stencil = 0;
 
-			ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommittedResource(
+			ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateCommittedResource(
 				&heapProps,
 				D3D12_HEAP_FLAG_NONE,
 				&depthResourceDesc,
@@ -216,7 +201,7 @@ namespace D3D12Core
 			dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 			dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 
-			ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&_dsvHeap)));
+			ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&_dsvHeap)));
 
 			D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
 			dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
@@ -224,7 +209,7 @@ namespace D3D12Core
 			dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
 
 			// Create the DSV for the depth-stencil buffer
-			D3D12Core::GraphicsDevice::GetDevice()->CreateDepthStencilView(_depthStencilBuffer.Get(), &dsvDesc, _dsvHeap->GetCPUDescriptorHandleForHeapStart());
+			D3D12Core::GraphicsDevice::_device->CreateDepthStencilView(_depthStencilBuffer.Get(), &dsvDesc, _dsvHeap->GetCPUDescriptorHandleForHeapStart());
 		}
 
 		void D3D12Core::Swapchain::Resize(INT newWidth, INT newHeight)
@@ -253,7 +238,7 @@ namespace D3D12Core
 			for (UINT i = 0; i < _backBufferCount; ++i)
 			{
 				ThrowIfFailed(_swapchain->GetBuffer(i, IID_PPV_ARGS(&_renderTargets[i])));
-				D3D12Core::GraphicsDevice::GetDevice()->CreateRenderTargetView(_renderTargets[i].Get(), nullptr, rtvHandle);
+				D3D12Core::GraphicsDevice::_device->CreateRenderTargetView(_renderTargets[i].Get(), nullptr, rtvHandle);
 				rtvHandle.ptr += _rtvDescriptorSize;
 				_rtvCPUHandle[i] = rtvHandle;
 			}
@@ -264,6 +249,20 @@ namespace D3D12Core
 			// Update viewport and scissor rect
 			_viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(newWidth), static_cast<float>(newHeight));
 			_surfaceSize = { 0, 0, static_cast<LONG>(newWidth), static_cast<LONG>(newHeight) };
+		}
+	}
+
+	namespace ShaderCompiler
+	{
+		Microsoft::WRL::ComPtr<IDxcUtils> _utils;
+		Microsoft::WRL::ComPtr<IDxcCompiler3> _compiler;
+		Microsoft::WRL::ComPtr<IDxcIncludeHandler> _includeHandler;
+
+		void InitializeShaderCompiler()
+		{
+			ThrowIfFailed(DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&_utils)));
+			ThrowIfFailed(DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&_compiler)));
+			ThrowIfFailed(_utils->CreateDefaultIncludeHandler(&_includeHandler));
 		}
 	}
 }

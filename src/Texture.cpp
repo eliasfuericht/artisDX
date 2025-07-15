@@ -61,7 +61,7 @@ void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList
 
 	D3D12_HEAP_PROPERTIES defaultHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 
-	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommittedResource(
+	ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateCommittedResource(
 		&defaultHeap,
 		D3D12_HEAP_FLAG_NONE,
 		&textureDesc,
@@ -75,7 +75,7 @@ void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList
 	D3D12_RESOURCE_DESC uploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize);
 
 	// Create the GPU upload buffer.
-	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommittedResource(
+	ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateCommittedResource(
 		&defaultUploadHeap,
 		D3D12_HEAP_FLAG_NONE,
 		&uploadBufferDesc,
@@ -97,7 +97,7 @@ void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList
 	D3D12_RESOURCE_BARRIER transitionBarrier = CD3DX12_RESOURCE_BARRIER::Transition(_textureResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	commandList->ResourceBarrier(1, &transitionBarrier);
 
-	_srvCpuHandle = DescriptorAllocator::Allocate();
+	_srvCpuHandle = DescriptorAllocator::Resource::Allocate();
 
 	// Describe and create a SRV for the texture.
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -106,14 +106,11 @@ void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = _mipCount;
 	srvDesc.Texture2D.MostDetailedMip = 0;
-	D3D12Core::GraphicsDevice::GetDevice()->CreateShaderResourceView(_textureResource.Get(), &srvDesc, _srvCpuHandle);
+	D3D12Core::GraphicsDevice::_device->CreateShaderResourceView(_textureResource.Get(), &srvDesc, _srvCpuHandle);
 }
 
 void Texture::BindTexture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
-	ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::GetHeap() };
-	commandList->SetDescriptorHeaps(1, heaps);
-
-	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = DescriptorAllocator::GetGPUHandle(_srvCpuHandle);
-	commandList->SetGraphicsRootDescriptorTable(_textureType + 4, gpuHandle); // <- this is scuffed af
+	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = DescriptorAllocator::Resource::GetGPUHandle(_srvCpuHandle);
+	commandList->SetGraphicsRootDescriptorTable(_textureType + 5, gpuHandle); // <- this is scuffed af
 }

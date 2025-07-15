@@ -37,13 +37,11 @@ void Application::Init()
 {
 	ThrowIfFailed(CoInitializeEx(nullptr, COINIT_MULTITHREADED));
 
-	UINT dxgiFactoryFlags = 0;
 #if defined(_DEBUG)
-	dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 	D3D12Core::GraphicsDevice::InitializeDebugController();
 #endif
 
-	D3D12Core::GraphicsDevice::InitializeFactory(dxgiFactoryFlags);
+	D3D12Core::GraphicsDevice::InitializeFactory();
 	D3D12Core::GraphicsDevice::InitializeAdapter();
 	D3D12Core::GraphicsDevice::InitializeDevice();
 
@@ -58,27 +56,18 @@ void Application::Init()
 	CommandQueue::InitializeCommandQueue(queueDesc);
 
 	// Create Command Allocator - still stored in application, think about better place
-	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_commandAllocator)), "CommandAllocator creation failed!");
+	ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_commandAllocator)), "CommandAllocator creation failed!");
 
 	D3D12Core::Swapchain::InitializeSwapchain(_width, _height, _window.GetHWND());
 
-	DescriptorAllocator::InitializeDescriptorAllocator(NUM_MAX_DESCRIPTORS);
+	DescriptorAllocator::Resource::InitializeDescriptorAllocator(NUM_MAX_RESOURCE_DESCRIPTORS);
+	DescriptorAllocator::Sampler::InitializeDescriptorAllocator(NUM_MAX_SAMPLER_DESCRIPTORS);
 }
 
 void Application::InitResources()
 {
 	// Create the root signature.
 	{
-		D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
-
-		// This is the highest version the sample supports. If
-		// CheckFeatureSupport succeeds, the HighestVersion returned will not be
-		// greater than this.
-		featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
-
-		if (FAILED(D3D12Core::GraphicsDevice::GetDevice()->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData,sizeof(featureData))))
-			featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
-
 		D3D12_DESCRIPTOR_RANGE1 cbvRangeViewProjMatrix = {};
 		cbvRangeViewProjMatrix.BaseShaderRegister = 0; // b0
 		cbvRangeViewProjMatrix.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
@@ -111,8 +100,15 @@ void Application::InitResources()
 		cbvRangePointLight.OffsetInDescriptorsFromTableStart = 0;
 		cbvRangePointLight.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
 
-		D3D12_DESCRIPTOR_RANGE1 srvRanges[5] = {};
+		D3D12_DESCRIPTOR_RANGE1 samplerRange{};
+		samplerRange.BaseShaderRegister = 0;     
+		samplerRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
+		samplerRange.NumDescriptors = 1;         
+		samplerRange.RegisterSpace = 0;
+		samplerRange.OffsetInDescriptorsFromTableStart = 0;
+		samplerRange.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
 
+		D3D12_DESCRIPTOR_RANGE1 srvRanges[5] = {};
 		for (int i = 0; i < 5; ++i) {
 			srvRanges[i].BaseShaderRegister = i; // t0 to t4
 			srvRanges[i].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -122,7 +118,7 @@ void Application::InitResources()
 			srvRanges[i].Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
 		}
 
-		D3D12_ROOT_PARAMETER1 rootParameters[9] = {};
+		D3D12_ROOT_PARAMETER1 rootParameters[10] = {};
 
 		// View-Projection Matrix Buffer
 		rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
@@ -148,29 +144,44 @@ void Application::InitResources()
 		rootParameters[3].DescriptorTable.NumDescriptorRanges = 1;
 		rootParameters[3].DescriptorTable.pDescriptorRanges = &cbvRangePointLight;
 
+		rootParameters[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		rootParameters[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+		rootParameters[4].DescriptorTable.NumDescriptorRanges = 1;
+		rootParameters[4].DescriptorTable.pDescriptorRanges = &samplerRange;
+
 		// textures ugly asf need to rethink
 		for (int i = 0; i < 5; ++i) {
-			rootParameters[i + 4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-			rootParameters[i + 4].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-			rootParameters[i + 4].DescriptorTable.NumDescriptorRanges = 1;
-			rootParameters[i + 4].DescriptorTable.pDescriptorRanges = &srvRanges[i];
+			rootParameters[i + 5].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			rootParameters[i + 5].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+			rootParameters[i + 5].DescriptorTable.NumDescriptorRanges = 1;
+			rootParameters[i + 5].DescriptorTable.pDescriptorRanges = &srvRanges[i];
 		}
 
-		CD3DX12_STATIC_SAMPLER_DESC staticSampler{ 0, D3D12_FILTER_MIN_MAG_MIP_LINEAR };
+		_samplerCPUHandle = DescriptorAllocator::Sampler::Allocate();
+
+		D3D12_SAMPLER_DESC samplerDesc{};
+		samplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+		samplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		samplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		samplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		samplerDesc.MinLOD = 0;
+		samplerDesc.MaxLOD = D3D12_FLOAT32_MAX;
+
+		D3D12Core::GraphicsDevice::_device->CreateSampler(&samplerDesc, _samplerCPUHandle);
 
 		D3D12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
 		rootSignatureDesc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
 		rootSignatureDesc.Desc_1_1.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 		rootSignatureDesc.Desc_1_1.NumParameters = _countof(rootParameters);
 		rootSignatureDesc.Desc_1_1.pParameters = rootParameters;
-		rootSignatureDesc.Desc_1_1.NumStaticSamplers = 1;
-		rootSignatureDesc.Desc_1_1.pStaticSamplers = &staticSampler;
+		rootSignatureDesc.Desc_1_1.NumStaticSamplers = 0;
+		rootSignatureDesc.Desc_1_1.pStaticSamplers = nullptr;
 
 		MSWRL::ComPtr<ID3DBlob> signature;
 		MSWRL::ComPtr<ID3DBlob> error;
 
 		ThrowIfFailed(D3D12SerializeVersionedRootSignature(&rootSignatureDesc, &signature, &error));
-		ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&_rootSignature)), "Root Signature creation failed!");
+		ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&_rootSignature)), "Root Signature creation failed!");
 		_rootSignature->SetName(L"artisDX_rootSignature");
 	}
 
@@ -290,10 +301,10 @@ void Application::InitResources()
 		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 		psoDesc.SampleDesc.Count = 1;
 
-		ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&_pipelineState)), "Graphics Pipeline creation failed!");
+		ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&_pipelineState)), "Graphics Pipeline creation failed!");
 	}
 
-	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _commandAllocator.Get(), _pipelineState.Get(), IID_PPV_ARGS(&_commandList)), "CommandList creation failed!");
+	ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _commandAllocator.Get(), _pipelineState.Get(), IID_PPV_ARGS(&_commandList)), "CommandList creation failed!");
 	_commandList->SetName(L"Render CommandList");
 
 
@@ -314,8 +325,8 @@ void Application::InitResources()
 		heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 
-		ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_VPBufferHeap)));
-		ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_camPosBufferHeap)));
+		ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_VPBufferHeap)));
+		ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_camPosBufferHeap)));
 
 		D3D12_RESOURCE_DESC vpCBResourceDesc;
 		vpCBResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -330,7 +341,7 @@ void Application::InitResources()
 		vpCBResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 		vpCBResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
-		ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommittedResource(
+		ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateCommittedResource(
 			&heapProps,
 			D3D12_HEAP_FLAG_NONE,
 			&vpCBResourceDesc,
@@ -353,7 +364,7 @@ void Application::InitResources()
 		camPosCBResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 		camPosCBResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
-		ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommittedResource(
+		ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateCommittedResource(
 			&heapProps,
 			D3D12_HEAP_FLAG_NONE,
 			&camPosCBResourceDesc,
@@ -363,18 +374,18 @@ void Application::InitResources()
 
 		_camPosBufferHeap->SetName(L"Cam Pos Constant Buffer Upload Heap");
 
-		D3D12_CPU_DESCRIPTOR_HANDLE vpCbvCpuHandle = DescriptorAllocator::Allocate();
+		D3D12_CPU_DESCRIPTOR_HANDLE vpCbvCpuHandle = DescriptorAllocator::Resource::Allocate();
 		D3D12_CONSTANT_BUFFER_VIEW_DESC vpCbvDesc = {};
 		vpCbvDesc.BufferLocation = _VPBufferResource->GetGPUVirtualAddress();
 		vpCbvDesc.SizeInBytes = (sizeof(XMFLOAT4X4) + 255) & ~255; // CB size is required to be 256-byte aligned.
-		D3D12Core::GraphicsDevice::GetDevice()->CreateConstantBufferView(&vpCbvDesc, vpCbvCpuHandle);
+		D3D12Core::GraphicsDevice::_device->CreateConstantBufferView(&vpCbvDesc, vpCbvCpuHandle);
 		_VPBufferDescriptor = vpCbvCpuHandle; // viewProjMatrix
 
-		D3D12_CPU_DESCRIPTOR_HANDLE viewCbvCpuHandle = DescriptorAllocator::Allocate();
+		D3D12_CPU_DESCRIPTOR_HANDLE viewCbvCpuHandle = DescriptorAllocator::Resource::Allocate();
 		D3D12_CONSTANT_BUFFER_VIEW_DESC viewCbvDesc = {};
 		viewCbvDesc.BufferLocation = _camPosBufferResource->GetGPUVirtualAddress();
 		viewCbvDesc.SizeInBytes = (sizeof(XMFLOAT3) + 255) & ~255; // CB size is required to be 256-byte aligned.
-		D3D12Core::GraphicsDevice::GetDevice()->CreateConstantBufferView(&viewCbvDesc, viewCbvCpuHandle);
+		D3D12Core::GraphicsDevice::_device->CreateConstantBufferView(&viewCbvDesc, viewCbvCpuHandle);
 		_camPosBufferDescriptor = viewCbvCpuHandle; // viewMatrix
 
 		// setup matrices
@@ -402,8 +413,8 @@ void Application::InitResources()
 	_modelManager = ModelManager(_commandList);
 
 	//_modelManager.LoadModel("../assets/helmet.glb");
-	//_modelManager.LoadModel("../assets/sponza.glb");
-	_modelManager.LoadModel("../assets/brick_wall.glb");
+	_modelManager.LoadModel("../assets/sponza.glb");
+	//_modelManager.LoadModel("../assets/brick_wall.glb");
 	//_modelManager.LoadModel("../assets/DamagedHelmet.glb");
 	//_modelManager.LoadModel("../assets/apollo.glb");
 	//_modelManager.LoadModel("../assets/new_sponza_curtains.glb");
@@ -435,12 +446,13 @@ void Application::SetCommandList()
 	_commandList->RSSetViewports(1, &D3D12Core::Swapchain::_viewport);
 	_commandList->RSSetScissorRects(1, &D3D12Core::Swapchain::_surfaceSize);
 
-	ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::GetHeap() };
-	_commandList->SetDescriptorHeaps(1, heaps);
+	ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::Resource::GetHeap(), DescriptorAllocator::Sampler::GetHeap() };
+	_commandList->SetDescriptorHeaps(_countof(heaps), heaps);
 
-	_commandList->SetGraphicsRootDescriptorTable(0, DescriptorAllocator::GetGPUHandle(_VPBufferDescriptor));
-	_commandList->SetGraphicsRootDescriptorTable(2, DescriptorAllocator::GetGPUHandle(_camPosBufferDescriptor));
-	_commandList->SetGraphicsRootDescriptorTable(3, DescriptorAllocator::GetGPUHandle(_pLight->_cbvpLightCPUHandle));
+	_commandList->SetGraphicsRootDescriptorTable(0, DescriptorAllocator::Resource::GetGPUHandle(_VPBufferDescriptor));
+	_commandList->SetGraphicsRootDescriptorTable(2, DescriptorAllocator::Resource::GetGPUHandle(_camPosBufferDescriptor));
+	_commandList->SetGraphicsRootDescriptorTable(3, DescriptorAllocator::Resource::GetGPUHandle(_pLight->_cbvpLightCPUHandle));
+	_commandList->SetGraphicsRootDescriptorTable(4, DescriptorAllocator::Sampler::GetGPUHandle(_samplerCPUHandle));
 
 	// Transition the back buffer from present to render target state.
 	D3D12_RESOURCE_BARRIER renderTargetBarrier = {};
@@ -607,9 +619,9 @@ Application::~Application()
 
 	// Cleanup GUI
 #if defined(_DEBUG)
-	D3D12Core::GraphicsDevice::GetDebugDevice()->ReportLiveDeviceObjects(D3D12_RLDO_DETAIL);
-	if (D3D12Core::GraphicsDevice::GetDebugDevice()) D3D12Core::GraphicsDevice::GetDebugDevice().Reset();
-	if (D3D12Core::GraphicsDevice::GetDebugController()) D3D12Core::GraphicsDevice::GetDebugController().Reset();
+	D3D12Core::GraphicsDevice::_debugDevice->ReportLiveDeviceObjects(D3D12_RLDO_DETAIL);
+	if (D3D12Core::GraphicsDevice::_debugDevice) D3D12Core::GraphicsDevice::_debugDevice.Reset();
+	if (D3D12Core::GraphicsDevice::_debugController) D3D12Core::GraphicsDevice::_debugController.Reset();
 #endif
 	PRINT("SHUTDOWN");
 }

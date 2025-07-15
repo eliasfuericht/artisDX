@@ -5,10 +5,12 @@ Primitive::Primitive(std::vector<Vertex>& vertices, std::vector<uint32_t>& indic
 	_vertexCount = vertices.size();
 	UINT vertexBufferSize = vertices.size() * sizeof(Vertex);
 	_vertexBuffer = CreateBuffer(vertexBufferSize, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
+	_vertexBuffer->SetName(L"VertexBufferResource");
 
 	_indexCount = indices.size();
 	UINT indexBufferSize = _indexCount * sizeof(uint32_t);
 	_indexBuffer = CreateBuffer(indexBufferSize, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
+	_indexBuffer->SetName(L"IndexBufferResource");
 
 	UploadBuffers(vertices, vertexBufferSize, indices, indexBufferSize);
 
@@ -48,7 +50,7 @@ MSWRL::ComPtr<ID3D12Resource> Primitive::CreateBuffer(UINT64 size, D3D12_HEAP_TY
 
 	MSWRL::ComPtr<ID3D12Resource> buffer;
 
-	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommittedResource(
+	ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateCommittedResource(
 		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
 		&resourceDesc,

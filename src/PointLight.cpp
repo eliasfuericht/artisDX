@@ -8,14 +8,14 @@ PointLight::PointLight(float x, float y, float z)
 
 void PointLight::CreateCBV()
 {
-	_cbvpLightCPUHandle = DescriptorAllocator::Allocate();
+	_cbvpLightCPUHandle = DescriptorAllocator::Resource::Allocate();
 
 	const UINT bufferSize = (sizeof(XMFLOAT3) + 255) & ~255;
 
 	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
 	CD3DX12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
 
-	D3D12Core::GraphicsDevice::GetDevice()->CreateCommittedResource(
+	D3D12Core::GraphicsDevice::_device->CreateCommittedResource(
 		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
 		&bufferDesc,
@@ -30,7 +30,7 @@ void PointLight::CreateCBV()
 	cbvDesc.BufferLocation = _pLightBufferResource->GetGPUVirtualAddress();
 	cbvDesc.SizeInBytes = bufferSize;
 
-	D3D12Core::GraphicsDevice::GetDevice()->CreateConstantBufferView(&cbvDesc, _cbvpLightCPUHandle);
+	D3D12Core::GraphicsDevice::_device->CreateConstantBufferView(&cbvDesc, _cbvpLightCPUHandle);
 }
 
 void PointLight::UpdateBuffer()

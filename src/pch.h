@@ -56,7 +56,8 @@ using namespace DirectX;
 
 #define GetHInstance() GetModuleHandle(NULL)
 
-#define NUM_MAX_DESCRIPTORS 1024
+#define NUM_MAX_RESOURCE_DESCRIPTORS 1024
+#define NUM_MAX_SAMPLER_DESCRIPTORS 64
 
 template<typename... Args>
 void PrintHelper(Args&&... args) {

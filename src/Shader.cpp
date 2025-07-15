@@ -1,23 +1,11 @@
 #include "Shader.h"
 
-namespace D3D12Core::ShaderCompiler
-{
-	Microsoft::WRL::ComPtr<IDxcUtils> _utils;
-	Microsoft::WRL::ComPtr<IDxcCompiler3> _compiler;
-	Microsoft::WRL::ComPtr<IDxcIncludeHandler> _includeHandler;
-
-	void InitializeShaderCompiler()
-	{
-		ThrowIfFailed(DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&_utils)));
-		ThrowIfFailed(DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&_compiler)));
-		ThrowIfFailed(_utils->CreateDefaultIncludeHandler(&_includeHandler));
-	}
-}
-
 Shader::Shader(std::filesystem::path path, SHADERTYPE shaderType)
 {
 	if (!D3D12Core::ShaderCompiler::_utils || !D3D12Core::ShaderCompiler::_compiler || !D3D12Core::ShaderCompiler::_includeHandler)
 		D3D12Core::ShaderCompiler::InitializeShaderCompiler();
+
+	_shaderType = shaderType;
 
 	std::vector<LPCWSTR> compilationArguments { L"-E", L"main", DXC_ARG_PACK_MATRIX_ROW_MAJOR, DXC_ARG_WARNINGS_ARE_ERRORS,DXC_ARG_ALL_RESOURCES_BOUND };
 
@@ -54,7 +42,7 @@ Shader::Shader(std::filesystem::path path, SHADERTYPE shaderType)
 	sourceBuffer.Size = sourceBlob->GetBufferSize();
 	sourceBuffer.Encoding = 0u;
 
-	Microsoft::WRL::ComPtr<IDxcResult> compiledShaderBuffer{};
+	MSWRL::ComPtr<IDxcResult> compiledShaderBuffer{};
 
 	ThrowIfFailed(D3D12Core::ShaderCompiler::_compiler->Compile(&sourceBuffer,
 		compilationArguments.data(),
@@ -69,6 +57,11 @@ Shader::Shader(std::filesystem::path path, SHADERTYPE shaderType)
 		const LPCSTR errorMessage = errors->GetStringPointer();
 		ThrowException(errorMessage);
 	}
+
+	ThrowIfFailed(compiledShaderBuffer->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&_shaderBlob), nullptr), "Failed to retrieve Shader Blob!");
+
+	_shaderByteCode.pShaderBytecode = _shaderBlob->GetBufferPointer();
+	_shaderByteCode.BytecodeLength = _shaderBlob->GetBufferSize();
 
 	MSWRL::ComPtr<IDxcBlob> reflectionBlob{};
 	ThrowIfFailed(compiledShaderBuffer->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(&reflectionBlob), nullptr) , "Failed to retrieve Shader Reflection Data!");
@@ -150,11 +143,9 @@ Shader::Shader(std::filesystem::path path, SHADERTYPE shaderType)
 
 	ThrowIfFailed(D3D12SerializeVersionedRootSignature(&rootDesc, &sigBlob, &errorBlob));
 
-	MSWRL::ComPtr<ID3D12RootSignature> rootSignature;
 	ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateRootSignature(
 		0,
 		sigBlob->GetBufferPointer(),
 		sigBlob->GetBufferSize(),
-		IID_PPV_ARGS(&rootSignature)), "Root Signature creation failed!");
-
+		IID_PPV_ARGS(&_rootSignature)), "Root Signature creation failed!");
 }

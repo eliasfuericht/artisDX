@@ -4,20 +4,14 @@
 
 #include "D3D12Core.h"
 
-namespace D3D12Core::GraphicsDevice
-{
-	void InitializeShaderCompiler();
-
-	extern MSWRL::ComPtr<IDxcUtils> _utils;
-	extern MSWRL::ComPtr<IDxcCompiler3> _compiler;
-	extern MSWRL::ComPtr<IDxcIncludeHandler> _includeHandler;
-}
+#define NOTOK -1
 
 enum SHADERTYPE
 {
-	VERTEX,
-	PIXEL,
-	COMPUTE,
+	INVALID = -1,
+	VERTEX = 0,
+	PIXEL = 1,
+	COMPUTE = 2,
 };
 
 class Shader
@@ -25,5 +19,8 @@ class Shader
 public:
 	Shader(std::filesystem::path path, SHADERTYPE shaderType);
 
-private:
+	SHADERTYPE _shaderType = INVALID;
+	MSWRL::ComPtr<IDxcBlob> _shaderBlob;
+	D3D12_SHADER_BYTECODE _shaderByteCode;
+	MSWRL::ComPtr<ID3D12RootSignature> _rootSignature;
 };

@@ -7,9 +7,9 @@ HANDLE CommandQueue::_fenceEvent = nullptr;
 
 void CommandQueue::InitializeCommandQueue(D3D12_COMMAND_QUEUE_DESC queueDesc)
 {
-	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&_commandQueue)), "CommandQueue creation failed!");
+	ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&_commandQueue)), "CommandQueue creation failed!");
 
-	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence)));
+	ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence)));
 
 	_fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 	if (_fenceEvent == nullptr)
