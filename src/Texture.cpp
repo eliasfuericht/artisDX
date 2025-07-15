@@ -109,8 +109,30 @@ void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList
 	D3D12Core::GraphicsDevice::_device->CreateShaderResourceView(_textureResource.Get(), &srvDesc, _srvCpuHandle);
 }
 
-void Texture::BindTexture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
+void Texture::BindTexture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, ShaderPass& shaderPass)
 {
 	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = DescriptorAllocator::Resource::GetGPUHandle(_srvCpuHandle);
-	//commandList->SetGraphicsRootDescriptorTable(_textureType + 5, gpuHandle); // <- this is scuffed af
+	switch (_textureType)
+	{
+	case ALBEDO:
+		if (auto slot = shaderPass.GetRootParameterIndex("albedoTexture"))
+			commandList->SetGraphicsRootDescriptorTable(*slot, gpuHandle);
+		break;
+	case METALLICROUGHNESS:
+		if (auto slot = shaderPass.GetRootParameterIndex("metallicRoughnessTexture"))
+			commandList->SetGraphicsRootDescriptorTable(*slot, gpuHandle);
+		break;
+	case NORMAL:
+		if (auto slot = shaderPass.GetRootParameterIndex("normalTexture"))
+			commandList->SetGraphicsRootDescriptorTable(*slot, gpuHandle);
+		break;
+	case EMISSIVE:
+		if (auto slot = shaderPass.GetRootParameterIndex("emissiveTexture"))
+			commandList->SetGraphicsRootDescriptorTable(*slot, gpuHandle);
+		break;
+	case OCCLUSION:
+		if (auto slot = shaderPass.GetRootParameterIndex("occlusionTexture"))
+			commandList->SetGraphicsRootDescriptorTable(*slot, gpuHandle);
+		break;
+	}
 }

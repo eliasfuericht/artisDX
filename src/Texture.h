@@ -9,6 +9,8 @@
 #include "D3D12Core.h"
 #include "DescriptorAllocator.h"
 
+#include "ShaderPass.h"
+
 class Texture
 {
 public:
@@ -24,7 +26,7 @@ public:
 public:
 	Texture() {};
 	Texture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, Texture::TEXTURETYPE texType, ScratchImage& scratchImage);
-	void BindTexture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
+	void BindTexture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, ShaderPass& shaderPass);
 
 private:
 	void CreateBuffers(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);

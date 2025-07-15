@@ -1,9 +1,9 @@
-cbuffer viewProjBuffer : register(b0)
+cbuffer viewProjMatrixBuffer : register(b0)
 {
     row_major float4x4 c_viewProjectionMatrix : packoffset(c0);
 };
 
-cbuffer ModelBuffer : register(b1)
+cbuffer modelMatrixBuffer : register(b1)
 {
     row_major float4x4 c_modelMatrix : packoffset(c0);
 };

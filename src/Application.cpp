@@ -68,8 +68,8 @@ void Application::InitResources()
 {
 	_mainPass;
 
-	_mainPass.AddShader("../shaders/normal_vert.fx", SHADERTYPE::VERTEX);
-	_mainPass.AddShader("../shaders/normal_frag.fx", SHADERTYPE::PIXEL);
+	_mainPass.AddShader("../shaders/pbr_vert.fx", SHADERTYPE::VERTEX);
+	_mainPass.AddShader("../shaders/pbr_frag.fx", SHADERTYPE::PIXEL);
 
 	_mainPass.GenerateGraphicsRootSignature();
 	_mainPass.GeneratePipeLineStateObject();
@@ -228,11 +228,18 @@ void Application::SetCommandList()
 
 	ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::Resource::GetHeap(), DescriptorAllocator::Sampler::GetHeap() };
 	_commandList->SetDescriptorHeaps(_countof(heaps), heaps);
-	/*
-	_commandList->SetGraphicsRootDescriptorTable(0, DescriptorAllocator::Resource::GetGPUHandle(_VPBufferDescriptor));
-	_commandList->SetGraphicsRootDescriptorTable(2, DescriptorAllocator::Resource::GetGPUHandle(_camPosBufferDescriptor));
-	_commandList->SetGraphicsRootDescriptorTable(3, DescriptorAllocator::Resource::GetGPUHandle(_pLight->_cbvpLightCPUHandle));
-	_commandList->SetGraphicsRootDescriptorTable(4, DescriptorAllocator::Sampler::GetGPUHandle(_samplerCPUHandle));*/
+	
+	if (auto slot = _mainPass.GetRootParameterIndex("viewProjMatrixBuffer"))
+		_commandList->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_VPBufferDescriptor));
+
+	if (auto slot = _mainPass.GetRootParameterIndex("cameraPosBuffer"))
+		_commandList->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_camPosBufferDescriptor));
+
+	if (auto slot = _mainPass.GetRootParameterIndex("lightPosBuffer"))
+		_commandList->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_pLight->_cbvpLightCPUHandle));
+
+	if (auto slot = _mainPass.GetRootParameterIndex("mySampler"))
+		_commandList->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Sampler::GetGPUHandle(_samplerCPUHandle));
 
 	// Transition the back buffer from present to render target state.
 	D3D12_RESOURCE_BARRIER renderTargetBarrier = {};
@@ -255,7 +262,7 @@ void Application::SetCommandList()
 	const float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
 	_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 
-	_modelManager.DrawAll();
+	_modelManager.DrawAll(_mainPass);
 
 	// Transition back buffer to present state for the swap chain (gets transitioned again in the GUI but I#ll leave it like this for now)
 	D3D12_RESOURCE_BARRIER presentBarrier = {};

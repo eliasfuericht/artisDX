@@ -10,6 +10,7 @@
 #include "Mesh.h"
 #include "Material.h"
 #include "ModelNode.h"
+#include "ShaderPass.h"
 
 class Model : public IGUIComponent
 {
@@ -17,7 +18,7 @@ public:
 	Model() {};
 	Model(INT id, std::string name, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, std::vector<Mesh> meshes, std::vector<Texture> textures, std::vector<Material> materials, std::vector<ModelNode> modelNodes);
 
-	void DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
+	void DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, ShaderPass& shaderPass);
 
 	void DrawGUI();
 	INT GetID();

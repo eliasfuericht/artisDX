@@ -10,6 +10,7 @@ void ShaderPass::GenerateGraphicsRootSignature()
 	std::vector<std::pair<SHADERTYPE, D3D12_DESCRIPTOR_RANGE1>> ranges;
 	std::vector<D3D12_ROOT_PARAMETER1> rootParams;
 
+	INT incrementor = 0;
 	for (const auto& shader : _shaders)
 	{
 		MSWRL::ComPtr<IDxcBlob> reflectionBlob{};
@@ -30,6 +31,8 @@ void ShaderPass::GenerateGraphicsRootSignature()
 			D3D12_SHADER_INPUT_BIND_DESC bindDesc{};
 			shaderReflection->GetResourceBindingDesc(i, &bindDesc);
 
+			_bindingMap.try_emplace(bindDesc.Name, incrementor++);
+
 			if (bindDesc.Type == D3D_SIT_CBUFFER)
 			{
 				D3D12_DESCRIPTOR_RANGE1 cbvRange{};
@@ -42,7 +45,6 @@ void ShaderPass::GenerateGraphicsRootSignature()
 			}
 			else if (bindDesc.Type == D3D_SIT_TEXTURE)
 			{
-				// SRV table entry
 				D3D12_DESCRIPTOR_RANGE1 srvRange{};
 				srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 				srvRange.NumDescriptors = bindDesc.BindCount;
@@ -53,7 +55,6 @@ void ShaderPass::GenerateGraphicsRootSignature()
 			}
 			else if (bindDesc.Type == D3D_SIT_SAMPLER)
 			{
-				// Sampler table entry
 				D3D12_DESCRIPTOR_RANGE1 samplerRange{};
 				samplerRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
 				samplerRange.NumDescriptors = bindDesc.BindCount;
@@ -64,7 +65,6 @@ void ShaderPass::GenerateGraphicsRootSignature()
 			}
 			else if (bindDesc.Type == D3D_SIT_UAV_RWTYPED)
 			{
-				// UAV table entry
 				D3D12_DESCRIPTOR_RANGE1 uavRange{};
 				uavRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
 				uavRange.NumDescriptors = bindDesc.BindCount;
@@ -171,4 +171,11 @@ void ShaderPass::GeneratePipeLineStateObject()
 	psoDesc.SampleDesc.Count = 1;
 
 	ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&_pipelineState)), "PipelineStateObject creation failed!");
+}
+
+std::optional<UINT> ShaderPass::GetRootParameterIndex(const std::string& name) {
+	auto it = _bindingMap.find(name);
+	if (it == _bindingMap.end())
+		return std::nullopt;
+	return it->second;
 }

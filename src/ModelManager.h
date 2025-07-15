@@ -12,7 +12,7 @@ public:
 	ModelManager(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 
 	void LoadModel(std::filesystem::path path);
-	void DrawAll();
+	void DrawAll(ShaderPass& shaderPass);
 
 private:
 	MSWRL::ComPtr<ID3D12GraphicsCommandList> _commandList;

@@ -9,7 +9,7 @@ cbuffer cameraPosBuffer : register(b2)
     float3 c_camPos : packoffset(c0);
 };
 
-cbuffer LightPosBuffer : register(b3)
+cbuffer lightPosBuffer : register(b3)
 {
     float3 c_dLightPosition : packoffset(c0);
 };

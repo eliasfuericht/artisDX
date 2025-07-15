@@ -16,10 +16,10 @@ void ModelManager::LoadModel(std::filesystem::path path)
 	_models.push_back(std::move(model));
 }
 
-void ModelManager::DrawAll()
+void ModelManager::DrawAll(ShaderPass& shaderPass)
 {
 	for (auto& model : _models)
 	{
-		model->DrawModel(_commandList);
+		model->DrawModel(_commandList, shaderPass);
 	}
 }
