@@ -1,11 +1,11 @@
 #include "CommandQueue.h"
 
-MSWRL::ComPtr<ID3D12CommandQueue> D3D12Core::CommandQueue::_commandQueue = nullptr;
-MSWRL::ComPtr<ID3D12Fence> D3D12Core::CommandQueue::_fence = nullptr;
-UINT64 D3D12Core::CommandQueue::_fenceValue = 0;
-HANDLE D3D12Core::CommandQueue::_fenceEvent = nullptr;
+MSWRL::ComPtr<ID3D12CommandQueue> CommandQueue::_commandQueue = nullptr;
+MSWRL::ComPtr<ID3D12Fence> CommandQueue::_fence = nullptr;
+UINT64 CommandQueue::_fenceValue = 0;
+HANDLE CommandQueue::_fenceEvent = nullptr;
 
-void D3D12Core::CommandQueue::InitializeCommandQueue(D3D12_COMMAND_QUEUE_DESC queueDesc)
+void CommandQueue::InitializeCommandQueue(D3D12_COMMAND_QUEUE_DESC queueDesc)
 {
 	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&_commandQueue)), "CommandQueue creation failed!");
 
@@ -18,7 +18,7 @@ void D3D12Core::CommandQueue::InitializeCommandQueue(D3D12_COMMAND_QUEUE_DESC qu
 	}
 }
 
-void D3D12Core::CommandQueue::WaitForFence()
+void CommandQueue::WaitForFence()
 {
 	_fenceValue++;
 	_commandQueue->Signal(_fence.Get(), _fenceValue);

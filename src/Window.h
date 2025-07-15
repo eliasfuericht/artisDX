@@ -3,7 +3,7 @@
 #include "pch.h"
 
 #include <hidusage.h>
-#include "Swapchain.h"
+#include "D3D12Core.h"
 
 class Window
 {

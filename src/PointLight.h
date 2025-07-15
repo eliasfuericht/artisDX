@@ -2,7 +2,7 @@
 
 #include "pch.h"
 
-#include "GraphicsDevice.h"
+#include "D3D12Core.h"
 #include "DescriptorAllocator.h"
 
 #include "GUI.h"

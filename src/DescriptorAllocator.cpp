@@ -1,12 +1,11 @@
 #include "DescriptorAllocator.h"
 
-DescriptorAllocator& DescriptorAllocator::Instance()
-{
-	static DescriptorAllocator instance;
-	return instance;
-}
+MSWRL::ComPtr<ID3D12DescriptorHeap> DescriptorAllocator::_heap = nullptr;
+UINT DescriptorAllocator::_descriptorSize = 0;
+UINT DescriptorAllocator::_capacity = 0;
+std::atomic<UINT> DescriptorAllocator::_currentOffset = 0;
 
-void DescriptorAllocator::Initialize(UINT numDescriptors)
+void DescriptorAllocator::InitializeDescriptorAllocator(UINT numDescriptors)
 {
 	_capacity = numDescriptors;
 	_descriptorSize = D3D12Core::GraphicsDevice::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -34,7 +33,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE DescriptorAllocator::Allocate()
 	return cpuHandle;
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE DescriptorAllocator::GetGPUHandle(D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle) const
+D3D12_GPU_DESCRIPTOR_HANDLE DescriptorAllocator::GetGPUHandle(D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle)
 {
 	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = _heap->GetGPUDescriptorHandleForHeapStart();
 	UINT offset = static_cast<UINT>((cpuHandle.ptr - _heap->GetCPUDescriptorHandleForHeapStart().ptr) / _descriptorSize);
@@ -42,7 +41,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE DescriptorAllocator::GetGPUHandle(D3D12_CPU_DESCRIPT
 	return gpuHandle;
 }
 
-ID3D12DescriptorHeap* DescriptorAllocator::GetHeap() const
+ID3D12DescriptorHeap* DescriptorAllocator::GetHeap()
 {
 	return _heap.Get();
 }

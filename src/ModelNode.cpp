@@ -7,7 +7,7 @@ ModelNode::ModelNode()
 
 void ModelNode::CreateCBV()
 {
-	D3D12_CPU_DESCRIPTOR_HANDLE cbvCpuHandle = DescriptorAllocator::Instance().Allocate();
+	D3D12_CPU_DESCRIPTOR_HANDLE cbvCpuHandle = DescriptorAllocator::Allocate();
 
 	const UINT bufferSize = (sizeof(XMFLOAT4X4) + 255) & ~255;
 
@@ -31,5 +31,5 @@ void ModelNode::CreateCBV()
 
 	D3D12Core::GraphicsDevice::GetDevice()->CreateConstantBufferView(&cbvDesc, cbvCpuHandle);
 
-	_cbvModelMatrixGpuHandle = DescriptorAllocator::Instance().GetGPUHandle(cbvCpuHandle);
+	_cbvModelMatrixGpuHandle = DescriptorAllocator::GetGPUHandle(cbvCpuHandle);
 }

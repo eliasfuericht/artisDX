@@ -2,15 +2,15 @@
 
 #include "pch.h"
 
-#include "GraphicsDevice.h"
+#include "D3D12Core.h"
 
 namespace D3D12Core::GraphicsDevice
 {
 	void InitializeShaderCompiler();
 
-	extern Microsoft::WRL::ComPtr<IDxcUtils> _utils;
-	extern Microsoft::WRL::ComPtr<IDxcCompiler3> _compiler;
-	extern Microsoft::WRL::ComPtr<IDxcIncludeHandler> _includeHandler;
+	extern MSWRL::ComPtr<IDxcUtils> _utils;
+	extern MSWRL::ComPtr<IDxcCompiler3> _compiler;
+	extern MSWRL::ComPtr<IDxcIncludeHandler> _includeHandler;
 }
 
 enum SHADERTYPE

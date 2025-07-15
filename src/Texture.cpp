@@ -97,7 +97,7 @@ void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList
 	D3D12_RESOURCE_BARRIER transitionBarrier = CD3DX12_RESOURCE_BARRIER::Transition(_textureResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	commandList->ResourceBarrier(1, &transitionBarrier);
 
-	_srvCpuHandle = DescriptorAllocator::Instance().Allocate();
+	_srvCpuHandle = DescriptorAllocator::Allocate();
 
 	// Describe and create a SRV for the texture.
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -111,9 +111,9 @@ void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList
 
 void Texture::BindTexture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
-	ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::Instance().GetHeap() };
+	ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::GetHeap() };
 	commandList->SetDescriptorHeaps(1, heaps);
 
-	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = DescriptorAllocator::Instance().GetGPUHandle(_srvCpuHandle);
+	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = DescriptorAllocator::GetGPUHandle(_srvCpuHandle);
 	commandList->SetGraphicsRootDescriptorTable(_textureType + 4, gpuHandle); // <- this is scuffed af
 }

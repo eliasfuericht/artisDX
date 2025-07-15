@@ -16,7 +16,7 @@ set(ARTISDX_HEADERS
     src/CommandQueue.h
     src/DescriptorAllocator.h
     src/GLTFLoader.h
-    src/GraphicsDevice.h
+    src/D3D12Core.h
     src/GUI.h
     src/IGUIComponent.h
     src/Material.h
@@ -24,7 +24,6 @@ set(ARTISDX_HEADERS
     src/Mesh.h
     src/Model.h
     src/ModelManager.h
-    src/Swapchain.h
     src/Texture.h
     src/Window.h
     src/PointLight.h
@@ -39,7 +38,7 @@ set(ARTISDX_SOURCES
     src/CommandQueue.cpp
     src/DescriptorAllocator.cpp
     src/GLTFLoader.cpp
-    src/GraphicsDevice.cpp
+    src/D3D12Core.cpp
     src/GUI.cpp
     src/IGUIComponent.cpp
     src/main.cpp
@@ -48,7 +47,6 @@ set(ARTISDX_SOURCES
     src/Mesh.cpp
     src/Model.cpp
     src/ModelManager.cpp
-    src/Swapchain.cpp
     src/Texture.cpp
     src/Window.cpp
     src/PointLight.cpp

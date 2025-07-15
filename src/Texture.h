@@ -6,7 +6,7 @@
 
 #include "DirectXTex.h"
 
-#include "GraphicsDevice.h"
+#include "D3D12Core.h"
 #include "DescriptorAllocator.h"
 
 class Texture

@@ -2,8 +2,7 @@
 
 #include "pch.h"
 
-#include "GraphicsDevice.h"
-#include "Swapchain.h"
+#include "D3D12Core.h"
 #include "CommandQueue.h"
 #include "Window.h"
 #include "Camera.h"

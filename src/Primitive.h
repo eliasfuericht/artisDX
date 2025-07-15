@@ -2,7 +2,7 @@
 
 #include "pch.h"
 
-#include "GraphicsDevice.h"
+#include "D3D12Core.h"
 #include "AABB.h"
 
 class Primitive

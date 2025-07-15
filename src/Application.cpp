@@ -55,14 +55,14 @@ void Application::Init()
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
-	D3D12Core::CommandQueue::InitializeCommandQueue(queueDesc);
+	CommandQueue::InitializeCommandQueue(queueDesc);
 
 	// Create Command Allocator - still stored in application, think about better place
 	ThrowIfFailed(D3D12Core::GraphicsDevice::GetDevice()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_commandAllocator)), "CommandAllocator creation failed!");
 
 	D3D12Core::Swapchain::InitializeSwapchain(_width, _height, _window.GetHWND());
 
-	DescriptorAllocator::Instance().Initialize(NUM_MAX_DESCRIPTORS);
+	DescriptorAllocator::InitializeDescriptorAllocator(NUM_MAX_DESCRIPTORS);
 }
 
 void Application::InitResources()
@@ -363,14 +363,14 @@ void Application::InitResources()
 
 		_camPosBufferHeap->SetName(L"Cam Pos Constant Buffer Upload Heap");
 
-		D3D12_CPU_DESCRIPTOR_HANDLE vpCbvCpuHandle = DescriptorAllocator::Instance().Allocate();
+		D3D12_CPU_DESCRIPTOR_HANDLE vpCbvCpuHandle = DescriptorAllocator::Allocate();
 		D3D12_CONSTANT_BUFFER_VIEW_DESC vpCbvDesc = {};
 		vpCbvDesc.BufferLocation = _VPBufferResource->GetGPUVirtualAddress();
 		vpCbvDesc.SizeInBytes = (sizeof(XMFLOAT4X4) + 255) & ~255; // CB size is required to be 256-byte aligned.
 		D3D12Core::GraphicsDevice::GetDevice()->CreateConstantBufferView(&vpCbvDesc, vpCbvCpuHandle);
 		_VPBufferDescriptor = vpCbvCpuHandle; // viewProjMatrix
 
-		D3D12_CPU_DESCRIPTOR_HANDLE viewCbvCpuHandle = DescriptorAllocator::Instance().Allocate();
+		D3D12_CPU_DESCRIPTOR_HANDLE viewCbvCpuHandle = DescriptorAllocator::Allocate();
 		D3D12_CONSTANT_BUFFER_VIEW_DESC viewCbvDesc = {};
 		viewCbvDesc.BufferLocation = _camPosBufferResource->GetGPUVirtualAddress();
 		viewCbvDesc.SizeInBytes = (sizeof(XMFLOAT3) + 255) & ~255; // CB size is required to be 256-byte aligned.
@@ -413,9 +413,9 @@ void Application::InitResources()
 
 	// Execute the command list.
 	ID3D12CommandList* ppCommandLists[] = { _commandList.Get() };
-	D3D12Core::CommandQueue::_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+	CommandQueue::_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
-	D3D12Core::CommandQueue::WaitForFence();
+	CommandQueue::WaitForFence();
 }
 
 void Application::InitGUI()
@@ -435,12 +435,12 @@ void Application::SetCommandList()
 	_commandList->RSSetViewports(1, &D3D12Core::Swapchain::_viewport);
 	_commandList->RSSetScissorRects(1, &D3D12Core::Swapchain::_surfaceSize);
 
-	ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::Instance().GetHeap() };
+	ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::GetHeap() };
 	_commandList->SetDescriptorHeaps(1, heaps);
 
-	_commandList->SetGraphicsRootDescriptorTable(0, DescriptorAllocator::Instance().GetGPUHandle(_VPBufferDescriptor));
-	_commandList->SetGraphicsRootDescriptorTable(2, DescriptorAllocator::Instance().GetGPUHandle(_camPosBufferDescriptor));
-	_commandList->SetGraphicsRootDescriptorTable(3, DescriptorAllocator::Instance().GetGPUHandle(_pLight->_cbvpLightCPUHandle));
+	_commandList->SetGraphicsRootDescriptorTable(0, DescriptorAllocator::GetGPUHandle(_VPBufferDescriptor));
+	_commandList->SetGraphicsRootDescriptorTable(2, DescriptorAllocator::GetGPUHandle(_camPosBufferDescriptor));
+	_commandList->SetGraphicsRootDescriptorTable(3, DescriptorAllocator::GetGPUHandle(_pLight->_cbvpLightCPUHandle));
 
 	// Transition the back buffer from present to render target state.
 	D3D12_RESOURCE_BARRIER renderTargetBarrier = {};
@@ -503,7 +503,7 @@ void Application::Run()
 		if (!running)
 			break;
 
-		D3D12Core::CommandQueue::WaitForFence();
+		CommandQueue::WaitForFence();
 		UpdateFPS();
 		UpdateConstantBuffers();
 		SetCommandList();
@@ -512,7 +512,7 @@ void Application::Run()
 		Present();
 	}
 
-	D3D12Core::CommandQueue::WaitForFence();
+	CommandQueue::WaitForFence();
 	GUI::Shutdown();
 }
 
@@ -579,7 +579,7 @@ void Application::ExecuteCommandList()
 {
 	// Execute the command list.
 	ID3D12CommandList* ppCommandLists[] = { _commandList.Get() };
-	D3D12Core::CommandQueue::_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+	CommandQueue::_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 }
 
 void Application::Present()
