@@ -50,7 +50,7 @@ MSWRL::ComPtr<ID3D12Resource> Primitive::CreateBuffer(UINT64 size, D3D12_HEAP_TY
 
 	MSWRL::ComPtr<ID3D12Resource> buffer;
 
-	ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateCommittedResource(
+	ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateCommittedResource(
 		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
 		&resourceDesc,

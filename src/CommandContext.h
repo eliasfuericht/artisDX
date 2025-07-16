@@ -21,7 +21,7 @@ public:
 	void Finish(BOOL waitForExecution = false);
 
 private:
-	QUEUETYPE _queueType;
+	QUEUETYPE _queueType = QUEUETYPE::INVALID;
 
 	MSWRL::ComPtr<ID3D12CommandAllocator> _allocator;
 	MSWRL::ComPtr<ID3D12GraphicsCommandList> _commandList;

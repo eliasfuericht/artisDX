@@ -37,16 +37,16 @@ void GUI::Init(Window window)
 	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	desc.NumDescriptors = 1;
 	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&_srvHeap)));
+	ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&_srvHeap)));
 
 	// Create Command Allocator & Command List
-	ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_commandAllocator)));
-	ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _commandAllocator.Get(), nullptr, IID_PPV_ARGS(&_commandList)));
+	ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_commandAllocator)));
+	ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _commandAllocator.Get(), nullptr, IID_PPV_ARGS(&_commandList)));
 	_commandList->SetName(L"GUI CommandList");
 	_commandList->Close();
 
 	ImGui_ImplWin32_Init(window.GetHWND());
-	ImGui_ImplDX12_Init(D3D12Core::GraphicsDevice::_device.Get(), 3, DXGI_FORMAT_R8G8B8A8_UNORM, _srvHeap.Get(), _srvHeap->GetCPUDescriptorHandleForHeapStart(), _srvHeap->GetGPUDescriptorHandleForHeapStart());
+	ImGui_ImplDX12_Init(D3D12Core::GraphicsDevice::device.Get(), 3, DXGI_FORMAT_R8G8B8A8_UNORM, _srvHeap.Get(), _srvHeap->GetCPUDescriptorHandleForHeapStart(), _srvHeap->GetGPUDescriptorHandleForHeapStart());
 }
 
 void GUI::NewFrame()
@@ -119,16 +119,16 @@ void GUI::Render()
 	ID3D12DescriptorHeap* heaps[] = { _srvHeap.Get() };
 	_commandList->SetDescriptorHeaps(1, heaps);
 
-	UINT frameIndex = D3D12Core::Swapchain::_frameIndex;
+	UINT frameIndex = D3D12Core::Swapchain::frameIndex;
 
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = D3D12Core::Swapchain::_rtvHeap->GetCPUDescriptorHandleForHeapStart();
-	rtvHandle.ptr += (frameIndex * D3D12Core::Swapchain::_rtvDescriptorSize);
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = D3D12Core::Swapchain::rtvHeap->GetCPUDescriptorHandleForHeapStart();
+	rtvHandle.ptr += (frameIndex * D3D12Core::Swapchain::rtvDescriptorSize);
 	
 	// Transition backbuffer from PRESENT -> RENDER_TARGET
 	D3D12_RESOURCE_BARRIER renderTargetBarrier = {};
 	renderTargetBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	renderTargetBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	renderTargetBarrier.Transition.pResource = D3D12Core::Swapchain::_renderTargets[frameIndex].Get();
+	renderTargetBarrier.Transition.pResource = D3D12Core::Swapchain::renderTargets[frameIndex].Get();
 	renderTargetBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
 	renderTargetBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	renderTargetBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
@@ -148,7 +148,7 @@ void GUI::Render()
 	D3D12_RESOURCE_BARRIER presentBarrier = {};
 	presentBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	presentBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	presentBarrier.Transition.pResource = D3D12Core::Swapchain::_renderTargets[frameIndex].Get();
+	presentBarrier.Transition.pResource = D3D12Core::Swapchain::renderTargets[frameIndex].Get();
 	presentBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	presentBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 	presentBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;

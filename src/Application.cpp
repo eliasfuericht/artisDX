@@ -73,8 +73,8 @@ void Application::InitResources()
 		heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 
-		ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_VPBufferHeap)));
-		ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_camPosBufferHeap)));
+		ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_VPBufferHeap)));
+		ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_camPosBufferHeap)));
 
 		D3D12_RESOURCE_DESC matrixBufferResourceDesc;
 		matrixBufferResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -96,7 +96,7 @@ void Application::InitResources()
 		heapProps.CreationNodeMask = 1;
 		heapProps.VisibleNodeMask = 1;
 
-		ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateCommittedResource(
+		ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateCommittedResource(
 			&heapProps,
 			D3D12_HEAP_FLAG_NONE,
 			&matrixBufferResourceDesc,
@@ -119,7 +119,7 @@ void Application::InitResources()
 		float3BufferResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 		float3BufferResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
-		ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateCommittedResource(
+		ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateCommittedResource(
 			&heapProps,
 			D3D12_HEAP_FLAG_NONE,
 			&float3BufferResourceDesc,
@@ -133,14 +133,14 @@ void Application::InitResources()
 		D3D12_CONSTANT_BUFFER_VIEW_DESC vpCbvDesc = {};
 		vpCbvDesc.BufferLocation = _VPBufferResource->GetGPUVirtualAddress();
 		vpCbvDesc.SizeInBytes = (sizeof(XMFLOAT4X4) + 255) & ~255; // CB size is required to be 256-byte aligned.
-		D3D12Core::GraphicsDevice::_device->CreateConstantBufferView(&vpCbvDesc, vpCbvCpuHandle);
+		D3D12Core::GraphicsDevice::device->CreateConstantBufferView(&vpCbvDesc, vpCbvCpuHandle);
 		_VPBufferDescriptor = vpCbvCpuHandle; // viewProjMatrix
 
 		D3D12_CPU_DESCRIPTOR_HANDLE viewCbvCpuHandle = DescriptorAllocator::Resource::Allocate();
 		D3D12_CONSTANT_BUFFER_VIEW_DESC viewCbvDesc = {};
 		viewCbvDesc.BufferLocation = _camPosBufferResource->GetGPUVirtualAddress();
 		viewCbvDesc.SizeInBytes = (sizeof(XMFLOAT3) + 255) & ~255; // CB size is required to be 256-byte aligned.
-		D3D12Core::GraphicsDevice::_device->CreateConstantBufferView(&viewCbvDesc, viewCbvCpuHandle);
+		D3D12Core::GraphicsDevice::device->CreateConstantBufferView(&viewCbvDesc, viewCbvCpuHandle);
 		_camPosBufferDescriptor = viewCbvCpuHandle; // viewMatrix
 
 		// setup matrices
@@ -175,7 +175,7 @@ void Application::InitResources()
 		samplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 		samplerDesc.MinLOD = 0;
 		samplerDesc.MaxLOD = D3D12_FLOAT32_MAX;
-		D3D12Core::GraphicsDevice::_device->CreateSampler(&samplerDesc, _samplerCPUHandle);
+		D3D12Core::GraphicsDevice::device->CreateSampler(&samplerDesc, _samplerCPUHandle);
 	}
 	
 	// MODELLOADING
@@ -199,8 +199,8 @@ void Application::SetCommandList()
 
 	// Set necessary state.
 	_applicationGraphicsContext.GetCommandList()->SetGraphicsRootSignature(_mainPass._rootSignature.Get());
-	_applicationGraphicsContext.GetCommandList()->RSSetViewports(1, &D3D12Core::Swapchain::_viewport);
-	_applicationGraphicsContext.GetCommandList()->RSSetScissorRects(1, &D3D12Core::Swapchain::_surfaceSize);
+	_applicationGraphicsContext.GetCommandList()->RSSetViewports(1, &D3D12Core::Swapchain::viewport);
+	_applicationGraphicsContext.GetCommandList()->RSSetScissorRects(1, &D3D12Core::Swapchain::surfaceSize);
 
 	ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::Resource::GetHeap(), DescriptorAllocator::Sampler::GetHeap() };
 	_applicationGraphicsContext.GetCommandList()->SetDescriptorHeaps(_countof(heaps), heaps);
@@ -221,16 +221,15 @@ void Application::SetCommandList()
 	D3D12_RESOURCE_BARRIER renderTargetBarrier = {};
 	renderTargetBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	renderTargetBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	renderTargetBarrier.Transition.pResource = D3D12Core::Swapchain::_renderTargets[D3D12Core::Swapchain::_frameIndex].Get();
+	renderTargetBarrier.Transition.pResource = D3D12Core::Swapchain::renderTargets[D3D12Core::Swapchain::frameIndex].Get();
 	renderTargetBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
 	renderTargetBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	renderTargetBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	_applicationGraphicsContext.GetCommandList()->ResourceBarrier(1, &renderTargetBarrier);
 	
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = D3D12Core::Swapchain::_rtvHeap->GetCPUDescriptorHandleForHeapStart();
-	// increments pointer from buffer 0 to 1 if _frameindex is 1
-	rtvHandle.ptr += (D3D12Core::Swapchain::_frameIndex * D3D12Core::Swapchain::_rtvDescriptorSize);
-	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = D3D12Core::Swapchain::_dsvHeap->GetCPUDescriptorHandleForHeapStart();
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = D3D12Core::Swapchain::rtvHeap->GetCPUDescriptorHandleForHeapStart();
+	rtvHandle.ptr += (D3D12Core::Swapchain::frameIndex * D3D12Core::Swapchain::rtvDescriptorSize);
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = D3D12Core::Swapchain::dsvHeap->GetCPUDescriptorHandleForHeapStart();
 	_applicationGraphicsContext.GetCommandList()->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 	_applicationGraphicsContext.GetCommandList()->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0.0f, 0, nullptr);
 
@@ -240,11 +239,10 @@ void Application::SetCommandList()
 
 	_modelManager.DrawAll(_mainPass, _applicationGraphicsContext.GetCommandList());
 
-	// Transition back buffer to present state for the swap chain (gets transitioned again in the GUI but I#ll leave it like this for now)
 	D3D12_RESOURCE_BARRIER presentBarrier = {};
 	presentBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	presentBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	presentBarrier.Transition.pResource = D3D12Core::Swapchain::_renderTargets[D3D12Core::Swapchain::_frameIndex].Get();
+	presentBarrier.Transition.pResource = D3D12Core::Swapchain::renderTargets[D3D12Core::Swapchain::frameIndex].Get();
 	presentBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	presentBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 	presentBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
@@ -316,12 +314,12 @@ void Application::UpdateConstantBuffers()
 	FLOAT deltaTime = dt.count();
 	_tLastTime = now;
 
-	if (D3D12Core::Swapchain::_windowResized)
+	if (D3D12Core::Swapchain::windowResized)
 	{
-		D3D12Core::Swapchain::_windowResized = false;
+		D3D12Core::Swapchain::windowResized = false;
 
-		_width = D3D12Core::Swapchain::_width;
-		_height = D3D12Core::Swapchain::_height;
+		_width = D3D12Core::Swapchain::width;
+		_height = D3D12Core::Swapchain::height;
 
 		XMStoreFloat4x4(&_projectionMatrix,
 			XMMatrixPerspectiveFovLH(
@@ -350,9 +348,9 @@ void Application::UpdateConstantBuffers()
 
 void Application::Present()
 {
-	D3D12Core::Swapchain::_swapchain->Present(0, 0);
+	D3D12Core::Swapchain::swapchain->Present(0, 0);
 
-	D3D12Core::Swapchain::_frameIndex = D3D12Core::Swapchain::_swapchain->GetCurrentBackBufferIndex();
+	D3D12Core::Swapchain::frameIndex = D3D12Core::Swapchain::swapchain->GetCurrentBackBufferIndex();
 }
 
 Application::~Application()
@@ -366,9 +364,9 @@ Application::~Application()
 
 	// Cleanup GUI
 #if defined(_DEBUG)
-	D3D12Core::GraphicsDevice::_debugDevice->ReportLiveDeviceObjects(D3D12_RLDO_DETAIL);
-	if (D3D12Core::GraphicsDevice::_debugDevice) D3D12Core::GraphicsDevice::_debugDevice.Reset();
-	if (D3D12Core::GraphicsDevice::_debugController) D3D12Core::GraphicsDevice::_debugController.Reset();
+	D3D12Core::GraphicsDevice::debugDevice->ReportLiveDeviceObjects(D3D12_RLDO_DETAIL);
+	if (D3D12Core::GraphicsDevice::debugDevice) D3D12Core::GraphicsDevice::debugDevice.Reset();
+	if (D3D12Core::GraphicsDevice::debugController) D3D12Core::GraphicsDevice::debugController.Reset();
 #endif
 	PRINT("SHUTDOWN");
 }

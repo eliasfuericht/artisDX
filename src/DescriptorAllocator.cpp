@@ -12,14 +12,14 @@ namespace DescriptorAllocator
 		void InitializeDescriptorAllocator(UINT numDescriptors)
 		{
 			_capacity = numDescriptors;
-			_descriptorSize = D3D12Core::GraphicsDevice::_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+			_descriptorSize = D3D12Core::GraphicsDevice::device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 			D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
 			heapDesc.NumDescriptors = numDescriptors;
 			heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 			heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
-			ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_heap)));
+			ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_heap)));
 		}
 
 		D3D12_CPU_DESCRIPTOR_HANDLE Allocate()
@@ -59,14 +59,14 @@ namespace DescriptorAllocator
 		void InitializeDescriptorAllocator(UINT numDescriptors)
 		{
 			_capacity = numDescriptors;
-			_descriptorSize = D3D12Core::GraphicsDevice::_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+			_descriptorSize = D3D12Core::GraphicsDevice::device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 
 			D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
 			heapDesc.NumDescriptors = numDescriptors;
 			heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
 			heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
-			ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_heap)));
+			ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_heap)));
 		}
 
 		D3D12_CPU_DESCRIPTOR_HANDLE Allocate()

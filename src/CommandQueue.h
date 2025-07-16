@@ -5,6 +5,7 @@
 
 enum class QUEUETYPE
 {
+	INVALID = -1,
 	GRAPHICS = 0,
 	COMPUTE = 1,
 	UPLOAD = 2

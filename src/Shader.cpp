@@ -2,7 +2,7 @@
 
 Shader::Shader(std::filesystem::path path, SHADERTYPE shaderType)
 {
-	if (!D3D12Core::ShaderCompiler::_utils || !D3D12Core::ShaderCompiler::_compiler || !D3D12Core::ShaderCompiler::_includeHandler)
+	if (!D3D12Core::ShaderCompiler::utils || !D3D12Core::ShaderCompiler::compiler || !D3D12Core::ShaderCompiler::includeHandler)
 		D3D12Core::ShaderCompiler::InitializeShaderCompiler();
 
 	_shaderType = shaderType;
@@ -35,17 +35,17 @@ Shader::Shader(std::filesystem::path path, SHADERTYPE shaderType)
 
 	// Load the shader source file to a blob.
 	MSWRL::ComPtr<IDxcBlobEncoding> sourceBlob{};
-	ThrowIfFailed(D3D12Core::ShaderCompiler::_utils->LoadFile(path.c_str(), nullptr, &sourceBlob), "Failed to load shader with path: " + path.string());
+	ThrowIfFailed(D3D12Core::ShaderCompiler::utils->LoadFile(path.c_str(), nullptr, &sourceBlob), "Failed to load shader with path: " + path.string());
 
 	DxcBuffer sourceBuffer = {};
 	sourceBuffer.Ptr = sourceBlob->GetBufferPointer();
 	sourceBuffer.Size = sourceBlob->GetBufferSize();
 	sourceBuffer.Encoding = 0u;
 
-	ThrowIfFailed(D3D12Core::ShaderCompiler::_compiler->Compile(&sourceBuffer,
+	ThrowIfFailed(D3D12Core::ShaderCompiler::compiler->Compile(&sourceBuffer,
 		compilationArguments.data(),
 		static_cast<uint32_t>(compilationArguments.size()),
-		D3D12Core::ShaderCompiler::_includeHandler.Get(),
+		D3D12Core::ShaderCompiler::includeHandler.Get(),
 		IID_PPV_ARGS(&_compiledShaderBuffer)), "Failed to compile shader with path: " + path.string());
 
 	MSWRL::ComPtr<IDxcBlobUtf8> errors{};

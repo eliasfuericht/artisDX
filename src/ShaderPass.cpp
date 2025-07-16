@@ -22,7 +22,7 @@ void ShaderPass::GenerateGraphicsRootSignature()
 		reflectionBuffer.Encoding = 0;
 
 		MSWRL::ComPtr<ID3D12ShaderReflection> shaderReflection{};
-		D3D12Core::ShaderCompiler::_utils->CreateReflection(&reflectionBuffer, IID_PPV_ARGS(&shaderReflection));
+		D3D12Core::ShaderCompiler::utils->CreateReflection(&reflectionBuffer, IID_PPV_ARGS(&shaderReflection));
 		D3D12_SHADER_DESC shaderDesc{};
 		shaderReflection->GetDesc(&shaderDesc);
 
@@ -108,7 +108,7 @@ void ShaderPass::GenerateGraphicsRootSignature()
 
 	ThrowIfFailed(D3D12SerializeVersionedRootSignature(&rootDesc, &sigBlob, &errorBlob), "idk what this is tbh");
 
-	ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateRootSignature(
+	ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateRootSignature(
 		0,
 		sigBlob->GetBufferPointer(),
 		sigBlob->GetBufferSize(),
@@ -170,7 +170,7 @@ void ShaderPass::GeneratePipeLineStateObject()
 	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 	psoDesc.SampleDesc.Count = 1;
 
-	ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&_pipelineState)), "PipelineStateObject creation failed!");
+	ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&_pipelineState)), "PipelineStateObject creation failed!");
 }
 
 std::optional<UINT> ShaderPass::GetRootParameterIndex(const std::string& name) {

@@ -17,13 +17,13 @@ namespace D3D12Core
 		void IntializeDebugDevice();
 #endif
 
-		extern MSWRL::ComPtr<IDXGIFactory4> _factory;
-		extern MSWRL::ComPtr<IDXGIAdapter1> _adapter;
-		extern MSWRL::ComPtr<ID3D12Device> _device;
+		extern MSWRL::ComPtr<IDXGIFactory4> factory;
+		extern MSWRL::ComPtr<IDXGIAdapter1> adapter;
+		extern MSWRL::ComPtr<ID3D12Device> device;
 
 #if defined(_DEBUG)
-		extern MSWRL::ComPtr<ID3D12Debug1> _debugController;
-		extern MSWRL::ComPtr<ID3D12DebugDevice> _debugDevice;
+		extern MSWRL::ComPtr<ID3D12Debug1> debugController;
+		extern MSWRL::ComPtr<ID3D12DebugDevice> debugDevice;
 #endif
 	}
 
@@ -33,33 +33,33 @@ namespace D3D12Core
 		void CreateDepthBuffer(INT newWidth, INT newHeight);
 		void Resize(INT newWidth, INT newHeight);
 
-		extern UINT _width;
-		extern UINT _height;
-		extern BOOL _windowResized;
+		extern UINT width;
+		extern UINT height;
+		extern BOOL windowResized;
 
-		extern MSWRL::ComPtr<IDXGISwapChain3> _swapchain;
-		extern D3D12_VIEWPORT _viewport;
-		extern D3D12_RECT _surfaceSize;
+		extern MSWRL::ComPtr<IDXGISwapChain3> swapchain;
+		extern D3D12_VIEWPORT viewport;
+		extern D3D12_RECT surfaceSize;
 
-		extern UINT _frameIndex;
-		extern UINT _currentBuffer;
-		static const UINT _backBufferCount = 2;
+		extern UINT frameIndex;
+		extern UINT currentBuffer;
+		static const UINT backBufferCount = 2;
 
-		extern MSWRL::ComPtr<ID3D12DescriptorHeap> _rtvHeap;
-		extern UINT _rtvDescriptorSize;
-		extern D3D12_CPU_DESCRIPTOR_HANDLE _rtvCPUHandle[_backBufferCount];
-		extern MSWRL::ComPtr<ID3D12Resource> _renderTargets[_backBufferCount];
+		extern MSWRL::ComPtr<ID3D12DescriptorHeap> rtvHeap;
+		extern UINT rtvDescriptorSize;
+		extern D3D12_CPU_DESCRIPTOR_HANDLE rtvCPUHandle[backBufferCount];
+		extern MSWRL::ComPtr<ID3D12Resource> renderTargets[backBufferCount];
 
-		extern MSWRL::ComPtr<ID3D12Resource> _depthStencilBuffer;
-		extern MSWRL::ComPtr<ID3D12DescriptorHeap> _dsvHeap;
+		extern MSWRL::ComPtr<ID3D12Resource> depthStencilBuffer;
+		extern MSWRL::ComPtr<ID3D12DescriptorHeap> dsvHeap;
 	}
 
 	namespace ShaderCompiler
 	{
 		void InitializeShaderCompiler();
 
-		extern MSWRL::ComPtr<IDxcUtils> _utils;
-		extern MSWRL::ComPtr<IDxcCompiler3> _compiler;
-		extern MSWRL::ComPtr<IDxcIncludeHandler> _includeHandler;
+		extern MSWRL::ComPtr<IDxcUtils> utils;
+		extern MSWRL::ComPtr<IDxcCompiler3> compiler;
+		extern MSWRL::ComPtr<IDxcIncludeHandler> includeHandler;
 	}
 };

@@ -26,9 +26,9 @@ void CommandContext::InitializeCommandContext(QUEUETYPE queueType)
 			break;
 	}
 
-	ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateCommandAllocator(listType, IID_PPV_ARGS(&_allocator)), "Failed to create CommandAllocator!");
+	ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateCommandAllocator(listType, IID_PPV_ARGS(&_allocator)), "Failed to create CommandAllocator!");
 	_allocator->SetName(allocatorName.c_str());
-	ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateCommandList(0, listType, _allocator.Get(), nullptr, IID_PPV_ARGS(&_commandList)), "Failed to create CommandList!");
+	ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateCommandList(0, listType, _allocator.Get(), nullptr, IID_PPV_ARGS(&_commandList)), "Failed to create CommandList!");
 	_commandList->SetName(listName.c_str());
 }
 
