@@ -7,15 +7,21 @@ Texture2D occlusionTexture          : register(t4);
 
 SamplerState mySampler              : register(s0);
 
-cbuffer cameraPosBuffer : register(b2)
+cbuffer cameraBuffer : register(b2)
 {
     float3 c_camPos : packoffset(c0);
 };
 
-cbuffer lightPosBuffer : register(b3)
+cbuffer plightBuffer : register(b3)
 {
-    float3 c_dLightPosition : packoffset(c0);
+    float3 c_pLightPosition : packoffset(c0);
 };
+
+cbuffer dlightBuffer : register(b4)
+{
+    float3 c_dLightDirection : packoffset(c0);
+};
+
 
 struct StageInput
 {
@@ -101,7 +107,8 @@ StageOutput main(StageInput stageInput)
     float3 worldNormal = normalize(mul(tangentNormal, TBN));
 
     // Lighting (simple Lambert diffuse for demonstration)
-    float3 lightDir = normalize(c_dLightPosition - stageInput.inWorldPos);
+    //float3 lightDir = normalize(c_pLightPosition - stageInput.inWorldPos);
+    float3 lightDir = normalize(c_dLightDirection);
     float NdotL = max(dot(worldNormal, lightDir), 0.0);
 
     // Camera and lighting vectors

@@ -16,10 +16,10 @@ void ModelManager::LoadModel(std::filesystem::path path)
 	uploadContext.Finish(true);
 }
 
-void ModelManager::DrawAll(ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
+void ModelManager::DrawAll(ShaderPass& shaderPass, CommandContext& commandContext)
 {
 	for (auto& model : _models)
 	{
-		model->DrawModel(shaderPass, commandList);
+		model->DrawModel(shaderPass, commandContext.GetCommandList());
 	}
 }

@@ -48,9 +48,8 @@ void Application::Init()
 
 	CommandQueueManager::InitializeCommandQueueManager();
 
-	_applicationGraphicsContext.InitializeCommandContext(QUEUETYPE::GRAPHICS);
-
-	_applicationGraphicsContext.Finish();
+	_mainLoopGraphicsContext.InitializeCommandContext(QUEUETYPE::GRAPHICS);
+	_mainLoopGraphicsContext.Finish();
 
 	D3D12Core::Swapchain::InitializeSwapchain(_width, _height, _window.GetHWND());
 
@@ -166,6 +165,9 @@ void Application::InitResources()
 		_pLight = std::make_shared<PointLight>(1.0f, 1.0f, 1.0f);
 		_pLight->RegisterWithGUI();
 
+		_dLight = std::make_shared<DirectionalLight>(1.0f, 1.0f, 1.0f);
+		_dLight->RegisterWithGUI();
+
 		_samplerCPUHandle = DescriptorAllocator::Sampler::Allocate();
 
 		D3D12_SAMPLER_DESC samplerDesc{};
@@ -194,28 +196,31 @@ void Application::InitGUI()
 
 void Application::SetCommandList()
 {
-	_applicationGraphicsContext.Reset();
-	_applicationGraphicsContext.SetPipelineState(_mainPass._pipelineState);
+	_mainLoopGraphicsContext.Reset();
+	_mainLoopGraphicsContext.SetPipelineState(_mainPass._pipelineState);
 
 	// Set necessary state.
-	_applicationGraphicsContext.GetCommandList()->SetGraphicsRootSignature(_mainPass._rootSignature.Get());
-	_applicationGraphicsContext.GetCommandList()->RSSetViewports(1, &D3D12Core::Swapchain::viewport);
-	_applicationGraphicsContext.GetCommandList()->RSSetScissorRects(1, &D3D12Core::Swapchain::surfaceSize);
+	_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootSignature(_mainPass._rootSignature.Get());
+	_mainLoopGraphicsContext.GetCommandList()->RSSetViewports(1, &D3D12Core::Swapchain::viewport);
+	_mainLoopGraphicsContext.GetCommandList()->RSSetScissorRects(1, &D3D12Core::Swapchain::surfaceSize);
 
 	ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::Resource::GetHeap(), DescriptorAllocator::Sampler::GetHeap() };
-	_applicationGraphicsContext.GetCommandList()->SetDescriptorHeaps(_countof(heaps), heaps);
+	_mainLoopGraphicsContext.GetCommandList()->SetDescriptorHeaps(_countof(heaps), heaps);
 	
 	if (auto slot = _mainPass.GetRootParameterIndex("viewProjMatrixBuffer"))
-		_applicationGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_VPBufferDescriptor));
+		_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_VPBufferDescriptor));
 
-	if (auto slot = _mainPass.GetRootParameterIndex("cameraPosBuffer"))
-		_applicationGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_camPosBufferDescriptor));
+	if (auto slot = _mainPass.GetRootParameterIndex("cameraBuffer"))
+		_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_camPosBufferDescriptor));
 
-	if (auto slot = _mainPass.GetRootParameterIndex("lightPosBuffer"))
-		_applicationGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_pLight->_cbvpLightCPUHandle));
+	if (auto slot = _mainPass.GetRootParameterIndex("plightBuffer"))
+		_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_pLight->_cbvpLightCPUHandle));
+
+	if (auto slot = _mainPass.GetRootParameterIndex("dlightBuffer"))
+		_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_dLight->_cbvdLightCPUHandle));
 
 	if (auto slot = _mainPass.GetRootParameterIndex("mySampler"))
-		_applicationGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Sampler::GetGPUHandle(_samplerCPUHandle));
+		_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Sampler::GetGPUHandle(_samplerCPUHandle));
 
 	// Transition the back buffer from present to render target state.
 	D3D12_RESOURCE_BARRIER renderTargetBarrier = {};
@@ -225,19 +230,19 @@ void Application::SetCommandList()
 	renderTargetBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
 	renderTargetBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	renderTargetBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	_applicationGraphicsContext.GetCommandList()->ResourceBarrier(1, &renderTargetBarrier);
+	_mainLoopGraphicsContext.GetCommandList()->ResourceBarrier(1, &renderTargetBarrier);
 	
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = D3D12Core::Swapchain::rtvHeap->GetCPUDescriptorHandleForHeapStart();
 	rtvHandle.ptr += (D3D12Core::Swapchain::frameIndex * D3D12Core::Swapchain::rtvDescriptorSize);
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = D3D12Core::Swapchain::dsvHeap->GetCPUDescriptorHandleForHeapStart();
-	_applicationGraphicsContext.GetCommandList()->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
-	_applicationGraphicsContext.GetCommandList()->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0.0f, 0, nullptr);
+	_mainLoopGraphicsContext.GetCommandList()->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+	_mainLoopGraphicsContext.GetCommandList()->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0.0f, 0, nullptr);
 
 	// Clear the render target.
 	const float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
-	_applicationGraphicsContext.GetCommandList()->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+	_mainLoopGraphicsContext.GetCommandList()->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 
-	_modelManager.DrawAll(_mainPass, _applicationGraphicsContext.GetCommandList());
+	_modelManager.DrawAll(_mainPass, _mainLoopGraphicsContext);
 
 	D3D12_RESOURCE_BARRIER presentBarrier = {};
 	presentBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -246,9 +251,9 @@ void Application::SetCommandList()
 	presentBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	presentBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 	presentBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	_applicationGraphicsContext.GetCommandList()->ResourceBarrier(1, &presentBarrier);
+	_mainLoopGraphicsContext.GetCommandList()->ResourceBarrier(1, &presentBarrier);
 
-	_applicationGraphicsContext.Finish();
+	_mainLoopGraphicsContext.Finish();
 }
 
 void Application::Run()
@@ -340,6 +345,7 @@ void Application::UpdateConstantBuffers()
 	memcpy(_mappedCamPosBuffer, &camPos, sizeof(XMFLOAT3));
 
 	_pLight->UpdateBuffer();
+	_dLight->UpdateBuffer();
 
 	XMStoreFloat4x4(&_viewProjectionMatrix, XMMatrixMultiply(XMLoadFloat4x4(&_viewMatrix), XMLoadFloat4x4(&_projectionMatrix)));
 

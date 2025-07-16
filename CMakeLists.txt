@@ -26,6 +26,7 @@ set(ARTISDX_HEADERS
     src/ModelManager.h
     src/Texture.h
     src/Window.h
+    src/DirectionalLight.h
     src/PointLight.h
     src/ModelNode.h
     src/ShaderPass.h
@@ -51,6 +52,7 @@ set(ARTISDX_SOURCES
     src/ModelManager.cpp
     src/Texture.cpp
     src/Window.cpp
+    src/DirectionalLight.cpp
     src/PointLight.cpp
     src/ModelNode.cpp
     src/ShaderPass.cpp

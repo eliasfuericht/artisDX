@@ -13,7 +13,7 @@ public:
 	ModelManager() {};
 
 	void LoadModel(std::filesystem::path path);
-	void DrawAll(ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
+	void DrawAll(ShaderPass& shaderPass, CommandContext& commandContext);
 
 private:
 	GLTFLoader _gltfLoader;

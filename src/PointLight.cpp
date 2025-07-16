@@ -40,10 +40,10 @@ void PointLight::UpdateBuffer()
 
 void PointLight::DrawGUI() 
 {
-	std::string windowName = "dLight";
+	std::string windowName = "PointLight";
 	GUI::Begin(windowName.c_str());
 	
-	GUI::DragFloat3("light direction", _position);
+	GUI::DragFloat3("position", _position);
 
 	GUI::End();
 }

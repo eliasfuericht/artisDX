@@ -11,6 +11,7 @@
 #include "ShaderPass.h"
 #include "ModelManager.h"
 #include "Camera.h"
+#include "DirectionalLight.h"
 #include "PointLight.h"
 
 class Application
@@ -32,6 +33,7 @@ private:
 	void UpdateFPS();
 
 	std::shared_ptr<PointLight> _pLight;
+	std::shared_ptr<DirectionalLight> _dLight;
 
 	Window _window;
 	std::shared_ptr<Camera> _camera;
@@ -46,10 +48,9 @@ private:
 	double _fps = 0.0;
 
 	// DX12 Specific
-	CommandContext _applicationGraphicsContext;
+	CommandContext _mainLoopGraphicsContext;
 	
 	ShaderPass _mainPass;
-	ShaderPass _shadowPass;
 
 	// ViewProjMatrix CBV
 	MSWRL::ComPtr<ID3D12Resource> _VPBufferResource;
