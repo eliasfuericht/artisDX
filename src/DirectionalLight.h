@@ -22,6 +22,10 @@ public:
 	uint8_t* _mappedCBVdLightPtr = nullptr;
 	D3D12_CPU_DESCRIPTOR_HANDLE _cbvdLightCPUHandle = {};
 
+	//orthomatrix -> vertex
+	//shadowmap texture -> fragment
+	//lightspacematrix -> fragment
+
 private:
 	void CreateCBV();
 

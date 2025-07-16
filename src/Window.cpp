@@ -101,6 +101,8 @@ void Window::HandleKeys(INT key, INT action)
 				_keys[key] = false;
 				break;
 			}
+			default:
+				break;
 		}
 		if (key == KEYCODES::ESC && _captureMouse)
 		{

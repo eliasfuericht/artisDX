@@ -14,6 +14,7 @@ public:
 
 	void LoadModel(std::filesystem::path path);
 	void DrawAll(ShaderPass& shaderPass, CommandContext& commandContext);
+	void DrawAllBoundingBoxes(ShaderPass& shaderPass, CommandContext& commandContext);
 
 private:
 	GLTFLoader _gltfLoader;

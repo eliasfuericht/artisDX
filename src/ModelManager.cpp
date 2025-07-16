@@ -23,3 +23,11 @@ void ModelManager::DrawAll(ShaderPass& shaderPass, CommandContext& commandContex
 		model->DrawModel(shaderPass, commandContext.GetCommandList());
 	}
 }
+
+void ModelManager::DrawAllBoundingBoxes(ShaderPass& shaderPass, CommandContext& commandContext)
+{
+	for (auto& model : _models)
+	{
+		model->DrawModelBoundingBox(shaderPass, commandContext.GetCommandList());
+	}
+}

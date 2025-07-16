@@ -22,6 +22,8 @@ Shader::Shader(std::filesystem::path path, SHADERTYPE shaderType)
 	case SHADERTYPE::COMPUTE:
 		compilationArguments.push_back(L"cs_6_7");
 		break;
+	default:
+		break;
 	}
 
 #if defined(_DEBUG)

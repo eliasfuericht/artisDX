@@ -11,6 +11,27 @@ Model::Model(INT id, std::string name, MSWRL::ComPtr<ID3D12GraphicsCommandList> 
 	XMStoreFloat4x4(&_globalMatrix, XMMatrixIdentity()) ;
 }
 
+void Model::DrawModelBoundingBox(ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
+{
+	for (ModelNode& node : _modelNodes)
+	{
+		if (node._meshIndex == -1)
+			continue;
+
+		Mesh& mesh = _meshes[node._meshIndex];
+
+		memcpy(node._mappedCBVModelMatrixPtr, &node._globalMatrix, sizeof(XMFLOAT4X4));
+
+		if (auto slot = shaderPass.GetRootParameterIndex("modelMatrixBuffer"))
+			commandList->SetGraphicsRootDescriptorTable(*slot, node._cbvModelMatrixGpuHandle);
+
+		for (Primitive& primitive : mesh._primitives)
+		{
+			primitive._aabb.BindMeshData(commandList);
+		}
+	}
+}
+
 void Model::DrawModel(ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
 	ComputeGlobalTransforms();

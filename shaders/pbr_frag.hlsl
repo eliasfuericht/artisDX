@@ -22,7 +22,6 @@ cbuffer dlightBuffer : register(b4)
     float3 c_dLightDirection : packoffset(c0);
 };
 
-
 struct StageInput
 {
     float4 inPosition : SV_Position;

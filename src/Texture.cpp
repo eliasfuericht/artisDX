@@ -131,5 +131,7 @@ void Texture::BindTexture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, 
 		if (auto slot = shaderPass.GetRootParameterIndex("occlusionTexture"))
 			commandList->SetGraphicsRootDescriptorTable(*slot, gpuHandle);
 		break;
+	default:
+		break;
 	}
 }

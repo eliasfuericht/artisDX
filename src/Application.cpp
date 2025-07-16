@@ -63,7 +63,8 @@ void Application::InitResources()
 	_mainPass.AddShader("../shaders/pbr_frag.hlsl", SHADERTYPE::PIXEL);
 
 	_mainPass.GenerateGraphicsRootSignature();
-	_mainPass.GeneratePipeLineStateObject();
+	_mainPass.GeneratePipeLineStateObjectForwardPass(D3D12_FILL_MODE_SOLID, D3D12_CULL_MODE_BACK, true);
+	_mainPass.GeneratePipeLineStateObjectForwardPass(D3D12_FILL_MODE_WIREFRAME, D3D12_CULL_MODE_NONE, false);
 
 	// Constant Buffers and Samplers
 	{
@@ -197,7 +198,7 @@ void Application::InitGUI()
 void Application::SetCommandList()
 {
 	_mainLoopGraphicsContext.Reset();
-	_mainLoopGraphicsContext.SetPipelineState(_mainPass._pipelineState);
+	_mainLoopGraphicsContext.SetPipelineState(_mainPass._pipelineStateFill);
 
 	// Set necessary state.
 	_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootSignature(_mainPass._rootSignature.Get());
@@ -222,14 +223,12 @@ void Application::SetCommandList()
 	if (auto slot = _mainPass.GetRootParameterIndex("mySampler"))
 		_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Sampler::GetGPUHandle(_samplerCPUHandle));
 
-	// Transition the back buffer from present to render target state.
-	D3D12_RESOURCE_BARRIER renderTargetBarrier = {};
-	renderTargetBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	renderTargetBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	renderTargetBarrier.Transition.pResource = D3D12Core::Swapchain::renderTargets[D3D12Core::Swapchain::frameIndex].Get();
-	renderTargetBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-	renderTargetBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-	renderTargetBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	D3D12_RESOURCE_BARRIER renderTargetBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
+		D3D12Core::Swapchain::renderTargets[D3D12Core::Swapchain::frameIndex].Get(),
+		D3D12_RESOURCE_STATE_PRESENT,
+		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+	
 	_mainLoopGraphicsContext.GetCommandList()->ResourceBarrier(1, &renderTargetBarrier);
 	
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = D3D12Core::Swapchain::rtvHeap->GetCPUDescriptorHandleForHeapStart();
@@ -244,13 +243,17 @@ void Application::SetCommandList()
 
 	_modelManager.DrawAll(_mainPass, _mainLoopGraphicsContext);
 
-	D3D12_RESOURCE_BARRIER presentBarrier = {};
-	presentBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	presentBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	presentBarrier.Transition.pResource = D3D12Core::Swapchain::renderTargets[D3D12Core::Swapchain::frameIndex].Get();
-	presentBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-	presentBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
-	presentBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	_mainLoopGraphicsContext.SetPipelineState(_mainPass._pipelineStateWireframe);
+	_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootSignature(_mainPass._rootSignature.Get());
+	
+	_modelManager.DrawAllBoundingBoxes(_mainPass, _mainLoopGraphicsContext);
+
+	D3D12_RESOURCE_BARRIER presentBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
+		D3D12Core::Swapchain::renderTargets[D3D12Core::Swapchain::frameIndex].Get(),
+		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		D3D12_RESOURCE_STATE_PRESENT,
+		D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+
 	_mainLoopGraphicsContext.GetCommandList()->ResourceBarrier(1, &presentBarrier);
 
 	_mainLoopGraphicsContext.Finish();

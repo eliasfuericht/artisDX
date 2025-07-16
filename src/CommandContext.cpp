@@ -24,6 +24,8 @@ void CommandContext::InitializeCommandContext(QUEUETYPE queueType)
 			allocatorName = L"UploadCommandAllocator";
 			listName = L"UploadCommandList";
 			break;
+		default:
+			break;
 	}
 
 	ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateCommandAllocator(listType, IID_PPV_ARGS(&_allocator)), "Failed to create CommandAllocator!");
