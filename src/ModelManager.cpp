@@ -1,25 +1,25 @@
 #include "ModelManager.h"
 
-ModelManager::ModelManager(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
-{
-	_commandList = commandList;
-}
-
 void ModelManager::LoadModel(std::filesystem::path path)
 {
+	CommandContext uploadContext;
+	uploadContext.InitializeCommandContext(QUEUETYPE::UPLOAD);
+
 	std::shared_ptr<Model> model;
 
-	_gltfLoader.ConstructModelFromFile(path, model, _commandList);
+	_gltfLoader.ConstructModelFromFile(path, model, uploadContext.GetCommandList());
 
 	model->RegisterWithGUI();
 
 	_models.push_back(std::move(model));
+
+	uploadContext.Finish(true);
 }
 
-void ModelManager::DrawAll(ShaderPass& shaderPass)
+void ModelManager::DrawAll(ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
 	for (auto& model : _models)
 	{
-		model->DrawModel(_commandList, shaderPass);
+		model->DrawModel(shaderPass, commandList);
 	}
 }

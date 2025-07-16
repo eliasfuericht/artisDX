@@ -3,14 +3,15 @@
 #include "pch.h"
 
 #include "D3D12Core.h"
-#include "CommandQueue.h"
 #include "Window.h"
-#include "Camera.h"
-#include "ModelManager.h"
+#include "CommandQueue.h"
+#include "CommandContext.h"
 #include "DescriptorAllocator.h"
-#include "PointLight.h"
 #include "Shader.h"
 #include "ShaderPass.h"
+#include "ModelManager.h"
+#include "Camera.h"
+#include "PointLight.h"
 
 class Application
 {
@@ -26,7 +27,6 @@ private:
 	
 	void UpdateConstantBuffers();
 	void SetCommandList();
-	void ExecuteCommandList();
 	void Present();
 
 	void UpdateFPS();
@@ -46,8 +46,7 @@ private:
 	double _fps = 0.0;
 
 	// DX12 Specific
-	MSWRL::ComPtr<ID3D12CommandAllocator> _commandAllocator;
-	MSWRL::ComPtr<ID3D12GraphicsCommandList> _commandList;
+	CommandContext _applicationGraphicsContext;
 	
 	ShaderPass _mainPass;
 	ShaderPass _shadowPass;

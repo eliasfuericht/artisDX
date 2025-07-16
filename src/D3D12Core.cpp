@@ -127,7 +127,7 @@ namespace D3D12Core
 			swapchainDesc.SampleDesc.Count = 1;
 
 			MSWRL::ComPtr<IDXGISwapChain1> swapchain;
-			ThrowIfFailed(D3D12Core::GraphicsDevice::_factory->CreateSwapChainForHwnd(CommandQueueManager::GetCommandQueue(CommandQueueManager::QUEUETYPE::GRAPHICS)._commandQueue.Get(), hwnd, &swapchainDesc, nullptr, nullptr, &swapchain), "Failed to create swapchain");
+			ThrowIfFailed(D3D12Core::GraphicsDevice::_factory->CreateSwapChainForHwnd(CommandQueueManager::GetCommandQueue(QUEUETYPE::GRAPHICS)._commandQueue.Get(), hwnd, &swapchainDesc, nullptr, nullptr, &swapchain), "Failed to create swapchain");
 
 			MSWRL::ComPtr<IDXGISwapChain3> swapchain3;
 			ThrowIfFailed(swapchain->QueryInterface(__uuidof(IDXGISwapChain3), (void**)&swapchain3), "QueryInterface for swapchain failed.");
@@ -216,7 +216,7 @@ namespace D3D12Core
 		{
 			_windowResized = true;
 			// Flush GPU to avoid touching resources in use
-			CommandQueueManager::GetCommandQueue(CommandQueueManager::QUEUETYPE::GRAPHICS).WaitForFence();
+			CommandQueueManager::GetCommandQueue(QUEUETYPE::GRAPHICS).WaitForFence();
 
 			// Release old views
 			for (UINT i = 0; i < _backBufferCount; ++i)

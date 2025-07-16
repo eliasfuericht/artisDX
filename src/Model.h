@@ -18,7 +18,7 @@ public:
 	Model() {};
 	Model(INT id, std::string name, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, std::vector<Mesh> meshes, std::vector<Texture> textures, std::vector<Material> materials, std::vector<ModelNode> modelNodes);
 
-	void DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, ShaderPass& shaderPass);
+	void DrawModel(ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 
 	void DrawGUI();
 	INT GetID();

@@ -11,7 +11,7 @@ Model::Model(INT id, std::string name, MSWRL::ComPtr<ID3D12GraphicsCommandList> 
 	XMStoreFloat4x4(&_globalMatrix, XMMatrixIdentity()) ;
 }
 
-void Model::DrawModel(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, ShaderPass& shaderPass)
+void Model::DrawModel(ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
 	ComputeGlobalTransforms();
 

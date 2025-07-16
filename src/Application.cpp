@@ -12,10 +12,7 @@ Application::Application(const CHAR* name, INT w, INT h, bool fullscreen)
 	{
 		_width = w;
 		_height = h;
-	}
-		
-	_commandAllocator = nullptr;
-	_commandList = nullptr;																														 
+	}																													 
 
 	_camera = std::make_shared<Camera>(
 		XMVectorSet(0.0f, 0.0f, 5.0f, 0.0f),
@@ -51,8 +48,9 @@ void Application::Init()
 
 	CommandQueueManager::InitializeCommandQueueManager();
 
-	// Create Command Allocator - still stored in application, think about better place
-	ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_commandAllocator)), "CommandAllocator creation failed!");
+	_applicationGraphicsContext.InitializeCommandContext(QUEUETYPE::GRAPHICS);
+
+	_applicationGraphicsContext.Finish();
 
 	D3D12Core::Swapchain::InitializeSwapchain(_width, _height, _window.GetHWND());
 
@@ -67,9 +65,6 @@ void Application::InitResources()
 
 	_mainPass.GenerateGraphicsRootSignature();
 	_mainPass.GeneratePipeLineStateObject();
-	
-	ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _commandAllocator.Get(), _mainPass._pipelineState.Get(), IID_PPV_ARGS(&_commandList)), "CommandList creation failed!");
-	_commandList->SetName(L"Render CommandList");
 
 	// Constant Buffers and Samplers
 	{
@@ -184,23 +179,12 @@ void Application::InitResources()
 	}
 	
 	// MODELLOADING
-	_modelManager = ModelManager(_commandList);
 
 	//_modelManager.LoadModel("../assets/helmet.glb");
-	//_modelManager.LoadModel("../assets/sponza.glb");
+	_modelManager.LoadModel("../assets/sponza.glb");
 	//_modelManager.LoadModel("../assets/brick_wall.glb");
-	_modelManager.LoadModel("../assets/DamagedHelmet.glb");
+	//_modelManager.LoadModel("../assets/DamagedHelmet.glb");
 	//_modelManager.LoadModel("../assets/apollo.glb");
-	//_modelManager.LoadModel("../assets/new_sponza_curtains.glb");
-
-	// upload all textures from models
-	ThrowIfFailed(_commandList->Close());
-
-	// Execute the command list.
-	ID3D12CommandList* ppCommandLists[] = { _commandList.Get() };
-	CommandQueueManager::GetCommandQueue(CommandQueueManager::QUEUETYPE::GRAPHICS)._commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-
-	CommandQueueManager::GetCommandQueue(CommandQueueManager::QUEUETYPE::GRAPHICS).WaitForFence();
 }
 
 void Application::InitGUI()
@@ -210,30 +194,28 @@ void Application::InitGUI()
 
 void Application::SetCommandList()
 {
-	// Ensure the command allocator has finished execution before resetting.
-	ThrowIfFailed(_commandAllocator->Reset());
+	_applicationGraphicsContext.Reset();
+	_applicationGraphicsContext.SetPipelineState(_mainPass._pipelineState);
 
-	// Reset the command list with the command allocator and pipeline state.
-	ThrowIfFailed(_commandList->Reset(_commandAllocator.Get(), _mainPass._pipelineState.Get()));
 	// Set necessary state.
-	_commandList->SetGraphicsRootSignature(_mainPass._rootSignature.Get());
-	_commandList->RSSetViewports(1, &D3D12Core::Swapchain::_viewport);
-	_commandList->RSSetScissorRects(1, &D3D12Core::Swapchain::_surfaceSize);
+	_applicationGraphicsContext.GetCommandList()->SetGraphicsRootSignature(_mainPass._rootSignature.Get());
+	_applicationGraphicsContext.GetCommandList()->RSSetViewports(1, &D3D12Core::Swapchain::_viewport);
+	_applicationGraphicsContext.GetCommandList()->RSSetScissorRects(1, &D3D12Core::Swapchain::_surfaceSize);
 
 	ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::Resource::GetHeap(), DescriptorAllocator::Sampler::GetHeap() };
-	_commandList->SetDescriptorHeaps(_countof(heaps), heaps);
+	_applicationGraphicsContext.GetCommandList()->SetDescriptorHeaps(_countof(heaps), heaps);
 	
 	if (auto slot = _mainPass.GetRootParameterIndex("viewProjMatrixBuffer"))
-		_commandList->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_VPBufferDescriptor));
+		_applicationGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_VPBufferDescriptor));
 
 	if (auto slot = _mainPass.GetRootParameterIndex("cameraPosBuffer"))
-		_commandList->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_camPosBufferDescriptor));
+		_applicationGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_camPosBufferDescriptor));
 
 	if (auto slot = _mainPass.GetRootParameterIndex("lightPosBuffer"))
-		_commandList->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_pLight->_cbvpLightCPUHandle));
+		_applicationGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_pLight->_cbvpLightCPUHandle));
 
 	if (auto slot = _mainPass.GetRootParameterIndex("mySampler"))
-		_commandList->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Sampler::GetGPUHandle(_samplerCPUHandle));
+		_applicationGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Sampler::GetGPUHandle(_samplerCPUHandle));
 
 	// Transition the back buffer from present to render target state.
 	D3D12_RESOURCE_BARRIER renderTargetBarrier = {};
@@ -243,20 +225,20 @@ void Application::SetCommandList()
 	renderTargetBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
 	renderTargetBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	renderTargetBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	_commandList->ResourceBarrier(1, &renderTargetBarrier);
+	_applicationGraphicsContext.GetCommandList()->ResourceBarrier(1, &renderTargetBarrier);
 	
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = D3D12Core::Swapchain::_rtvHeap->GetCPUDescriptorHandleForHeapStart();
 	// increments pointer from buffer 0 to 1 if _frameindex is 1
 	rtvHandle.ptr += (D3D12Core::Swapchain::_frameIndex * D3D12Core::Swapchain::_rtvDescriptorSize);
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = D3D12Core::Swapchain::_dsvHeap->GetCPUDescriptorHandleForHeapStart();
-	_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
-	_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0.0f, 0, nullptr);
+	_applicationGraphicsContext.GetCommandList()->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+	_applicationGraphicsContext.GetCommandList()->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0.0f, 0, nullptr);
 
 	// Clear the render target.
 	const float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
-	_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+	_applicationGraphicsContext.GetCommandList()->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 
-	_modelManager.DrawAll(_mainPass);
+	_modelManager.DrawAll(_mainPass, _applicationGraphicsContext.GetCommandList());
 
 	// Transition back buffer to present state for the swap chain (gets transitioned again in the GUI but I#ll leave it like this for now)
 	D3D12_RESOURCE_BARRIER presentBarrier = {};
@@ -266,10 +248,9 @@ void Application::SetCommandList()
 	presentBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	presentBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 	presentBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	_commandList->ResourceBarrier(1, &presentBarrier);
+	_applicationGraphicsContext.GetCommandList()->ResourceBarrier(1, &presentBarrier);
 
-	// Close the command list.
-	ThrowIfFailed(_commandList->Close());
+	_applicationGraphicsContext.Finish();
 }
 
 void Application::Run()
@@ -296,16 +277,15 @@ void Application::Run()
 		if (!running)
 			break;
 
-		CommandQueueManager::GetCommandQueue(CommandQueueManager::QUEUETYPE::GRAPHICS).WaitForFence();
+		CommandQueueManager::GetCommandQueue(QUEUETYPE::GRAPHICS).WaitForFence();
 		UpdateFPS();
 		UpdateConstantBuffers();
 		SetCommandList();
-		ExecuteCommandList();
 		GUI::Draw();
 		Present();
 	}
 
-	CommandQueueManager::GetCommandQueue(CommandQueueManager::QUEUETYPE::GRAPHICS).WaitForFence();
+	CommandQueueManager::GetCommandQueue(QUEUETYPE::GRAPHICS).WaitForFence();
 	GUI::Shutdown();
 }
 
@@ -368,13 +348,6 @@ void Application::UpdateConstantBuffers()
 	memcpy(_mappedVPBuffer, &_viewProjectionMatrix, sizeof(_viewProjectionMatrix));
 }
 
-void Application::ExecuteCommandList()
-{
-	// Execute the command list.
-	ID3D12CommandList* ppCommandLists[] = { _commandList.Get() };
-	CommandQueueManager::GetCommandQueue(CommandQueueManager::QUEUETYPE::GRAPHICS)._commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-}
-
 void Application::Present()
 {
 	D3D12Core::Swapchain::_swapchain->Present(0, 0);
@@ -386,10 +359,6 @@ Application::~Application()
 {
 	CoUninitialize();
 	_window.Shutdown();
-
-	// Explicitly release all DX12 objects
-	_commandList.Reset();
-	_commandAllocator.Reset();
 	
 	_VPBufferResource.Reset();
 	_VPBufferHeap.Reset();

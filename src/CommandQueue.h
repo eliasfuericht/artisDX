@@ -3,6 +3,13 @@
 #include "pch.h"
 #include "D3D12Core.h"
 
+enum class QUEUETYPE
+{
+	GRAPHICS = 0,
+	COMPUTE = 1,
+	UPLOAD = 2
+};
+
 class CommandQueue
 {
 public:
@@ -19,13 +26,6 @@ public:
 
 namespace CommandQueueManager
 {
-	enum QUEUETYPE
-	{
-		GRAPHICS = 0,
-		COMPUTE = 1,
-		UPLOAD = 2
-	};
-
 	extern void InitializeCommandQueueManager();
 	
 	extern CommandQueue& GetCommandQueue(QUEUETYPE queueType);

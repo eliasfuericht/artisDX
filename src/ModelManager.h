@@ -4,19 +4,18 @@
 
 #include "GLTFLoader.h"
 #include "Model.h"
+#include "CommandQueue.h"
+#include "CommandContext.h"
 
 class ModelManager
 {
 public:
 	ModelManager() {};
-	ModelManager(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 
 	void LoadModel(std::filesystem::path path);
-	void DrawAll(ShaderPass& shaderPass);
+	void DrawAll(ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 
 private:
-	MSWRL::ComPtr<ID3D12GraphicsCommandList> _commandList;
-
 	GLTFLoader _gltfLoader;
 	std::vector<std::shared_ptr<Model>> _models;
 };

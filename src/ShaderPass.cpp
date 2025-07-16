@@ -83,10 +83,10 @@ void ShaderPass::GenerateGraphicsRootSignature()
 
 		switch (range.first)
 		{
-		case VERTEX:
+		case SHADERTYPE::VERTEX:
 			param.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 			break;
-		case PIXEL:
+		case SHADERTYPE::PIXEL:
 			param.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 			break;
 		}
