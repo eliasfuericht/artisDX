@@ -1,10 +1,5 @@
 #include "CommandQueue.h"
 
-MSWRL::ComPtr<ID3D12CommandQueue> CommandQueue::_commandQueue = nullptr;
-MSWRL::ComPtr<ID3D12Fence> CommandQueue::_fence = nullptr;
-UINT64 CommandQueue::_fenceValue = 0;
-HANDLE CommandQueue::_fenceEvent = nullptr;
-
 void CommandQueue::InitializeCommandQueue(D3D12_COMMAND_LIST_TYPE queuetype)
 {
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
@@ -30,5 +25,22 @@ void CommandQueue::WaitForFence()
 	{
 		ThrowIfFailed(_fence->SetEventOnCompletion(fence, _fenceEvent));
 		WaitForSingleObjectEx(_fenceEvent, INFINITE, false);
+	}
+}
+
+namespace CommandQueueManager
+{
+	CommandQueue _commandQueues[3];
+
+	void InitializeCommandQueueManager()
+	{
+		_commandQueues[(INT)QUEUETYPE::GRAPHICS].InitializeCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		_commandQueues[(INT)QUEUETYPE::COMPUTE].InitializeCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
+		_commandQueues[(INT)QUEUETYPE::UPLOAD].InitializeCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
+	}
+
+	CommandQueue& GetCommandQueue(QUEUETYPE queueType)
+	{
+		return _commandQueues[(INT)queueType];
 	}
 }

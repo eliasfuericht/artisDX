@@ -60,7 +60,7 @@ using namespace DirectX;
 #define NUM_MAX_SAMPLER_DESCRIPTORS 64
 
 template<typename... Args>
-void PrintHelper(Args&&... args) {
+inline void PrintHelper(Args&&... args) {
 	std::ostringstream oss;
 	(oss << ... << args);
 	oss << "\n";

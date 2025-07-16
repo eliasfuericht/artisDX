@@ -157,7 +157,7 @@ void GUI::Render()
 	// Close & Execute
 	ThrowIfFailed(_commandList->Close());
 	ID3D12CommandList* lists[] = { _commandList.Get() };
-	CommandQueue::_commandQueue->ExecuteCommandLists(_countof(lists), lists);
+	CommandQueueManager::GetCommandQueue(CommandQueueManager::QUEUETYPE::GRAPHICS)._commandQueue->ExecuteCommandLists(_countof(lists), lists);
 }
 
 void GUI::Shutdown()

@@ -49,11 +49,7 @@ void Application::Init()
 	D3D12Core::GraphicsDevice::IntializeDebugDevice();
 #endif
 
-	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
-	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-
-	CommandQueue::InitializeCommandQueue(queueDesc);
+	CommandQueueManager::InitializeCommandQueueManager();
 
 	// Create Command Allocator - still stored in application, think about better place
 	ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_commandAllocator)), "CommandAllocator creation failed!");
@@ -71,12 +67,6 @@ void Application::InitResources()
 
 	_mainPass.GenerateGraphicsRootSignature();
 	_mainPass.GeneratePipeLineStateObject();
-
-	_shadowPass.AddShader("../shaders/basic_vert.hlsl", SHADERTYPE::VERTEX);
-	_shadowPass.AddShader("../shaders/basic_frag.hlsl", SHADERTYPE::PIXEL);
-
-	_shadowPass.GenerateGraphicsRootSignature();
-	_shadowPass.GeneratePipeLineStateObject();
 	
 	ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _commandAllocator.Get(), _mainPass._pipelineState.Get(), IID_PPV_ARGS(&_commandList)), "CommandList creation failed!");
 	_commandList->SetName(L"Render CommandList");
@@ -208,9 +198,9 @@ void Application::InitResources()
 
 	// Execute the command list.
 	ID3D12CommandList* ppCommandLists[] = { _commandList.Get() };
-	CommandQueue::_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+	CommandQueueManager::GetCommandQueue(CommandQueueManager::QUEUETYPE::GRAPHICS)._commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
-	CommandQueue::WaitForFence();
+	CommandQueueManager::GetCommandQueue(CommandQueueManager::QUEUETYPE::GRAPHICS).WaitForFence();
 }
 
 void Application::InitGUI()
@@ -306,7 +296,7 @@ void Application::Run()
 		if (!running)
 			break;
 
-		CommandQueue::WaitForFence();
+		CommandQueueManager::GetCommandQueue(CommandQueueManager::QUEUETYPE::GRAPHICS).WaitForFence();
 		UpdateFPS();
 		UpdateConstantBuffers();
 		SetCommandList();
@@ -315,7 +305,7 @@ void Application::Run()
 		Present();
 	}
 
-	CommandQueue::WaitForFence();
+	CommandQueueManager::GetCommandQueue(CommandQueueManager::QUEUETYPE::GRAPHICS).WaitForFence();
 	GUI::Shutdown();
 }
 
@@ -382,7 +372,7 @@ void Application::ExecuteCommandList()
 {
 	// Execute the command list.
 	ID3D12CommandList* ppCommandLists[] = { _commandList.Get() };
-	CommandQueue::_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+	CommandQueueManager::GetCommandQueue(CommandQueueManager::QUEUETYPE::GRAPHICS)._commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 }
 
 void Application::Present()

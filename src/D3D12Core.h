@@ -1,6 +1,7 @@
 #pragma once
 
 #include "pch.h"
+
 #include "CommandQueue.h"
 
 namespace D3D12Core
