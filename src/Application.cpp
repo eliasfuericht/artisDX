@@ -184,7 +184,8 @@ void Application::InitResources()
 	// MODELLOADING
 
 	//_modelManager.LoadModel("../assets/helmet.glb");
-	_modelManager.LoadModel("../assets/sponza.glb");
+	_modelManager.LoadModel("../assets/helmets.glb");
+	//_modelManager.LoadModel("../assets/sponza.glb");
 	//_modelManager.LoadModel("../assets/brick_wall.glb");
 	//_modelManager.LoadModel("../assets/DamagedHelmet.glb");
 	//_modelManager.LoadModel("../assets/apollo.glb");
@@ -256,7 +257,7 @@ void Application::SetCommandList()
 
 	_mainLoopGraphicsContext.GetCommandList()->ResourceBarrier(1, &presentBarrier);
 
-	_mainLoopGraphicsContext.Finish();
+	_mainLoopGraphicsContext.Finish(true);
 }
 
 void Application::Run()
@@ -283,7 +284,6 @@ void Application::Run()
 		if (!running)
 			break;
 
-		CommandQueueManager::GetCommandQueue(QUEUETYPE::GRAPHICS).WaitForFence();
 		UpdateFPS();
 		UpdateConstantBuffers();
 		SetCommandList();
