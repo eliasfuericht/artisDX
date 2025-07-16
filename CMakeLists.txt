@@ -14,7 +14,7 @@ set(ARTISDX_HEADERS
     src/Application.h
     src/Camera.h
     src/CommandQueue.h
-    src/DescriptorAllocator.h
+    src/DescriptorAllocator.h 
     src/GLTFLoader.h
     src/D3D12Core.h
     src/GUI.h
@@ -30,6 +30,7 @@ set(ARTISDX_HEADERS
     src/ModelNode.h
     src/ShaderPass.h
     src/Shader.h
+    src/CommandContext.h
 )
 
 set(ARTISDX_SOURCES 
@@ -53,7 +54,8 @@ set(ARTISDX_SOURCES
     src/PointLight.cpp
     src/ModelNode.cpp
     src/ShaderPass.cpp
-    src/Shader.cpp 
+    src/Shader.cpp
+    src/CommandContext.cpp
 )
 
 add_executable(${APPLICATION_NAME} ${ARTISDX_SOURCES} ${ARTISDX_HEADERS})
@@ -94,7 +96,7 @@ target_link_libraries(
 )
  
 ### Organization in VS ###
-file(GLOB_RECURSE ARTISDX_SHADERS "shaders/*.fx")
+file(GLOB_RECURSE ARTISDX_SHADERS "shaders/*.hlsl")
 set_source_files_properties(${ARTISDX_SHADERS} PROPERTIES HEADER_FILE_ONLY TRUE)
 target_sources(${APPLICATION_NAME} PRIVATE ${ARTISDX_SHADERS})
 source_group(TREE "${CMAKE_SOURCE_DIR}/shaders" PREFIX "shaders" FILES ${ARTISDX_SHADERS})

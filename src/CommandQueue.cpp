@@ -5,8 +5,11 @@ MSWRL::ComPtr<ID3D12Fence> CommandQueue::_fence = nullptr;
 UINT64 CommandQueue::_fenceValue = 0;
 HANDLE CommandQueue::_fenceEvent = nullptr;
 
-void CommandQueue::InitializeCommandQueue(D3D12_COMMAND_QUEUE_DESC queueDesc)
+void CommandQueue::InitializeCommandQueue(D3D12_COMMAND_LIST_TYPE queuetype)
 {
+	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
+	queueDesc.Type = queuetype;
+
 	ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&_commandQueue)), "CommandQueue creation failed!");
 
 	ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence)));

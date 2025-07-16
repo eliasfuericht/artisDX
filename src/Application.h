@@ -50,6 +50,7 @@ private:
 	MSWRL::ComPtr<ID3D12GraphicsCommandList> _commandList;
 	
 	ShaderPass _mainPass;
+	ShaderPass _shadowPass;
 
 	// ViewProjMatrix CBV
 	MSWRL::ComPtr<ID3D12Resource> _VPBufferResource;

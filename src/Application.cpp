@@ -66,29 +66,23 @@ void Application::Init()
 
 void Application::InitResources()
 {
-	_mainPass;
-
-	_mainPass.AddShader("../shaders/pbr_vert.fx", SHADERTYPE::VERTEX);
-	_mainPass.AddShader("../shaders/pbr_frag.fx", SHADERTYPE::PIXEL);
+	_mainPass.AddShader("../shaders/pbr_vert.hlsl", SHADERTYPE::VERTEX);
+	_mainPass.AddShader("../shaders/pbr_frag.hlsl", SHADERTYPE::PIXEL);
 
 	_mainPass.GenerateGraphicsRootSignature();
 	_mainPass.GeneratePipeLineStateObject();
+
+	_shadowPass.AddShader("../shaders/basic_vert.hlsl", SHADERTYPE::VERTEX);
+	_shadowPass.AddShader("../shaders/basic_frag.hlsl", SHADERTYPE::PIXEL);
+
+	_shadowPass.GenerateGraphicsRootSignature();
+	_shadowPass.GeneratePipeLineStateObject();
 	
 	ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _commandAllocator.Get(), _mainPass._pipelineState.Get(), IID_PPV_ARGS(&_commandList)), "CommandList creation failed!");
 	_commandList->SetName(L"Render CommandList");
 
-	_pLight = std::make_shared<PointLight>(1.0f, 1.0f, 1.0f);
-	_pLight->RegisterWithGUI();
-
 	// Constant Buffers and Samplers
 	{
-		D3D12_HEAP_PROPERTIES heapProps;
-		heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
-		heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-		heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-		heapProps.CreationNodeMask = 1;
-		heapProps.VisibleNodeMask = 1;
-
 		D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
 		heapDesc.NumDescriptors = 1;
 		heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
@@ -97,46 +91,53 @@ void Application::InitResources()
 		ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_VPBufferHeap)));
 		ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_camPosBufferHeap)));
 
-		D3D12_RESOURCE_DESC vpCBResourceDesc;
-		vpCBResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-		vpCBResourceDesc.Alignment = 0;
-		vpCBResourceDesc.Width = (sizeof(XMFLOAT4X4) + 255) & ~255;
-		vpCBResourceDesc.Height = 1;
-		vpCBResourceDesc.DepthOrArraySize = 1;
-		vpCBResourceDesc.MipLevels = 1;
-		vpCBResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
-		vpCBResourceDesc.SampleDesc.Count = 1;
-		vpCBResourceDesc.SampleDesc.Quality = 0;
-		vpCBResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-		vpCBResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+		D3D12_RESOURCE_DESC matrixBufferResourceDesc;
+		matrixBufferResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+		matrixBufferResourceDesc.Alignment = 0;
+		matrixBufferResourceDesc.Width = (sizeof(XMFLOAT4X4) + 255) & ~255;
+		matrixBufferResourceDesc.Height = 1;
+		matrixBufferResourceDesc.DepthOrArraySize = 1;
+		matrixBufferResourceDesc.MipLevels = 1;
+		matrixBufferResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
+		matrixBufferResourceDesc.SampleDesc.Count = 1;
+		matrixBufferResourceDesc.SampleDesc.Quality = 0;
+		matrixBufferResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+		matrixBufferResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+		D3D12_HEAP_PROPERTIES heapProps;
+		heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+		heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		heapProps.CreationNodeMask = 1;
+		heapProps.VisibleNodeMask = 1;
 
 		ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateCommittedResource(
 			&heapProps,
 			D3D12_HEAP_FLAG_NONE,
-			&vpCBResourceDesc,
+			&matrixBufferResourceDesc,
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
 			IID_PPV_ARGS(&_VPBufferResource)));
 
 		_VPBufferHeap->SetName(L"VP Constant Buffer Upload Heap");
 
-		D3D12_RESOURCE_DESC camPosCBResourceDesc;
-		camPosCBResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-		camPosCBResourceDesc.Alignment = 0;
-		camPosCBResourceDesc.Width = (sizeof(XMFLOAT3) + 255) & ~255;
-		camPosCBResourceDesc.Height = 1;
-		camPosCBResourceDesc.DepthOrArraySize = 1;
-		camPosCBResourceDesc.MipLevels = 1;
-		camPosCBResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
-		camPosCBResourceDesc.SampleDesc.Count = 1;
-		camPosCBResourceDesc.SampleDesc.Quality = 0;
-		camPosCBResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-		camPosCBResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+		D3D12_RESOURCE_DESC float3BufferResourceDesc;
+		float3BufferResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+		float3BufferResourceDesc.Alignment = 0;
+		float3BufferResourceDesc.Width = (sizeof(XMFLOAT3) + 255) & ~255;
+		float3BufferResourceDesc.Height = 1;
+		float3BufferResourceDesc.DepthOrArraySize = 1;
+		float3BufferResourceDesc.MipLevels = 1;
+		float3BufferResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
+		float3BufferResourceDesc.SampleDesc.Count = 1;
+		float3BufferResourceDesc.SampleDesc.Quality = 0;
+		float3BufferResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+		float3BufferResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
 		ThrowIfFailed(D3D12Core::GraphicsDevice::_device->CreateCommittedResource(
 			&heapProps,
 			D3D12_HEAP_FLAG_NONE,
-			&camPosCBResourceDesc,
+			&float3BufferResourceDesc,
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
 			IID_PPV_ARGS(&_camPosBufferResource)));
@@ -176,6 +177,9 @@ void Application::InitResources()
 		ThrowIfFailed(_camPosBufferResource->Map(0, &readRange, reinterpret_cast<void**>(&_mappedCamPosBuffer)));
 		memcpy(_mappedCamPosBuffer, &camPos, sizeof(XMFLOAT3));
 		_camPosBufferResource->Unmap(0, nullptr);
+
+		_pLight = std::make_shared<PointLight>(1.0f, 1.0f, 1.0f);
+		_pLight->RegisterWithGUI();
 
 		_samplerCPUHandle = DescriptorAllocator::Sampler::Allocate();
 

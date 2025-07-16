@@ -6,7 +6,7 @@
 class CommandQueue
 {
 public:
-	static void InitializeCommandQueue(D3D12_COMMAND_QUEUE_DESC queueDesc);
+	static void InitializeCommandQueue(D3D12_COMMAND_LIST_TYPE queuetype);
 
 	static void WaitForFence();
 
