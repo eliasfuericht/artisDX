@@ -5,7 +5,7 @@
 - .glb Modelloading
 - Normal Mapping
 - Physically Based Rendering
-- Dynamic Rootsignature Creation using Shader Reflection
+- Rootsignature Creation using Shader Reflection
 - others are coming...
 
 ## Clone
