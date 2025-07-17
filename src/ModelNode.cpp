@@ -33,3 +33,11 @@ void ModelNode::CreateCBV()
 
 	_cbvModelMatrixGpuHandle = DescriptorAllocator::Resource::GetGPUHandle(cbvCpuHandle);
 }
+
+void ModelNode::BindModelMatrixData(const ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
+{
+	memcpy(_mappedCBVModelMatrixPtr, &_globalMatrix, sizeof(XMFLOAT4X4));
+
+	if (auto slot = shaderPass.GetRootParameterIndex("modelMatrixBuffer"))
+		commandList->SetGraphicsRootDescriptorTable(*slot, _cbvModelMatrixGpuHandle);
+}

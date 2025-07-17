@@ -106,7 +106,7 @@ void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList
 	D3D12Core::GraphicsDevice::device->CreateShaderResourceView(_textureResource.Get(), &srvDesc, _srvCpuHandle);
 }
 
-void Texture::BindTexture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, const ShaderPass& shaderPass)
+void Texture::BindTexture(const ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
 	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = DescriptorAllocator::Resource::GetGPUHandle(_srvCpuHandle);
 	switch (_textureType)

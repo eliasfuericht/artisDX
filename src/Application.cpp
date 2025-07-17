@@ -49,7 +49,7 @@ void Application::Init()
 	CommandQueueManager::InitializeCommandQueueManager();
 
 	_mainLoopGraphicsContext.InitializeCommandContext(QUEUETYPE::QUEUE_GRAPHICS);
-	_mainLoopGraphicsContext.Finish();
+	_mainLoopGraphicsContext.Finish(false);
 
 	D3D12Core::Swapchain::InitializeSwapchain(_width, _height, _window.GetHWND());
 

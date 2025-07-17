@@ -22,10 +22,7 @@ void Model::DrawModel(const ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12Graphics
 
 		Mesh& mesh = _meshes[node._meshIndex];
 
-		memcpy(node._mappedCBVModelMatrixPtr, &node._globalMatrix, sizeof(XMFLOAT4X4));
-
-		if (auto slot = shaderPass.GetRootParameterIndex("modelMatrixBuffer"))
-			commandList->SetGraphicsRootDescriptorTable(*slot, node._cbvModelMatrixGpuHandle);
+		node.BindModelMatrixData(shaderPass, commandList);
 
 		std::vector<Primitive> transparentPrimitives;
 
@@ -38,11 +35,12 @@ void Model::DrawModel(const ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12Graphics
 				continue;
 			}
 
-			material._baseColorTextureIndex != NOTOK ? _textures[material._baseColorTextureIndex].BindTexture(commandList, shaderPass) : PRINT("baseColorTextureIndex NOTOK");
-			material._metallicRoughnessTextureIndex != NOTOK ? _textures[material._metallicRoughnessTextureIndex].BindTexture(commandList, shaderPass) : PRINT("metallicRoughnessTextureIndex NOTOK");
-			material._normalTextureIndex != NOTOK ? _textures[material._normalTextureIndex].BindTexture(commandList, shaderPass) : PRINT("normalTextureIndex NOTOK");
-			material._emissiveTextureIndex != NOTOK ? _textures[material._emissiveTextureIndex].BindTexture(commandList, shaderPass) : PRINT("emissiveTextureIndex NOTOK");
-			material._occlusionTextureIndex != NOTOK ? _textures[material._occlusionTextureIndex].BindTexture(commandList, shaderPass) : PRINT("occlusionTextureIndex NOTOK");
+			material._baseColorTextureIndex != NOTOK ? _textures[material._baseColorTextureIndex].BindTexture(shaderPass, commandList) : PRINT("baseColorTextureIndex NOTOK");
+			material._metallicRoughnessTextureIndex != NOTOK ? _textures[material._metallicRoughnessTextureIndex].BindTexture(shaderPass, commandList) : PRINT("metallicRoughnessTextureIndex NOTOK");
+			material._normalTextureIndex != NOTOK ? _textures[material._normalTextureIndex].BindTexture(shaderPass, commandList) : PRINT("normalTextureIndex NOTOK");
+			material._emissiveTextureIndex != NOTOK ? _textures[material._emissiveTextureIndex].BindTexture(shaderPass, commandList) : PRINT("emissiveTextureIndex NOTOK");
+			material._occlusionTextureIndex != NOTOK ? _textures[material._occlusionTextureIndex].BindTexture(shaderPass, commandList) : PRINT("occlusionTextureIndex NOTOK");
+			material.BindMaterialFactorsData(shaderPass, commandList);
 			primitive.BindPrimitiveData(commandList);
 		}
 
@@ -50,11 +48,12 @@ void Model::DrawModel(const ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12Graphics
 		{
 			Material& material = _materials[primitive._materialIndex];
 
-			material._baseColorTextureIndex != NOTOK ? _textures[material._baseColorTextureIndex].BindTexture(commandList, shaderPass) : PRINT("baseColorTextureIndex NOTOK");
-			material._metallicRoughnessTextureIndex != NOTOK ? _textures[material._metallicRoughnessTextureIndex].BindTexture(commandList, shaderPass) : PRINT("metallicRoughnessTextureIndex NOTOK");
-			material._normalTextureIndex != NOTOK ? _textures[material._normalTextureIndex].BindTexture(commandList, shaderPass) : PRINT("normalTextureIndex NOTOK");
-			material._emissiveTextureIndex != NOTOK ? _textures[material._emissiveTextureIndex].BindTexture(commandList, shaderPass) : PRINT("emissiveTextureIndex NOTOK");
-			material._occlusionTextureIndex != NOTOK ? _textures[material._occlusionTextureIndex].BindTexture(commandList, shaderPass) : PRINT("occlusionTextureIndex NOTOK");
+			material._baseColorTextureIndex != NOTOK ? _textures[material._baseColorTextureIndex].BindTexture(shaderPass, commandList) : PRINT("baseColorTextureIndex NOTOK");
+			material._metallicRoughnessTextureIndex != NOTOK ? _textures[material._metallicRoughnessTextureIndex].BindTexture(shaderPass, commandList) : PRINT("metallicRoughnessTextureIndex NOTOK");
+			material._normalTextureIndex != NOTOK ? _textures[material._normalTextureIndex].BindTexture(shaderPass, commandList) : PRINT("normalTextureIndex NOTOK");
+			material._emissiveTextureIndex != NOTOK ? _textures[material._emissiveTextureIndex].BindTexture(shaderPass, commandList) : PRINT("emissiveTextureIndex NOTOK");
+			material._occlusionTextureIndex != NOTOK ? _textures[material._occlusionTextureIndex].BindTexture(shaderPass, commandList) : PRINT("occlusionTextureIndex NOTOK");
+			material.BindMaterialFactorsData(shaderPass, commandList);
 			primitive.BindPrimitiveData(commandList);
 		}
 	}
@@ -69,10 +68,7 @@ void Model::DrawModelBoundingBox(const ShaderPass& shaderPass, MSWRL::ComPtr<ID3
 
 		Mesh& mesh = _meshes[node._meshIndex];
 
-		memcpy(node._mappedCBVModelMatrixPtr, &node._globalMatrix, sizeof(XMFLOAT4X4));
-
-		if (auto slot = shaderPass.GetRootParameterIndex("modelMatrixBuffer"))
-			commandList->SetGraphicsRootDescriptorTable(*slot, node._cbvModelMatrixGpuHandle);
+		node.BindModelMatrixData(shaderPass, commandList);
 
 		for (Primitive& primitive : mesh._primitives)
 		{

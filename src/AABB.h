@@ -22,8 +22,8 @@ public:
 	const XMFLOAT3& GetMax() const;
 
 private:
-	XMFLOAT3 _min;
-	XMFLOAT3 _max;
+	XMFLOAT3 _min = { 0,0,0 };
+	XMFLOAT3 _max = { 0,0,0 };
 
 	std::vector<Vertex> _aabbVertices;
 	MSWRL::ComPtr<ID3D12Resource> _vertexBuffer;
@@ -32,5 +32,5 @@ private:
 	std::vector<uint32_t> _aabbIndices;
 	MSWRL::ComPtr<ID3D12Resource> _indexBuffer;
 	D3D12_INDEX_BUFFER_VIEW _indexBufferView = {};
-	int32_t _indicesSize;
+	int32_t _indicesSize = NOTOK;
 };

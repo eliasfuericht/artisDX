@@ -2,10 +2,14 @@
 
 #include "pch.h"
 
-struct Material 
-{
+#include "D3D12Core.h"
+#include "DescriptorAllocator.h"
+#include "ShaderPass.h"
 
-	Material() {};
+class Material 
+{
+public:
+	Material();
 
 	std::string _name = "";
 	int32_t _baseColorTextureIndex = NOTOK;
@@ -14,12 +18,22 @@ struct Material
 	int32_t _emissiveTextureIndex = NOTOK;
 	int32_t _occlusionTextureIndex = NOTOK;
 
-	// PBR factors
-	XMFLOAT4 _baseColorFactor = { 1.0f, 1.0f, 1.0f, 1.0f };
-	float _metallicFactor = 1.0f;
-	float _roughnessFactor = 1.0f;
+	struct PBRFactors
+	{
+		XMFLOAT4 baseColorFactor = { 1.0f, 1.0f, 1.0f, 1.0f };
+		float metallicFactor = 1.0f;
+		float roughnessFactor = 1.0f;
+	};
 
-	bool _isTransparent = false;
+	PBRFactors _pbrFactors;
 
 	fastgltf::AlphaMode _alphaMode;
+
+	uint8_t* _mappedMaterialFactorsPtr = nullptr;
+	D3D12_GPU_DESCRIPTOR_HANDLE _cbvMaterialFactorsGpuHandle = {};
+	MSWRL::ComPtr<ID3D12Resource> _MaterialFactorsBufferResource;
+
+	void CreateCBV();
+
+	void BindMaterialFactorsData(const ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 };

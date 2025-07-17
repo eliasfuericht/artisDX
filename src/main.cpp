@@ -1,10 +1,9 @@
 #pragma once
-#include <stdio.h>
 
 #include "Application.h"
 
 int main()
 {
-	Application artisDX("artisDX", 1920, 1080, false);
+	Application artisDX("artisDX", 1280, 720, false);
 	artisDX.Run();
 }

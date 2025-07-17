@@ -18,10 +18,10 @@ public:
 
 	MSWRL::ComPtr<ID3D12GraphicsCommandList> GetCommandList() { return _commandList.Get(); }
 
-	void Finish(bool waitForExecution = false);
+	void Finish(bool waitForExecution);
 
 private:
-	QUEUETYPE _queueType;
+	QUEUETYPE _queueType = QUEUE_INVALID;
 
 	MSWRL::ComPtr<ID3D12CommandAllocator> _allocator;
 	MSWRL::ComPtr<ID3D12GraphicsCommandList> _commandList;

@@ -17,6 +17,5 @@ public:
 	void DrawAllBoundingBoxes(const ShaderPass& shaderPass, CommandContext& commandContext);
 
 private:
-	GLTFLoader _gltfLoader;
 	std::vector<std::shared_ptr<Model>> _models;
 };

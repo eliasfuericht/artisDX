@@ -97,16 +97,6 @@ inline void ThrowException(const std::string& errorMsg = "")
 	throw std::runtime_error(fullError);
 }
 
-inline XMFLOAT4X4 ToXMFloat4x4(const fastgltf::math::fmat4x4& m)
-{
-	return XMFLOAT4X4(
-		m[0][0], m[0][1], m[0][2], m[0][3],
-		m[1][0], m[1][1], m[1][2], m[1][3],
-		m[2][0], m[2][1], m[2][2], m[2][3],
-		m[3][0], m[3][1], m[3][2], m[3][3]
-	);
-}
-
 enum KEYCODES : uint32_t
 {
 	KEYCODE_W = 87,
@@ -127,36 +117,64 @@ struct Vertex {
 	XMFLOAT3 bitangent;
 };
 
-namespace Utils::Timer
+namespace Utils
 {
-	inline std::chrono::high_resolution_clock::time_point& start_time()
+	namespace Timer
 	{
-		static auto start = std::chrono::high_resolution_clock::now();
-		return start;
+		inline std::chrono::high_resolution_clock::time_point& start_time()
+		{
+			static auto start = std::chrono::high_resolution_clock::now();
+			return start;
+		}
+
+		inline void StartTimer()
+		{
+			start_time() = std::chrono::high_resolution_clock::now();
+		}
+
+		inline void PrintElapsedSeconds()
+		{
+			PRINT(std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time()).count(), "s");
+		}
+
+		inline void PrintElapsedMilliseconds()
+		{
+			PRINT(std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - start_time()).count(), "ms");
+		}
+
+		inline double GetElapsedSeconds()
+		{
+			return std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time()).count();
+		}
+
+		inline double GetElapsedMilliseconds()
+		{
+			return std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - start_time()).count();
+		}
 	}
 
-	inline void StartTimer()
+	inline XMFLOAT2 ToXMFloat2(const fastgltf::math::nvec2& v)
 	{
-		start_time() = std::chrono::high_resolution_clock::now();
+		return XMFLOAT2(v[0], v[1]);
 	}
 
-	inline void PrintElapsedSeconds()
+	inline XMFLOAT3 ToXMFloat3(const fastgltf::math::nvec3& v)
 	{
-		PRINT(std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time()).count(), "s");
+		return XMFLOAT3(v[0], v[1], v[2]);
 	}
 
-	inline void PrintElapsedMilliseconds()
+	inline XMFLOAT4 ToXMFloat4(const fastgltf::math::nvec4& v)
 	{
-		PRINT(std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - start_time()).count(), "ms");
+		return XMFLOAT4(v[0], v[1], v[2], v[3]);
 	}
 
-	inline double GetElapsedSeconds()
+	inline XMFLOAT4X4 ToXMFloat4x4(const fastgltf::math::fmat4x4& m)
 	{
-		return std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time()).count();
-	}
-
-	inline double GetElapsedMilliseconds()
-	{
-		return std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - start_time()).count();
+		return XMFLOAT4X4(
+			m[0][0], m[0][1], m[0][2], m[0][3],
+			m[1][0], m[1][1], m[1][2], m[1][3],
+			m[2][0], m[2][1], m[2][2], m[2][3],
+			m[3][0], m[3][1], m[3][2], m[3][3]
+		);
 	}
 }

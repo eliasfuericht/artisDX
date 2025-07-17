@@ -21,8 +21,8 @@ public:
 	MSWRL::ComPtr<ID3D12CommandQueue> _commandQueue;
 	MSWRL::ComPtr<ID3D12Fence> _fence;
 
-	uint64_t _fenceValue;
 	HANDLE _fenceEvent;
+	uint64_t _fenceValue = 0;
 };
 
 namespace CommandQueueManager
