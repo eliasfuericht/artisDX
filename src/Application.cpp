@@ -217,32 +217,14 @@ void Application::SetCommandList()
 	_mainLoopGraphicsContext.GetCommandList()->RSSetViewports(1, &D3D12Core::Swapchain::viewport);
 	_mainLoopGraphicsContext.GetCommandList()->RSSetScissorRects(1, &D3D12Core::Swapchain::surfaceSize);
 
-	ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::Resource::GetHeap(), DescriptorAllocator::Sampler::GetHeap() };
-	_mainLoopGraphicsContext.GetCommandList()->SetDescriptorHeaps(_countof(heaps), heaps);
-	
-	if (auto slot = _mainPass->GetRootParameterIndex("viewProjMatrixBuffer"))
-		_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_VPBufferDescriptor));
-
-	if (auto slot = _mainPass->GetRootParameterIndex("cameraBuffer"))
-		_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_camPosBufferDescriptor));
-
-	if (auto slot = _mainPass->GetRootParameterIndex("plightBuffer"))
-		_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_pLight->_cbvpLightCPUHandle));
-
-	if (auto slot = _mainPass->GetRootParameterIndex("dlightBuffer"))
-		_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_dLight->_cbvdLightCPUHandle));
-
-	if (auto slot = _mainPass->GetRootParameterIndex("mySampler"))
-		_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Sampler::GetGPUHandle(_samplerCPUHandle));
-
 	D3D12_RESOURCE_BARRIER renderTargetBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
 		D3D12Core::Swapchain::renderTargets[D3D12Core::Swapchain::frameIndex].Get(),
 		D3D12_RESOURCE_STATE_PRESENT,
 		D3D12_RESOURCE_STATE_RENDER_TARGET,
 		D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-	
+
 	_mainLoopGraphicsContext.GetCommandList()->ResourceBarrier(1, &renderTargetBarrier);
-	
+
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = D3D12Core::Swapchain::rtvHeap->GetCPUDescriptorHandleForHeapStart();
 	rtvHandle.ptr += (D3D12Core::Swapchain::frameIndex * D3D12Core::Swapchain::rtvDescriptorSize);
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = D3D12Core::Swapchain::dsvHeap->GetCPUDescriptorHandleForHeapStart();
@@ -253,8 +235,26 @@ void Application::SetCommandList()
 	const float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
 	_mainLoopGraphicsContext.GetCommandList()->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 
+	ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::Resource::GetHeap(), DescriptorAllocator::Sampler::GetHeap() };
+	_mainLoopGraphicsContext.GetCommandList()->SetDescriptorHeaps(_countof(heaps), heaps);
+
 	if (_mainPass->_usePass)
 	{
+		if (auto slot = _mainPass->GetRootParameterIndex("viewProjMatrixBuffer"))
+			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_VPBufferDescriptor));
+
+		if (auto slot = _mainPass->GetRootParameterIndex("cameraBuffer"))
+			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_camPosBufferDescriptor));
+
+		if (auto slot = _mainPass->GetRootParameterIndex("plightBuffer"))
+			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_pLight->_cbvpLightCPUHandle));
+
+		if (auto slot = _mainPass->GetRootParameterIndex("dlightBuffer"))
+			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_dLight->_cbvdLightCPUHandle));
+
+		if (auto slot = _mainPass->GetRootParameterIndex("mySampler"))
+			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Sampler::GetGPUHandle(_samplerCPUHandle));
+
 		_modelManager.DrawAll(*_mainPass, _mainLoopGraphicsContext);
 	}
 
