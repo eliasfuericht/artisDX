@@ -1,11 +1,11 @@
 #include "ShaderPass.h"
 
-ShaderPass::ShaderPass(std::string name)
+ShaderPass::ShaderPass(const std::string& name)
 {
 	_name = name;
 }
 
-void ShaderPass::AddShader(std::filesystem::path path, SHADERTYPE shaderType)
+void ShaderPass::AddShader(const std::filesystem::path path, SHADERTYPE shaderType)
 {
 	_shaders.try_emplace(shaderType, Shader(path, shaderType));
 }
@@ -88,10 +88,10 @@ void ShaderPass::GenerateGraphicsRootSignature()
 
 		switch (range.first)
 		{
-		case SHADERTYPE::VERTEX:
+		case SHADERTYPE::SHADER_VERTEX:
 			param.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 			break;
-		case SHADERTYPE::PIXEL:
+		case SHADERTYPE::SHADER_PIXEL:
 			param.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 			break;
 		default:
@@ -139,12 +139,12 @@ void ShaderPass::GeneratePipeLineStateObjectForwardPass(D3D12_FILL_MODE fillMode
 	D3D12_SHADER_BYTECODE vsBytecode;
 	D3D12_SHADER_BYTECODE psBytecode;
 
-	vsBytecode.pShaderBytecode = _shaders.find(SHADERTYPE::VERTEX)->second._shaderBlob->GetBufferPointer();
-	vsBytecode.BytecodeLength = _shaders.find(SHADERTYPE::VERTEX)->second._shaderBlob->GetBufferSize();
+	vsBytecode.pShaderBytecode = _shaders.find(SHADERTYPE::SHADER_VERTEX)->second._shaderBlob->GetBufferPointer();
+	vsBytecode.BytecodeLength = _shaders.find(SHADERTYPE::SHADER_VERTEX)->second._shaderBlob->GetBufferSize();
 	psoDesc.VS = vsBytecode;
 
-	psBytecode.pShaderBytecode = _shaders.find(SHADERTYPE::PIXEL)->second._shaderBlob->GetBufferPointer();
-	psBytecode.BytecodeLength = _shaders.find(SHADERTYPE::PIXEL)->second._shaderBlob->GetBufferSize();
+	psBytecode.pShaderBytecode = _shaders.find(SHADERTYPE::SHADER_PIXEL)->second._shaderBlob->GetBufferPointer();
+	psBytecode.BytecodeLength = _shaders.find(SHADERTYPE::SHADER_PIXEL)->second._shaderBlob->GetBufferSize();
 	psoDesc.PS = psBytecode;
 
 	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
@@ -182,60 +182,7 @@ void ShaderPass::GeneratePipeLineStateObjectForwardPass(D3D12_FILL_MODE fillMode
 	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 	psoDesc.SampleDesc.Count = 1;
 
-	MSWRL::ComPtr<ID3D12PipelineState> pipelineState;
-	ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pipelineState)), "PipelineStateObject creation failed!");
-
-	switch (fillMode)
-	{
-	case D3D12_FILL_MODE_SOLID:
-		_pipelineStateFill = pipelineState;
-		break;
-	case D3D12_FILL_MODE_WIREFRAME:
-		_pipelineStateWireframe = pipelineState;
-		break;
-	default:
-		break;
-	}
-}
-
-void ShaderPass::GeneratePipeLineStateObjectDepthPass()
-{
-	D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
-		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-		{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-		{"TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-		{"BITANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 48, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-	};
-
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-	psoDesc.InputLayout = { inputElementDescs, _countof(inputElementDescs) };
-	psoDesc.pRootSignature = _rootSignature.Get();
-
-	D3D12_SHADER_BYTECODE vsBytecode;
-	D3D12_SHADER_BYTECODE psBytecode;
-
-	vsBytecode.pShaderBytecode = _shaders.find(SHADERTYPE::VERTEX)->second._shaderBlob->GetBufferPointer();
-	vsBytecode.BytecodeLength = _shaders.find(SHADERTYPE::VERTEX)->second._shaderBlob->GetBufferSize();
-	psoDesc.VS = vsBytecode;
-
-	psBytecode.pShaderBytecode = _shaders.find(SHADERTYPE::PIXEL)->second._shaderBlob->GetBufferPointer();
-	psBytecode.BytecodeLength = _shaders.find(SHADERTYPE::PIXEL)->second._shaderBlob->GetBufferSize();
-	psoDesc.PS = psBytecode;
-
-	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
-	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
-	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-	psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-	psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
-	psoDesc.SampleMask = UINT_MAX;
-	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-	psoDesc.NumRenderTargets = 1;
-	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-	psoDesc.SampleDesc.Count = 1;
-	
-	ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&_pipelineStateFill)), "PipelineStateObject creation failed!");
+	ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&_pipelineState)), "PipelineStateObject creation failed!");
 }
 
 std::optional<UINT> ShaderPass::GetRootParameterIndex(const std::string& name) {

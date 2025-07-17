@@ -4,12 +4,11 @@
 
 #include "D3D12Core.h"
 
-enum class SHADERTYPE
+enum SHADERTYPE : int32_t
 {
-	INVALID = -1,
-	VERTEX = 0,
-	PIXEL = 1,
-	COMPUTE = 2,
+	SHADER_VERTEX = 0,
+	SHADER_PIXEL = 1,
+	SHADER_COMPUTE = 2
 };
 
 class Shader
@@ -18,7 +17,7 @@ public:
 	Shader() {};
 	Shader(std::filesystem::path path, SHADERTYPE shaderType);
 
-	SHADERTYPE _shaderType = SHADERTYPE::INVALID;
+	SHADERTYPE _shaderType;
 	MSWRL::ComPtr<IDxcResult> _compiledShaderBuffer;
 	MSWRL::ComPtr<IDxcBlob> _shaderBlob;
 };

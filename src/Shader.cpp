@@ -13,13 +13,13 @@ Shader::Shader(std::filesystem::path path, SHADERTYPE shaderType)
 
 	switch (shaderType)
 	{
-	case SHADERTYPE::VERTEX:
+	case SHADERTYPE::SHADER_VERTEX:
 		compilationArguments.push_back(L"vs_6_7");
 		break;
-	case SHADERTYPE::PIXEL:
+	case SHADERTYPE::SHADER_PIXEL:
 		compilationArguments.push_back(L"ps_6_7");
 		break;
-	case SHADERTYPE::COMPUTE:
+	case SHADERTYPE::SHADER_COMPUTE:
 		compilationArguments.push_back(L"cs_6_7");
 		break;
 	default:

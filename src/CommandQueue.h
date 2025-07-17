@@ -3,12 +3,11 @@
 #include "pch.h"
 #include "D3D12Core.h"
 
-enum class QUEUETYPE
+enum QUEUETYPE : int32_t
 {
-	INVALID = -1,
-	GRAPHICS = 0,
-	COMPUTE = 1,
-	UPLOAD = 2
+	QUEUE_GRAPHICS = 0,
+	QUEUE_COMPUTE = 1,
+	QUEUE_UPLOAD = 2
 };
 
 class CommandQueue
@@ -21,7 +20,7 @@ public:
 	MSWRL::ComPtr<ID3D12CommandQueue> _commandQueue;
 	MSWRL::ComPtr<ID3D12Fence> _fence;
 
-	UINT64 _fenceValue;
+	uint64_t _fenceValue;
 	HANDLE _fenceEvent;
 };
 
@@ -31,5 +30,5 @@ namespace CommandQueueManager
 	
 	extern CommandQueue& GetCommandQueue(QUEUETYPE queueType);
 	
-	extern CommandQueue _commandQueues[3];
+	extern CommandQueue commandQueues[3];
 }

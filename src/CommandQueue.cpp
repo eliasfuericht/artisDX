@@ -20,7 +20,7 @@ void CommandQueue::WaitForFence()
 {
 	_fenceValue++;
 	_commandQueue->Signal(_fence.Get(), _fenceValue);
-	const UINT64 fence = _fenceValue;
+	const uint64_t fence = _fenceValue;
 	if (_fence->GetCompletedValue() < fence)
 	{
 		ThrowIfFailed(_fence->SetEventOnCompletion(fence, _fenceEvent));
@@ -30,17 +30,17 @@ void CommandQueue::WaitForFence()
 
 namespace CommandQueueManager
 {
-	CommandQueue _commandQueues[3];
+	CommandQueue commandQueues[3];
 
 	void InitializeCommandQueueManager()
 	{
-		_commandQueues[(INT)QUEUETYPE::GRAPHICS].InitializeCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
-		_commandQueues[(INT)QUEUETYPE::COMPUTE].InitializeCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
-		_commandQueues[(INT)QUEUETYPE::UPLOAD].InitializeCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
+		CommandQueueManager::commandQueues[QUEUETYPE::QUEUE_GRAPHICS].InitializeCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		CommandQueueManager::commandQueues[QUEUETYPE::QUEUE_COMPUTE].InitializeCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
+		CommandQueueManager::commandQueues[QUEUETYPE::QUEUE_UPLOAD].InitializeCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
 	}
 
 	CommandQueue& GetCommandQueue(QUEUETYPE queueType)
 	{
-		return _commandQueues[(INT)queueType];
+		return CommandQueueManager::commandQueues[queueType];
 	}
 }
