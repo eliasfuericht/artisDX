@@ -1,6 +1,6 @@
-cbuffer viewProjMatrixBuffer : register(b0)
+cbuffer lightViewProjMatrixBuffer : register(b0)
 {
-    row_major float4x4 c_viewProjectionMatrix : packoffset(c0);
+    row_major float4x4 c_lightViewProjectionMatrix : packoffset(c0);
 };
 
 cbuffer modelMatrixBuffer : register(b1)
@@ -20,7 +20,6 @@ struct StageInput
 struct StageOutput
 {
     float4 position : SV_Position;
-    float2 outUV : TEXCOORD;
 };
 
 StageOutput main(StageInput stageInput)
@@ -28,8 +27,7 @@ StageOutput main(StageInput stageInput)
     StageOutput stageOutput;
 
     float4 worldPos = mul(float4(stageInput.inPos, 1.0f), c_modelMatrix);
-    stageOutput.position = mul(worldPos, c_viewProjectionMatrix);
-
-    stageOutput.outUV = stageInput.inUV;
+    stageOutput.position = mul(worldPos, c_lightViewProjectionMatrix);
+    
     return stageOutput;
 }

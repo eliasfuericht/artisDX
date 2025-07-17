@@ -59,22 +59,25 @@ void Application::Init()
 
 void Application::InitResources()
 {
+	_depthPass = std::make_shared<ShaderPass>("DepthPass");
+	_depthPass->RegisterWithGUI();
+	_depthPass->AddShader("../shaders/dShadowMap_vert.hlsl", SHADERTYPE::SHADER_VERTEX);
+	_depthPass->AddShader("../shaders/dShadowMap_frag.hlsl", SHADERTYPE::SHADER_PIXEL);
+	_depthPass->GenerateGraphicsRootSignature();
+	_depthPass->GeneratePipeLineStateObjectForwardPass(D3D12_FILL_MODE_SOLID, D3D12_CULL_MODE_BACK, false);
+
 	_mainPass = std::make_shared<ShaderPass>("Main");
 	_mainPass->RegisterWithGUI();
-
 	_mainPass->AddShader("../shaders/pbr_vert.hlsl", SHADERTYPE::SHADER_VERTEX);
 	_mainPass->AddShader("../shaders/pbr_frag.hlsl", SHADERTYPE::SHADER_PIXEL);
-
 	_mainPass->GenerateGraphicsRootSignature();
 	_mainPass->GeneratePipeLineStateObjectForwardPass(D3D12_FILL_MODE_SOLID, D3D12_CULL_MODE_BACK, true);
 
 	_bbPass = std::make_shared<ShaderPass>("BoundingBox");
 	_bbPass->_usePass = false;
 	_bbPass->RegisterWithGUI();
-
 	_bbPass->AddShader("../shaders/bb_vert.hlsl", SHADERTYPE::SHADER_VERTEX);
 	_bbPass->AddShader("../shaders/bb_frag.hlsl", SHADERTYPE::SHADER_PIXEL);
-
 	_bbPass->GenerateGraphicsRootSignature();
 	_bbPass->GeneratePipeLineStateObjectForwardPass(D3D12_FILL_MODE_WIREFRAME, D3D12_CULL_MODE_NONE, false);
 
@@ -178,7 +181,7 @@ void Application::InitResources()
 		_pLight = std::make_shared<PointLight>(1.0f, 1.0f, 1.0f);
 		_pLight->RegisterWithGUI();
 
-		_dLight = std::make_shared<DirectionalLight>(1.0f, 1.0f, 1.0f);
+		_dLight = std::make_shared<DirectionalLight>(1.0f, 1.0f, 1.0f, true, 2048);
 		_dLight->RegisterWithGUI();
 
 		_samplerCPUHandle = DescriptorAllocator::Sampler::Allocate();
@@ -218,6 +221,21 @@ void Application::SetCommandList()
 	_mainLoopGraphicsContext.GetCommandList()->RSSetViewports(1, &D3D12Core::Swapchain::viewport);
 	_mainLoopGraphicsContext.GetCommandList()->RSSetScissorRects(1, &D3D12Core::Swapchain::surfaceSize);
 
+	ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::Resource::GetHeap(), DescriptorAllocator::Sampler::GetHeap() };
+	_mainLoopGraphicsContext.GetCommandList()->SetDescriptorHeaps(_countof(heaps), heaps);
+
+	if (_depthPass->_usePass)
+	{
+		D3D12_CPU_DESCRIPTOR_HANDLE shadowMapHandle = _dLight->_directionalShadowMapHeap->GetCPUDescriptorHandleForHeapStart();
+		_mainLoopGraphicsContext.GetCommandList()->OMSetRenderTargets(0, nullptr, false, &shadowMapHandle);
+		_mainLoopGraphicsContext.GetCommandList()->ClearDepthStencilView(shadowMapHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0.0f, 0, nullptr);
+
+		if (auto slot = _depthPass->GetRootParameterIndex("lightViewProjMatrixBuffer"))
+			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_dLight->_dLightLVPCPUHandle));
+
+		_modelManager.DrawAll(*_depthPass, _mainLoopGraphicsContext);
+	}
+
 	D3D12_RESOURCE_BARRIER renderTargetBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
 		D3D12Core::Swapchain::renderTargets[D3D12Core::Swapchain::frameIndex].Get(),
 		D3D12_RESOURCE_STATE_PRESENT,
@@ -236,9 +254,6 @@ void Application::SetCommandList()
 	const float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
 	_mainLoopGraphicsContext.GetCommandList()->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 
-	ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::Resource::GetHeap(), DescriptorAllocator::Sampler::GetHeap() };
-	_mainLoopGraphicsContext.GetCommandList()->SetDescriptorHeaps(_countof(heaps), heaps);
-
 	if (_mainPass->_usePass)
 	{
 		if (auto slot = _mainPass->GetRootParameterIndex("viewProjMatrixBuffer"))
@@ -251,7 +266,7 @@ void Application::SetCommandList()
 			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_pLight->_cbvpLightCPUHandle));
 
 		if (auto slot = _mainPass->GetRootParameterIndex("dlightBuffer"))
-			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_dLight->_cbvdLightCPUHandle));
+			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_dLight->_dLightDirectionCPUHandle));
 
 		if (auto slot = _mainPass->GetRootParameterIndex("mySampler"))
 			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Sampler::GetGPUHandle(_samplerCPUHandle));
