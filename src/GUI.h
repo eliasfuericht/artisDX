@@ -19,7 +19,7 @@ public:
 
 	static void NewFrame();
 	static void Begin(const char* title);
-	static void PushID(INT id);
+	static void PushID(int32_t id);
 	static void End();
 	static void PopID();
 

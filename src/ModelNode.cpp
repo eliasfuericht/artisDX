@@ -9,7 +9,7 @@ void ModelNode::CreateCBV()
 {
 	D3D12_CPU_DESCRIPTOR_HANDLE cbvCpuHandle = DescriptorAllocator::Resource::Allocate();
 
-	const UINT bufferSize = (sizeof(XMFLOAT4X4) + 255) & ~255;
+	const uint32_t bufferSize = (sizeof(XMFLOAT4X4) + 255) & ~255;
 
 	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
 	CD3DX12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);

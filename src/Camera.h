@@ -9,17 +9,17 @@ class Camera : public IGUIComponent
 {
 public:
 	Camera() {};
-	Camera(XMVECTOR pos, XMVECTOR startUp, FLOAT startYaw, FLOAT startPitch, FLOAT startMoveSpeed, FLOAT startTurnSpeed);
+	Camera(XMVECTOR pos, XMVECTOR startUp, float startYaw, float startPitch, float startMoveSpeed, float startTurnSpeed);
 
-	void ConsumeMouse(FLOAT xChange, FLOAT yChange);
-	void ConsumeKey(BOOL* keys, FLOAT deltaTime);
+	void ConsumeMouse(float xChange, float yChange);
+	void ConsumeKey(bool* keys, float deltaTime);
 	void Update();
 
 	void DrawGUI();
 
 	XMFLOAT4X4 GetViewMatrix() { return _viewMatrix; };
-	FLOAT _yaw;
-	FLOAT _pitch;
+	float _yaw;
+	float _pitch;
 	XMVECTOR _position;
 
 private:
@@ -31,8 +31,8 @@ private:
 
 	XMFLOAT4X4 _viewMatrix;
 
-	FLOAT _moveSpeed;
-	FLOAT _turnSpeed;
+	float _moveSpeed;
+	float _turnSpeed;
 
-	FLOAT _multiplier = 15.0f;
+	float _multiplier = 15.0f;
 };

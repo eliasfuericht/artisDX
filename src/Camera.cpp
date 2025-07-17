@@ -1,12 +1,12 @@
 #include "Camera.h"
 
-Camera::Camera(XMVECTOR pos, XMVECTOR startUp, FLOAT startYaw, FLOAT startPitch, FLOAT startMoveSpeed, FLOAT startTurnSpeed)
+Camera::Camera(XMVECTOR pos, XMVECTOR startUp, float startYaw, float startPitch, float startMoveSpeed, float startTurnSpeed)
 	: _position(pos), _worldUp(startUp), _yaw(startYaw), _pitch(startPitch), _moveSpeed(startMoveSpeed), _turnSpeed(startTurnSpeed)
 {
 	_front = XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f);
 }
 
-void Camera::ConsumeMouse(FLOAT xChange, FLOAT yChange)
+void Camera::ConsumeMouse(float xChange, float yChange)
 {
 	xChange *= _turnSpeed;
 	yChange *= _turnSpeed;
@@ -25,37 +25,37 @@ void Camera::ConsumeMouse(FLOAT xChange, FLOAT yChange)
 	}
 }
 
-void Camera::ConsumeKey(BOOL* keys, FLOAT deltaTime)
+void Camera::ConsumeKey(bool* keys, float deltaTime)
 {
-	FLOAT multiplier = 1.0f;
-	if (keys[KEYCODES::SHIFT])
+	float multiplier = 1.0f;
+	if (keys[KEYCODES::KEYCODE_SHIFT])
 	{
 		multiplier = _multiplier;
 	}
 
-	FLOAT velocity = _moveSpeed * deltaTime * multiplier;
+	float velocity = _moveSpeed * deltaTime * multiplier;
 
-	if (keys[KEYCODES::W])
+	if (keys[KEYCODES::KEYCODE_W])
 	{
 		_position = XMVectorAdd(_position, XMVectorScale(_front, velocity));
 	}
-	if (keys[KEYCODES::A])
+	if (keys[KEYCODES::KEYCODE_A])
 	{
 		_position = XMVectorAdd(_position, XMVectorScale(_right, velocity));
 	}
-	if (keys[KEYCODES::S])
+	if (keys[KEYCODES::KEYCODE_S])
 	{
 		_position = XMVectorSubtract(_position, XMVectorScale(_front, velocity));
 	}
-	if (keys[KEYCODES::D])
+	if (keys[KEYCODES::KEYCODE_D])
 	{
 		_position = XMVectorSubtract(_position, XMVectorScale(_right, velocity));
 	}
-	if (keys[KEYCODES::SPACE])
+	if (keys[KEYCODES::KEYCODE_SPACE])
 	{
 		_position = XMVectorAdd(_position, XMVectorScale(_up, velocity));
 	}
-	if (keys[KEYCODES::LCTRL])
+	if (keys[KEYCODES::KEYCODE_LCTRL])
 	{
 		_position = XMVectorSubtract(_position, XMVectorScale(_up, velocity));
 	}

@@ -1,9 +1,9 @@
 #include "ModelManager.h"
 
-void ModelManager::LoadModel(std::filesystem::path path)
+void ModelManager::LoadModel(const std::filesystem::path& path)
 {
 	CommandContext uploadContext;
-	uploadContext.InitializeCommandContext(QUEUETYPE::UPLOAD);
+	uploadContext.InitializeCommandContext(QUEUETYPE::QUEUE_UPLOAD);
 
 	std::shared_ptr<Model> model;
 
@@ -16,7 +16,7 @@ void ModelManager::LoadModel(std::filesystem::path path)
 	uploadContext.Finish(true);
 }
 
-void ModelManager::DrawAll(ShaderPass& shaderPass, CommandContext& commandContext)
+void ModelManager::DrawAll(const ShaderPass& shaderPass, CommandContext& commandContext)
 {
 	for (auto& model : _models)
 	{
@@ -24,7 +24,7 @@ void ModelManager::DrawAll(ShaderPass& shaderPass, CommandContext& commandContex
 	}
 }
 
-void ModelManager::DrawAllBoundingBoxes(ShaderPass& shaderPass, CommandContext& commandContext)
+void ModelManager::DrawAllBoundingBoxes(const ShaderPass& shaderPass, CommandContext& commandContext)
 {
 	for (auto& model : _models)
 	{

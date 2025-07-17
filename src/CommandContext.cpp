@@ -9,17 +9,17 @@ void CommandContext::InitializeCommandContext(QUEUETYPE queueType)
 	D3D12_COMMAND_LIST_TYPE listType{};
 	switch (_queueType)
 	{
-		case QUEUETYPE::GRAPHICS:
+		case QUEUETYPE::QUEUE_GRAPHICS:
 			listType = D3D12_COMMAND_LIST_TYPE_DIRECT;
 			allocatorName = L"GraphicsCommandAllocator";
 			listName = L"GraphicsCommandList";
 			break;
-		case QUEUETYPE::COMPUTE:
+		case QUEUETYPE::QUEUE_COMPUTE:
 			listType = D3D12_COMMAND_LIST_TYPE_COMPUTE;
 			allocatorName = L"ComputeCommandAllocator";
 			listName = L"ComputeCommandList";
 			break;
-		case QUEUETYPE::UPLOAD:
+		case QUEUETYPE::QUEUE_UPLOAD:
 			listType = D3D12_COMMAND_LIST_TYPE_COPY;
 			allocatorName = L"UploadCommandAllocator";
 			listName = L"UploadCommandList";
@@ -45,7 +45,7 @@ void CommandContext::Reset()
 	ThrowIfFailed(_commandList->Reset(_allocator.Get(), nullptr), "Failed to reset CommandList!");
 }
 
-void CommandContext::Finish(BOOL waitForExecution)
+void CommandContext::Finish(bool waitForExecution)
 {
 	_commandList->Close();
 

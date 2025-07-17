@@ -61,7 +61,7 @@ void GUI::Begin(const char* title)
 	ImGui::Begin(title);
 }
 
-void GUI::PushID(INT id)
+void GUI::PushID(int32_t id)
 {
 	ImGui::PushID(id);
 }
@@ -119,7 +119,7 @@ void GUI::Render()
 	ID3D12DescriptorHeap* heaps[] = { _srvHeap.Get() };
 	_commandList->SetDescriptorHeaps(1, heaps);
 
-	UINT frameIndex = D3D12Core::Swapchain::frameIndex;
+	uint32_t frameIndex = D3D12Core::Swapchain::frameIndex;
 
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = D3D12Core::Swapchain::rtvHeap->GetCPUDescriptorHandleForHeapStart();
 	rtvHandle.ptr += (frameIndex * D3D12Core::Swapchain::rtvDescriptorSize);
@@ -135,7 +135,7 @@ void GUI::Render()
 	_commandList->ResourceBarrier(1, &renderTargetBarrier);
 
 	// Set render target for ImGui
-	_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+	_commandList->OMSetRenderTargets(1, &rtvHandle, false, nullptr);
 
 	// Set Descriptor Heap for ImGui
 	ID3D12DescriptorHeap* descriptorHeaps[] = { _srvHeap.Get() };
@@ -157,7 +157,7 @@ void GUI::Render()
 	// Close & Execute
 	ThrowIfFailed(_commandList->Close());
 	ID3D12CommandList* lists[] = { _commandList.Get() };
-	CommandQueueManager::GetCommandQueue(QUEUETYPE::GRAPHICS)._commandQueue->ExecuteCommandLists(_countof(lists), lists);
+	CommandQueueManager::GetCommandQueue(QUEUETYPE::QUEUE_GRAPHICS)._commandQueue->ExecuteCommandLists(_countof(lists), lists);
 }
 
 void GUI::Shutdown()

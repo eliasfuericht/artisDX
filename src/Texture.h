@@ -16,17 +16,17 @@ class Texture
 public:
 	enum TEXTURETYPE
 	{
-		ALBEDO = 0,
-		METALLICROUGHNESS = 1,
-		NORMAL = 2,
-		EMISSIVE = 3,
-		OCCLUSION = 4
+		TEXTURE_ALBEDO = 0,
+		TEXTURE_METALLICROUGHNESS = 1,
+		TEXTURE_NORMAL = 2,
+		TEXTURE_EMISSIVE = 3,
+		TEXTURE_OCCLUSION = 4
 	};
 
 public:
 	Texture() {};
 	Texture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, Texture::TEXTURETYPE texType, ScratchImage& scratchImage);
-	void BindTexture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, ShaderPass& shaderPass);
+	void BindTexture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, const ShaderPass& shaderPass);
 
 private:
 	void CreateBuffers(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
@@ -36,6 +36,6 @@ private:
 	D3D12_CPU_DESCRIPTOR_HANDLE _srvCpuHandle;
 
 	ScratchImage _image;
-	UINT _mipCount;
+	uint32_t _mipCount;
 	Texture::TEXTURETYPE _textureType;
 };

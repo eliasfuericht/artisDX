@@ -14,12 +14,12 @@ public:
 	ShaderPass() {};
 	ShaderPass(const std::string& name);
 
-	void AddShader(const std::filesystem::path path, SHADERTYPE shaderType);
+	void AddShader(const std::filesystem::path& path, SHADERTYPE shaderType);
 
 	void GenerateGraphicsRootSignature();
-	void GeneratePipeLineStateObjectForwardPass(D3D12_FILL_MODE fillMode, D3D12_CULL_MODE cullMode, BOOL alphaBlending);
+	void GeneratePipeLineStateObjectForwardPass(D3D12_FILL_MODE fillMode, D3D12_CULL_MODE cullMode, bool alphaBlending);
 
-	std::optional<UINT> GetRootParameterIndex(const std::string& name);
+	std::optional<uint32_t> GetRootParameterIndex(const std::string& name) const;
 
 	void DrawGUI();
 

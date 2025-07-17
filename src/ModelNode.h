@@ -9,11 +9,11 @@ class ModelNode {
 public:
 	ModelNode();
 
-	INT _id;
+	int32_t _id = NOTOK;
 	std::string _name;
-	int _meshIndex = NOTOK;
-	int _parentIndex = -1;
-	std::vector<int> _children;
+	int32_t _meshIndex = NOTOK;
+	int32_t _parentIndex = -1;
+	std::vector<int32_t> _children;
 
 	XMFLOAT3 _translation = { 0,0,0 };
 	XMFLOAT3 _rotationEuler = { 0,0,0 };

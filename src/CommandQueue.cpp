@@ -9,7 +9,7 @@ void CommandQueue::InitializeCommandQueue(D3D12_COMMAND_LIST_TYPE queuetype)
 
 	ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence)));
 
-	_fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+	_fenceEvent = CreateEvent(nullptr, false, false, nullptr);
 	if (_fenceEvent == nullptr)
 	{
 		ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));

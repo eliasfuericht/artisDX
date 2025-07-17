@@ -16,19 +16,19 @@ class Model : public IGUIComponent
 {
 public:
 	Model() {};
-	Model(INT id, std::string name, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, std::vector<Mesh> meshes, std::vector<Texture> textures, std::vector<Material> materials, std::vector<ModelNode> modelNodes);
+	Model(int32_t id, std::string name, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, std::vector<Mesh> meshes, std::vector<Texture> textures, std::vector<Material> materials, std::vector<ModelNode> modelNodes);
 
-	void DrawModel(ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
-	void DrawModelBoundingBox(ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
+	void DrawModel(const ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
+	void DrawModelBoundingBox(const ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 
 	void DrawGUI();
-	INT GetID();
+	int32_t GetID();
 
 private:
 	void ComputeGlobalTransforms();
-	void ComputeNodeGlobal(int nodeIndex, const XMMATRIX& parentMatrix);
+	void ComputeNodeGlobal(int32_t nodeIndex, const XMMATRIX& parentMatrix);
 
-	INT _id = NOTOK;
+	int32_t _id = NOTOK;
 	std::string _name;
 	std::vector<Mesh> _meshes;
 	std::vector<Texture> _textures;

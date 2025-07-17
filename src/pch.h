@@ -41,15 +41,13 @@
 #include "../build/_deps/fastgltf-src/include/fastgltf/types.hpp"
 #include "../build/_deps/fastgltf-src/include/fastgltf/tools.hpp"
 
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, uint32_t msg, WPARAM wParam, LPARAM lParam);
 
 #include "../build/_deps/imgui-src/backends/imgui_impl_dx12.h"
 
 using namespace DirectX;
 
 // Defines
-#define CHECK INT
-#define OK 0
 #define NOTOK -1
 
 #define MSWRL Microsoft::WRL
@@ -109,16 +107,16 @@ inline XMFLOAT4X4 ToXMFloat4x4(const fastgltf::math::fmat4x4& m)
 	);
 }
 
-enum KEYCODES
+enum KEYCODES : uint32_t
 {
-	W = 87,
-	A = 65,
-	S = 83,
-	D = 68,
-	SPACE = 32,
-	LCTRL = 17,
-	ESC = 27,
-	SHIFT = 16
+	KEYCODE_W = 87,
+	KEYCODE_A = 65,
+	KEYCODE_S = 83,
+	KEYCODE_D = 68,
+	KEYCODE_SPACE = 32,
+	KEYCODE_LCTRL = 17,
+	KEYCODE_ESC = 27,
+	KEYCODE_SHIFT = 16
 };
 
 struct Vertex {

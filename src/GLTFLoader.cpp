@@ -1,7 +1,7 @@
 #include "GLTFLoader.h"
 
 fastgltf::Parser GLTFLoader::_parser;
-INT GLTFLoader::_modelIdIncrementor = 0;
+int32_t GLTFLoader::_modelIdIncrementor = 0;
 
 void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_ptr<Model>& model, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
@@ -29,7 +29,7 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 
 	// Extract Vertex and Index Information
 	std::vector<Mesh> meshes;
-	INT meshIdIncrementor = 0;
+	int32_t meshIdIncrementor = 0;
 	for (const fastgltf::Mesh& mesh : asset->meshes)
 	{
 		std::vector<Primitive> primitives;
@@ -47,7 +47,7 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 
 			GenerateBiTangents(vertices, indices);
 
-			INT materialIndex = primitive.materialIndex.value();
+			int32_t materialIndex = primitive.materialIndex.value();
 			primitives.emplace_back(Primitive(vertices, indices, materialIndex));
 		}
 
@@ -57,7 +57,7 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 	// extract materials and textures
 	std::vector<Material> materials;
 	std::vector<Texture> textures;
-	INT textureIndexIncrementor = 0;
+	int32_t textureIndexIncrementor = 0;
 	for (const fastgltf::Material& gltfMaterial : asset->materials) 
 	{
 		Material material;
@@ -74,13 +74,13 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 			size_t imageIndex = assetTexture.imageIndex.value();
 			const fastgltf::Image& assetImage = asset->images[imageIndex];
 
-			Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::ALBEDO;
+			Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::TEXTURE_ALBEDO;
 			ScratchImage scratchImage = ExtractImageFromBuffer(asset.get(), assetImage);
 			textures.emplace_back(Texture(commandList, texType, scratchImage));
 		}
 		else
 		{
-			Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::ALBEDO;
+			Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::TEXTURE_ALBEDO;
 			ScratchImage scratchImage = LoadFallbackAlbedoTexture();
 			textures.emplace_back(Texture(commandList, texType, scratchImage));
 		}
@@ -95,13 +95,13 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 			size_t imageIndex = assetTexture.imageIndex.value();
 			const fastgltf::Image& assetImage = asset->images[imageIndex];
 
-			Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::METALLICROUGHNESS;
+			Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::TEXTURE_METALLICROUGHNESS;
 			ScratchImage scratchImage = ExtractImageFromBuffer(asset.get(), assetImage);
 			textures.emplace_back(Texture(commandList, texType, scratchImage));
 		}
 		else
 		{
-			Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::METALLICROUGHNESS;
+			Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::TEXTURE_METALLICROUGHNESS;
 			ScratchImage scratchImage = LoadFallbackMetallicRoughnessTexture();
 			textures.emplace_back(Texture(commandList, texType, scratchImage));
 		}
@@ -116,13 +116,13 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 			size_t imageIndex = assetTexture.imageIndex.value();
 			const fastgltf::Image& assetImage = asset->images[imageIndex];
 
-			Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::NORMAL;
+			Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::TEXTURE_NORMAL;
 			ScratchImage scratchImage = ExtractImageFromBuffer(asset.get(), assetImage);
 			textures.emplace_back(Texture(commandList, texType, scratchImage));
 		}
 		else
 		{
-			Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::NORMAL;
+			Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::TEXTURE_NORMAL;
 			ScratchImage scratchImage = LoadFallbackNormalTexture();
 			textures.emplace_back(Texture(commandList, texType, scratchImage));
 		}
@@ -137,13 +137,13 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 			size_t imageIndex = assetTexture.imageIndex.value();
 			const fastgltf::Image& assetImage = asset->images[imageIndex];
 
-			Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::EMISSIVE;
+			Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::TEXTURE_EMISSIVE;
 			ScratchImage scratchImage = ExtractImageFromBuffer(asset.get(), assetImage);
 			textures.emplace_back(Texture(commandList, texType, scratchImage));
 		}
 		else
 		{
-			Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::EMISSIVE;
+			Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::TEXTURE_EMISSIVE;
 			ScratchImage scratchImage = LoadFallbackEmissiveTexture();
 			textures.emplace_back(Texture(commandList, texType, scratchImage));
 		}
@@ -158,13 +158,13 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 			size_t imageIndex = assetTexture.imageIndex.value();
 			const fastgltf::Image& assetImage = asset->images[imageIndex];
 
-			Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::OCCLUSION;
+			Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::TEXTURE_OCCLUSION;
 			ScratchImage scratchImage = ExtractImageFromBuffer(asset.get(), assetImage);
 			textures.emplace_back(Texture(commandList, texType, scratchImage));
 		}
 		else
 		{
-			Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::OCCLUSION;
+			Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::TEXTURE_OCCLUSION;
 			ScratchImage scratchImage = LoadFallbackOcclusionTexture();
 			textures.emplace_back(Texture(commandList, texType, scratchImage));
 		}
@@ -172,7 +172,7 @@ void GLTFLoader::ConstructModelFromFile(std::filesystem::path path, std::shared_
 	}
 
 	std::vector<ModelNode> modelNodes;
-	INT nodeIdIncrementor = 0;
+	int32_t nodeIdIncrementor = 0;
 	modelNodes.reserve(asset->nodes.size());
 
 	for (const fastgltf::Node& node : asset->nodes) 

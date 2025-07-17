@@ -32,6 +32,7 @@ set(ARTISDX_HEADERS
     src/ShaderPass.h 
     src/Shader.h
     src/CommandContext.h
+    src/ShadowMap.h
 )
 
 set(ARTISDX_SOURCES 
@@ -58,6 +59,7 @@ set(ARTISDX_SOURCES
     src/ShaderPass.cpp
     src/Shader.cpp
     src/CommandContext.cpp
+    src/ShadowMap.cpp
 )
 
 add_executable(${APPLICATION_NAME} ${ARTISDX_SOURCES} ${ARTISDX_HEADERS})

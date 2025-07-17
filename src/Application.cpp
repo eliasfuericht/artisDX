@@ -1,6 +1,6 @@
 #include "Application.h"
 
-Application::Application(const CHAR* name, INT w, INT h, bool fullscreen)
+Application::Application(const char* name, int32_t w, int32_t h, bool fullscreen)
 	: _window(name, w, h, fullscreen)
 {
 	if (fullscreen)
@@ -48,7 +48,7 @@ void Application::Init()
 
 	CommandQueueManager::InitializeCommandQueueManager();
 
-	_mainLoopGraphicsContext.InitializeCommandContext(QUEUETYPE::GRAPHICS);
+	_mainLoopGraphicsContext.InitializeCommandContext(QUEUETYPE::QUEUE_GRAPHICS);
 	_mainLoopGraphicsContext.Finish();
 
 	D3D12Core::Swapchain::InitializeSwapchain(_width, _height, _window.GetHWND());
@@ -62,17 +62,18 @@ void Application::InitResources()
 	_mainPass = std::make_shared<ShaderPass>("Main");
 	_mainPass->RegisterWithGUI();
 
-	_mainPass->AddShader("../shaders/pbr_vert.hlsl", SHADERTYPE::VERTEX);
-	_mainPass->AddShader("../shaders/pbr_frag.hlsl", SHADERTYPE::PIXEL);
+	_mainPass->AddShader("../shaders/pbr_vert.hlsl", SHADERTYPE::SHADER_VERTEX);
+	_mainPass->AddShader("../shaders/pbr_frag.hlsl", SHADERTYPE::SHADER_PIXEL);
 
 	_mainPass->GenerateGraphicsRootSignature();
 	_mainPass->GeneratePipeLineStateObjectForwardPass(D3D12_FILL_MODE_SOLID, D3D12_CULL_MODE_BACK, true);
 
 	_bbPass = std::make_shared<ShaderPass>("BoundingBox");
+	_bbPass->_usePass = false;
 	_bbPass->RegisterWithGUI();
 
-	_bbPass->AddShader("../shaders/bb_vert.hlsl", SHADERTYPE::VERTEX);
-	_bbPass->AddShader("../shaders/bb_frag.hlsl", SHADERTYPE::PIXEL);
+	_bbPass->AddShader("../shaders/bb_vert.hlsl", SHADERTYPE::SHADER_VERTEX);
+	_bbPass->AddShader("../shaders/bb_frag.hlsl", SHADERTYPE::SHADER_PIXEL);
 
 	_bbPass->GenerateGraphicsRootSignature();
 	_bbPass->GeneratePipeLineStateObjectForwardPass(D3D12_FILL_MODE_WIREFRAME, D3D12_CULL_MODE_NONE, false);
@@ -210,7 +211,7 @@ void Application::InitGUI()
 void Application::SetCommandList()
 {
 	_mainLoopGraphicsContext.Reset();
-	_mainLoopGraphicsContext.SetPipelineState(_mainPass->_pipelineStateFill);
+	_mainLoopGraphicsContext.SetPipelineState(_mainPass->_pipelineState);
 
 	// Set necessary state.
 	_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootSignature(_mainPass->_rootSignature.Get());
@@ -228,7 +229,7 @@ void Application::SetCommandList()
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = D3D12Core::Swapchain::rtvHeap->GetCPUDescriptorHandleForHeapStart();
 	rtvHandle.ptr += (D3D12Core::Swapchain::frameIndex * D3D12Core::Swapchain::rtvDescriptorSize);
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = D3D12Core::Swapchain::dsvHeap->GetCPUDescriptorHandleForHeapStart();
-	_mainLoopGraphicsContext.GetCommandList()->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+	_mainLoopGraphicsContext.GetCommandList()->OMSetRenderTargets(1, &rtvHandle, false, &dsvHandle);
 	_mainLoopGraphicsContext.GetCommandList()->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0.0f, 0, nullptr);
 
 	// Clear the render target.
@@ -260,7 +261,7 @@ void Application::SetCommandList()
 
 	if(_bbPass->_usePass)
 	{
-		_mainLoopGraphicsContext.SetPipelineState(_bbPass->_pipelineStateWireframe);
+		_mainLoopGraphicsContext.SetPipelineState(_bbPass->_pipelineState);
 		_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootSignature(_bbPass->_rootSignature.Get());
 
 		if (auto slot = _bbPass->GetRootParameterIndex("viewProjMatrixBuffer"))
@@ -311,7 +312,7 @@ void Application::Run()
 		Present();
 	}
 
-	CommandQueueManager::GetCommandQueue(QUEUETYPE::GRAPHICS).WaitForFence();
+	CommandQueueManager::GetCommandQueue(QUEUETYPE::QUEUE_GRAPHICS).WaitForFence();
 	GUI::Shutdown();
 }
 
@@ -339,7 +340,7 @@ void Application::UpdateConstantBuffers()
 {
 	std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 	std::chrono::duration<float> dt = now - _tLastTime;
-	FLOAT deltaTime = dt.count();
+	float deltaTime = dt.count();
 	_tLastTime = now;
 
 	if (D3D12Core::Swapchain::windowResized)

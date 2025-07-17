@@ -8,35 +8,35 @@
 class Window
 {
 public:
-	Window(const CHAR* title, UINT w, UINT h, bool fullscreen);
+	Window(const char* title, uint32_t w, uint32_t h, bool fullscreen);
 
 	void Create();
 	void Show();
-	void HandleKeys(INT key, INT action);
-	void HandleMouse(FLOAT x, FLOAT y);
+	void HandleKeys(int32_t key, int32_t action);
+	void HandleMouse(float x, float y);
 
 	HWND GetHWND();
-	UINT GetWidth() { return _windowWidth; };
-	UINT GetHeight() { return _windowHeight; };
+	uint32_t GetWidth() { return _windowWidth; };
+	uint32_t GetHeight() { return _windowHeight; };
 
-	void SetWidth(INT width) { _windowWidth = width; };
-	void SetHeight(INT height) { _windowHeight = height; };
+	void SetWidth(uint32_t width) { _windowWidth = width; };
+	void SetHeight(uint32_t height) { _windowHeight = height; };
 
-	BOOL* GetKeys() { return _keys; }
-	FLOAT GetXChange();
-	FLOAT GetYChange();
+	bool* GetKeys() { return _keys; }
+	float GetXChange();
+	float GetYChange();
 	void Shutdown();
 
-	BOOL _captureMouse;
+	bool _captureMouse;
 private:
 	WNDCLASSEX _windowClassEx;
-	const CHAR* _windowTitle;
+	const char* _windowTitle;
 	ULONG _windowMode;
-	UINT _windowWidth;
-	UINT _windowHeight;
+	uint32_t _windowWidth;
+	uint32_t _windowHeight;
 	HWND _hWindow;
 
-	BOOL _keys[1024];
-	FLOAT _xChange;
-	FLOAT _yChange;
+	bool _keys[1024];
+	float _xChange;
+	float _yChange;
 };

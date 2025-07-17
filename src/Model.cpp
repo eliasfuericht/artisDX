@@ -1,6 +1,6 @@
 #include "Model.h"
 
-Model::Model(INT id, std::string name, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, std::vector<Mesh> meshes, std::vector<Texture> textures, std::vector<Material> materials, std::vector<ModelNode> modelNodes)
+Model::Model(int32_t id, std::string name, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, std::vector<Mesh> meshes, std::vector<Texture> textures, std::vector<Material> materials, std::vector<ModelNode> modelNodes)
 {
 	_id = id;
 	_name = name;
@@ -11,28 +11,7 @@ Model::Model(INT id, std::string name, MSWRL::ComPtr<ID3D12GraphicsCommandList> 
 	XMStoreFloat4x4(&_globalMatrix, XMMatrixIdentity()) ;
 }
 
-void Model::DrawModelBoundingBox(ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
-{
-	for (ModelNode& node : _modelNodes)
-	{
-		if (node._meshIndex == -1)
-			continue;
-
-		Mesh& mesh = _meshes[node._meshIndex];
-
-		memcpy(node._mappedCBVModelMatrixPtr, &node._globalMatrix, sizeof(XMFLOAT4X4));
-
-		if (auto slot = shaderPass.GetRootParameterIndex("modelMatrixBuffer"))
-			commandList->SetGraphicsRootDescriptorTable(*slot, node._cbvModelMatrixGpuHandle);
-
-		for (Primitive& primitive : mesh._primitives)
-		{
-			primitive._aabb.BindMeshData(commandList);
-		}
-	}
-}
-
-void Model::DrawModel(ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
+void Model::DrawModel(const ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
 	ComputeGlobalTransforms();
 
@@ -81,13 +60,34 @@ void Model::DrawModel(ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsComman
 	}
 }
 
+void Model::DrawModelBoundingBox(const ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
+{
+	for (ModelNode& node : _modelNodes)
+	{
+		if (node._meshIndex == -1)
+			continue;
+
+		Mesh& mesh = _meshes[node._meshIndex];
+
+		memcpy(node._mappedCBVModelMatrixPtr, &node._globalMatrix, sizeof(XMFLOAT4X4));
+
+		if (auto slot = shaderPass.GetRootParameterIndex("modelMatrixBuffer"))
+			commandList->SetGraphicsRootDescriptorTable(*slot, node._cbvModelMatrixGpuHandle);
+
+		for (Primitive& primitive : mesh._primitives)
+		{
+			primitive._aabb.BindMeshData(commandList);
+		}
+	}
+}
+
 void Model::ComputeGlobalTransforms() 
 {
 	XMMATRIX local = XMMatrixScalingFromVector(XMLoadFloat3(&_scale)) * XMMatrixRotationRollPitchYawFromVector(XMLoadFloat3(&_rotationEuler)) * XMMatrixTranslationFromVector(XMLoadFloat3(&_translation));
 
 	XMStoreFloat4x4(&_globalMatrix, XMMatrixMultiply(XMLoadFloat4x4(&_globalMatrix), local));
 
-	for (int i = 0; i < _modelNodes.size(); ++i) 
+	for (size_t i = 0; i < _modelNodes.size(); ++i) 
 	{
 		if (_modelNodes[i]._parentIndex == -1) 
 		{
@@ -98,7 +98,7 @@ void Model::ComputeGlobalTransforms()
 	XMStoreFloat4x4(&_globalMatrix, XMMatrixIdentity());
 }
 
-void Model::ComputeNodeGlobal(int nodeIndex, const XMMATRIX& parentMatrix) 
+void Model::ComputeNodeGlobal(int32_t nodeIndex, const XMMATRIX& parentMatrix)
 {
 	ModelNode& modelNode = _modelNodes[nodeIndex];
 
@@ -129,7 +129,7 @@ void Model::ComputeNodeGlobal(int nodeIndex, const XMMATRIX& parentMatrix)
 	}
 }
 
-INT Model::GetID()
+int32_t Model::GetID()
 {
 	return _id;
 }

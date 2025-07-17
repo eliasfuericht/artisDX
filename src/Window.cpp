@@ -1,6 +1,6 @@
 #include "Window.h"
 
-LRESULT CALLBACK WindowProcess(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+LRESULT CALLBACK WindowProcess(HWND hwnd, uint32_t msg, WPARAM wParam, LPARAM lParam) {
 
 	Window* windowInstance = reinterpret_cast<Window*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
 
@@ -10,8 +10,8 @@ LRESULT CALLBACK WindowProcess(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 	switch (msg) {
 		case WM_SIZE:
 		{
-			UINT newWidth = LOWORD(lParam);
-			UINT newHeight = HIWORD(lParam);
+			uint32_t newWidth = LOWORD(lParam);
+			uint32_t newHeight = HIWORD(lParam);
 
 			if (windowInstance && wParam != SIZE_MINIMIZED) 
 			{
@@ -60,7 +60,7 @@ LRESULT CALLBACK WindowProcess(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 					windowInstance->_captureMouse = true;
 					SetCapture(windowInstance->GetHWND());
-					ShowCursor(FALSE);
+					ShowCursor(false);
 				}
 			}
 			break;
@@ -85,7 +85,7 @@ LRESULT CALLBACK WindowProcess(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-void Window::HandleKeys(INT key, INT action)
+void Window::HandleKeys(int32_t key, int32_t action)
 {
 	if (key >= 0 && key < 1024)
 	{
@@ -104,21 +104,21 @@ void Window::HandleKeys(INT key, INT action)
 			default:
 				break;
 		}
-		if (key == KEYCODES::ESC && _captureMouse)
+		if (key == KEYCODES::KEYCODE_ESC && _captureMouse)
 		{
 			_captureMouse = false;
-			ShowCursor(TRUE);
+			ShowCursor(true);
 		}
 	}
 }
 
-void Window::HandleMouse(FLOAT x, FLOAT y)
+void Window::HandleMouse(float x, float y)
 {
 	_xChange += x;
 	_yChange += y;
 }
 
-Window::Window(const CHAR* title, UINT w, UINT h, bool fullscreen) 
+Window::Window(const char* title, uint32_t w, uint32_t h, bool fullscreen)
 {
 	if (fullscreen)
 	{
@@ -140,7 +140,7 @@ Window::Window(const CHAR* title, UINT w, UINT h, bool fullscreen)
 	_xChange = 0.0f;
 	_yChange = 0.0f;
 	
-	for (INT i = 0; i < 1024; i++)
+	for (size_t i = 0; i < 1024; i++)
 	{
 		_keys[i] = 0;
 	}
@@ -158,7 +158,7 @@ void Window::Create()
 	_windowClassEx.hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH);
 	_windowClassEx.hIcon = LoadIcon(0, IDI_APPLICATION);
 	_windowClassEx.hIconSm = LoadIcon(0, IDI_APPLICATION);
-	const CHAR* windowClassName = "artisDXWindow";
+	const char* windowClassName = "artisDXWindow";
 	_windowClassEx.lpszClassName = windowClassName;
 	_windowClassEx.lpszMenuName = nullptr;
 	_windowClassEx.hInstance = GetHInstance();
@@ -177,7 +177,7 @@ void Window::Create()
 
 	SetWindowLongPtr(_hWindow, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
 
-	ShowCursor(FALSE);
+	ShowCursor(false);
 
 	SetCapture(_hWindow);
 }
@@ -191,16 +191,16 @@ HWND Window::GetHWND() {
 	return _hWindow;
 }
 
-FLOAT Window::GetXChange()
+float Window::GetXChange()
 {
-	FLOAT changeValueX = _xChange;
+	float changeValueX = _xChange;
 	_xChange = 0.0f;
 	return changeValueX;
 }
 
-FLOAT Window::GetYChange()
+float Window::GetYChange()
 {
-	FLOAT changeValueY = _yChange;
+	float changeValueY = _yChange;
 	_yChange = 0.0f;
 	return changeValueY;
 }

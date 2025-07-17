@@ -5,7 +5,7 @@ ShaderPass::ShaderPass(const std::string& name)
 	_name = name;
 }
 
-void ShaderPass::AddShader(const std::filesystem::path path, SHADERTYPE shaderType)
+void ShaderPass::AddShader(const std::filesystem::path& path, SHADERTYPE shaderType)
 {
 	_shaders.try_emplace(shaderType, Shader(path, shaderType));
 }
@@ -15,7 +15,7 @@ void ShaderPass::GenerateGraphicsRootSignature()
 	std::vector<std::pair<SHADERTYPE, D3D12_DESCRIPTOR_RANGE1>> ranges;
 	std::vector<D3D12_ROOT_PARAMETER1> rootParams;
 
-	INT incrementor = 0;
+	uint32_t incrementor = 0;
 	for (const auto& shader : _shaders)
 	{
 		MSWRL::ComPtr<IDxcBlob> reflectionBlob{};
@@ -31,7 +31,7 @@ void ShaderPass::GenerateGraphicsRootSignature()
 		D3D12_SHADER_DESC shaderDesc{};
 		shaderReflection->GetDesc(&shaderDesc);
 
-		for (UINT i = 0; i < shaderDesc.BoundResources; i++)
+		for (size_t i = 0; i < shaderDesc.BoundResources; i++)
 		{
 			D3D12_SHADER_INPUT_BIND_DESC bindDesc{};
 			shaderReflection->GetResourceBindingDesc(i, &bindDesc);
@@ -97,14 +97,14 @@ void ShaderPass::GenerateGraphicsRootSignature()
 		default:
 			break;
 		}
-		param.DescriptorTable.NumDescriptorRanges = (UINT)range.second.NumDescriptors;
+		param.DescriptorTable.NumDescriptorRanges = range.second.NumDescriptors;
 		param.DescriptorTable.pDescriptorRanges = &range.second;
 		rootParams.push_back(param);
 	}
 
 	D3D12_VERSIONED_ROOT_SIGNATURE_DESC rootDesc{};
 	rootDesc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
-	rootDesc.Desc_1_1.NumParameters = (UINT)rootParams.size();
+	rootDesc.Desc_1_1.NumParameters = rootParams.size();
 	rootDesc.Desc_1_1.pParameters = rootParams.data();
 	rootDesc.Desc_1_1.NumStaticSamplers = 0;
 	rootDesc.Desc_1_1.pStaticSamplers = nullptr;
@@ -122,7 +122,7 @@ void ShaderPass::GenerateGraphicsRootSignature()
 		IID_PPV_ARGS(&_rootSignature)), "RootSignature creation failed!");
 }
 
-void ShaderPass::GeneratePipeLineStateObjectForwardPass(D3D12_FILL_MODE fillMode, D3D12_CULL_MODE cullMode, BOOL alphaBlending)
+void ShaderPass::GeneratePipeLineStateObjectForwardPass(D3D12_FILL_MODE fillMode, D3D12_CULL_MODE cullMode, bool alphaBlending)
 {
 	D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
 		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
@@ -154,8 +154,8 @@ void ShaderPass::GeneratePipeLineStateObjectForwardPass(D3D12_FILL_MODE fillMode
 	if (alphaBlending)
 	{
 		D3D12_BLEND_DESC blendDesc = {};
-		blendDesc.AlphaToCoverageEnable = FALSE;
-		blendDesc.IndependentBlendEnable = FALSE;
+		blendDesc.AlphaToCoverageEnable = false;
+		blendDesc.IndependentBlendEnable = false;
 		blendDesc.RenderTarget[0].BlendEnable = true;
 		blendDesc.RenderTarget[0].LogicOpEnable = false;
 		blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
@@ -185,7 +185,7 @@ void ShaderPass::GeneratePipeLineStateObjectForwardPass(D3D12_FILL_MODE fillMode
 	ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&_pipelineState)), "PipelineStateObject creation failed!");
 }
 
-std::optional<UINT> ShaderPass::GetRootParameterIndex(const std::string& name) {
+std::optional<uint32_t> ShaderPass::GetRootParameterIndex(const std::string& name) const {
 	auto it = _bindingMap.find(name);
 	if (it == _bindingMap.end())
 		return std::nullopt;

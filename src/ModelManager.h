@@ -12,9 +12,9 @@ class ModelManager
 public:
 	ModelManager() {};
 
-	void LoadModel(std::filesystem::path path);
-	void DrawAll(ShaderPass& shaderPass, CommandContext& commandContext);
-	void DrawAllBoundingBoxes(ShaderPass& shaderPass, CommandContext& commandContext);
+	void LoadModel(const std::filesystem::path& path);
+	void DrawAll(const ShaderPass& shaderPass, CommandContext& commandContext);
+	void DrawAllBoundingBoxes(const ShaderPass& shaderPass, CommandContext& commandContext);
 
 private:
 	GLTFLoader _gltfLoader;

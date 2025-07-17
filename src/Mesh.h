@@ -8,9 +8,9 @@ class Mesh
 {
 public:
 	Mesh() {};
-	Mesh(INT meshId, std::vector<Primitive> primitives);
+	Mesh(int32_t meshId, std::vector<Primitive> primitives);
 
-	INT _id;
-	std::string _name;
+	int32_t _id = NOTOK;
+	std::string _name = "";
 	std::vector<Primitive> _primitives;
 };

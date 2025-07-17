@@ -69,7 +69,7 @@ void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList
 		nullptr,
 		IID_PPV_ARGS(&_textureResource)));
 
-	const UINT64 uploadBufferSize = GetRequiredIntermediateSize(_textureResource.Get(), 0, _mipCount);
+	const uint64_t uploadBufferSize = GetRequiredIntermediateSize(_textureResource.Get(), 0, _mipCount);
 
 	D3D12_HEAP_PROPERTIES defaultUploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 	D3D12_RESOURCE_DESC uploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize);
@@ -85,7 +85,7 @@ void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList
 
 	std::vector<D3D12_SUBRESOURCE_DATA> subresources(_mipCount);
 
-	for (UINT i = 0; i < _mipCount; ++i) {
+	for (size_t i = 0; i < _mipCount; ++i) {
 		const Image* img = _image.GetImage(i, 0, 0);
 		subresources[i].pData = img->pixels;
 		subresources[i].RowPitch = img->rowPitch;
@@ -106,28 +106,28 @@ void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList
 	D3D12Core::GraphicsDevice::device->CreateShaderResourceView(_textureResource.Get(), &srvDesc, _srvCpuHandle);
 }
 
-void Texture::BindTexture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, ShaderPass& shaderPass)
+void Texture::BindTexture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, const ShaderPass& shaderPass)
 {
 	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = DescriptorAllocator::Resource::GetGPUHandle(_srvCpuHandle);
 	switch (_textureType)
 	{
-	case ALBEDO:
+	case TEXTURE_ALBEDO:
 		if (auto slot = shaderPass.GetRootParameterIndex("albedoTexture"))
 			commandList->SetGraphicsRootDescriptorTable(*slot, gpuHandle);
 		break;
-	case METALLICROUGHNESS:
+	case TEXTURE_METALLICROUGHNESS:
 		if (auto slot = shaderPass.GetRootParameterIndex("metallicRoughnessTexture"))
 			commandList->SetGraphicsRootDescriptorTable(*slot, gpuHandle);
 		break;
-	case NORMAL:
+	case TEXTURE_NORMAL:
 		if (auto slot = shaderPass.GetRootParameterIndex("normalTexture"))
 			commandList->SetGraphicsRootDescriptorTable(*slot, gpuHandle);
 		break;
-	case EMISSIVE:
+	case TEXTURE_EMISSIVE:
 		if (auto slot = shaderPass.GetRootParameterIndex("emissiveTexture"))
 			commandList->SetGraphicsRootDescriptorTable(*slot, gpuHandle);
 		break;
-	case OCCLUSION:
+	case TEXTURE_OCCLUSION:
 		if (auto slot = shaderPass.GetRootParameterIndex("occlusionTexture"))
 			commandList->SetGraphicsRootDescriptorTable(*slot, gpuHandle);
 		break;

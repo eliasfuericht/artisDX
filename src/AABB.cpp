@@ -50,11 +50,11 @@ void AABB::ComputeFromVertices(const std::vector<Vertex>& vertices)
 		2, 3, 6, 3, 7, 6  
 	};
 
-	UINT vertexBufferSize = _aabbVertices.size() * sizeof(Vertex);
+	uint32_t vertexBufferSize = _aabbVertices.size() * sizeof(Vertex);
 	_vertexBuffer = CreateBuffer(vertexBufferSize, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
 
 	_indicesSize = _aabbIndices.size();
-	UINT indexBufferSize = _indicesSize * sizeof(uint32_t);
+	uint32_t indexBufferSize = _indicesSize * sizeof(uint32_t);
 	_indexBuffer = CreateBuffer(indexBufferSize, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
 
 	UploadBuffers();
@@ -85,7 +85,7 @@ void AABB::Recompute(const XMFLOAT4X4& matrix)
 			XMVectorSet(_max.x, _max.y, _max.z, 1.0f),
 	};
 
-	for (int i = 0; i < 8; ++i) {
+	for (size_t i = 0; i < 8; ++i) {
 		XMVECTOR transformed = XMVector4Transform(points[i], matTransform);
 		XMStoreFloat3(&corners[i], transformed);
 	}
@@ -108,7 +108,7 @@ void AABB::Recompute(const XMFLOAT4X4& matrix)
 	_max = newMax;
 }
 
-MSWRL::ComPtr<ID3D12Resource> AABB::CreateBuffer(UINT64 size, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES initialState)
+MSWRL::ComPtr<ID3D12Resource> AABB::CreateBuffer(uint64_t size, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES initialState)
 {
 	D3D12_HEAP_PROPERTIES heapProps = {};
 	heapProps.Type = heapType;
@@ -149,13 +149,13 @@ void AABB::UploadBuffers()
 	// Map vertex buffer and copy data
 	void* mappedData = nullptr;
 	_vertexBuffer->Map(0, nullptr, &mappedData);
-	UINT vertexBufferSize = _aabbVertices.size() * sizeof(Vertex);
+	uint32_t vertexBufferSize = _aabbVertices.size() * sizeof(Vertex);
 	memcpy(mappedData, _aabbVertices.data(), vertexBufferSize);
 	_vertexBuffer->Unmap(0, nullptr);
 
 	// Map index buffer and copy data
 	_indexBuffer->Map(0, nullptr, &mappedData);
-	UINT indexBufferSize = _aabbIndices.size() * sizeof(uint32_t);
+	uint32_t indexBufferSize = _aabbIndices.size() * sizeof(uint32_t);
 
 	memcpy(mappedData, _aabbIndices.data(), indexBufferSize);
 	_indexBuffer->Unmap(0, nullptr);

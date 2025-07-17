@@ -1,6 +1,6 @@
 #include "Shader.h"
 
-Shader::Shader(std::filesystem::path path, SHADERTYPE shaderType)
+Shader::Shader(const std::filesystem::path& path, SHADERTYPE shaderType)
 {
 	if (!D3D12Core::ShaderCompiler::utils || !D3D12Core::ShaderCompiler::compiler || !D3D12Core::ShaderCompiler::includeHandler)
 		D3D12Core::ShaderCompiler::InitializeShaderCompiler();

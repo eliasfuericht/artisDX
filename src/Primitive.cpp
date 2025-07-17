@@ -1,14 +1,14 @@
 #include "Primitive.h"
 
-Primitive::Primitive(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, INT materialIndex)
+Primitive::Primitive(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, int32_t materialIndex)
 {
 	_vertexCount = vertices.size();
-	UINT vertexBufferSize = vertices.size() * sizeof(Vertex);
+	uint32_t vertexBufferSize = vertices.size() * sizeof(Vertex);
 	_vertexBuffer = CreateBuffer(vertexBufferSize, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
 	_vertexBuffer->SetName(L"VertexBufferResource");
 
 	_indexCount = indices.size();
-	UINT indexBufferSize = _indexCount * sizeof(uint32_t);
+	uint32_t indexBufferSize = _indexCount * sizeof(uint32_t);
 	_indexBuffer = CreateBuffer(indexBufferSize, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
 	_indexBuffer->SetName(L"IndexBufferResource");
 
@@ -26,7 +26,7 @@ Primitive::Primitive(std::vector<Vertex>& vertices, std::vector<uint32_t>& indic
 	_aabb = AABB(vertices);
 }
 
-MSWRL::ComPtr<ID3D12Resource> Primitive::CreateBuffer(UINT64 size, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES initialState)
+MSWRL::ComPtr<ID3D12Resource> Primitive::CreateBuffer(uint64_t size, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES initialState)
 {
 	D3D12_HEAP_PROPERTIES heapProps = {};
 	heapProps.Type = heapType;
@@ -62,10 +62,10 @@ MSWRL::ComPtr<ID3D12Resource> Primitive::CreateBuffer(UINT64 size, D3D12_HEAP_TY
 	return buffer;
 }
 
-void Primitive::UploadBuffers(std::vector<Vertex>& vertices, UINT vertexBufferSize, std::vector<uint32_t>& indices, UINT indexBufferSize)
+void Primitive::UploadBuffers(std::vector<Vertex>& vertices, uint32_t vertexBufferSize, std::vector<uint32_t>& indices, uint32_t indexBufferSize)
 {
 	// Upload vertex data
-	UINT8* pVertexDataBegin = nullptr;
+	uint8_t* pVertexDataBegin = nullptr;
 	D3D12_RANGE readRange(0, 0); // We do not intend to read from this resource on the CPU.
 	ThrowIfFailed(_vertexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
 	memcpy(pVertexDataBegin, vertices.data(), vertexBufferSize);
