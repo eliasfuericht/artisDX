@@ -4,12 +4,15 @@
 #include <map>
 #include <optional>
 
+#include "GUI.h"
+#include "IGUIComponent.h"
 #include "Shader.h"
 
-class ShaderPass
+class ShaderPass : public IGUIComponent
 {
 public:
 	ShaderPass() {};
+	ShaderPass(std::string name);
 
 	void AddShader(std::filesystem::path path, SHADERTYPE shaderType);
 
@@ -19,12 +22,17 @@ public:
 
 	std::optional<UINT> GetRootParameterIndex(const std::string& name);
 
+	void DrawGUI();
+
 	MSWRL::ComPtr<ID3D12RootSignature> _rootSignature;
 	MSWRL::ComPtr<ID3D12PipelineState> _pipelineStateFill;
 	MSWRL::ComPtr<ID3D12PipelineState> _pipelineStateWireframe;
 
 	std::unordered_map<std::string, uint32_t> _bindingMap;
 
-private:
 	std::unordered_map<SHADERTYPE, Shader> _shaders;
+
+	std::string _name;
+
+	bool _usePass = true;
 };

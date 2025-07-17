@@ -251,9 +251,9 @@ void GUI::InputFloat4(const char* label, XMFLOAT4& value)
 	ImGui::InputFloat4(label, &value.x);
 }
 
-void GUI::Checkbox(const char* label, bool& value)
+void GUI::Checkbox(const char* label, bool* value)
 {
-	ImGui::Checkbox(label, &value);
+	ImGui::Checkbox(label, value);
 }
 
 void GUI::ColorEdit3(const char* label, XMFLOAT3& color)

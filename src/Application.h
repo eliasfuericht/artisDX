@@ -50,7 +50,8 @@ private:
 	// DX12 Specific
 	CommandContext _mainLoopGraphicsContext;
 	
-	ShaderPass _mainPass;
+	std::shared_ptr<ShaderPass> _mainPass;
+	std::shared_ptr<ShaderPass> _bbPass;
 
 	// ViewProjMatrix CBV
 	MSWRL::ComPtr<ID3D12Resource> _VPBufferResource;

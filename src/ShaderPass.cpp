@@ -1,5 +1,10 @@
 #include "ShaderPass.h"
 
+ShaderPass::ShaderPass(std::string name)
+{
+	_name = name;
+}
+
 void ShaderPass::AddShader(std::filesystem::path path, SHADERTYPE shaderType)
 {
 	_shaders.try_emplace(shaderType, Shader(path, shaderType));
@@ -238,4 +243,11 @@ std::optional<UINT> ShaderPass::GetRootParameterIndex(const std::string& name) {
 	if (it == _bindingMap.end())
 		return std::nullopt;
 	return it->second;
+}
+
+void ShaderPass::DrawGUI()
+{
+	GUI::Begin(_name.c_str());
+	GUI::Checkbox("Enable Pass", &_usePass);
+	GUI::End();
 }

@@ -29,7 +29,7 @@ set(ARTISDX_HEADERS
     src/DirectionalLight.h
     src/PointLight.h
     src/ModelNode.h
-    src/ShaderPass.h
+    src/ShaderPass.h 
     src/Shader.h
     src/CommandContext.h
 )

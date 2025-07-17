@@ -59,12 +59,23 @@ void Application::Init()
 
 void Application::InitResources()
 {
-	_mainPass.AddShader("../shaders/pbr_vert.hlsl", SHADERTYPE::VERTEX);
-	_mainPass.AddShader("../shaders/pbr_frag.hlsl", SHADERTYPE::PIXEL);
+	_mainPass = std::make_shared<ShaderPass>("Main");
+	_mainPass->RegisterWithGUI();
 
-	_mainPass.GenerateGraphicsRootSignature();
-	_mainPass.GeneratePipeLineStateObjectForwardPass(D3D12_FILL_MODE_SOLID, D3D12_CULL_MODE_BACK, true);
-	_mainPass.GeneratePipeLineStateObjectForwardPass(D3D12_FILL_MODE_WIREFRAME, D3D12_CULL_MODE_NONE, false);
+	_mainPass->AddShader("../shaders/pbr_vert.hlsl", SHADERTYPE::VERTEX);
+	_mainPass->AddShader("../shaders/pbr_frag.hlsl", SHADERTYPE::PIXEL);
+
+	_mainPass->GenerateGraphicsRootSignature();
+	_mainPass->GeneratePipeLineStateObjectForwardPass(D3D12_FILL_MODE_SOLID, D3D12_CULL_MODE_BACK, true);
+
+	_bbPass = std::make_shared<ShaderPass>("BoundingBox");
+	_bbPass->RegisterWithGUI();
+
+	_bbPass->AddShader("../shaders/bb_vert.hlsl", SHADERTYPE::VERTEX);
+	_bbPass->AddShader("../shaders/bb_frag.hlsl", SHADERTYPE::PIXEL);
+
+	_bbPass->GenerateGraphicsRootSignature();
+	_bbPass->GeneratePipeLineStateObjectForwardPass(D3D12_FILL_MODE_WIREFRAME, D3D12_CULL_MODE_NONE, false);
 
 	// Constant Buffers and Samplers
 	{
@@ -184,10 +195,10 @@ void Application::InitResources()
 	// MODELLOADING
 
 	//_modelManager.LoadModel("../assets/helmet.glb");
-	_modelManager.LoadModel("../assets/helmets.glb");
+	//_modelManager.LoadModel("../assets/helmets.glb");
 	//_modelManager.LoadModel("../assets/sponza.glb");
 	//_modelManager.LoadModel("../assets/brick_wall.glb");
-	//_modelManager.LoadModel("../assets/DamagedHelmet.glb");
+	_modelManager.LoadModel("../assets/DamagedHelmet.glb");
 	//_modelManager.LoadModel("../assets/apollo.glb");
 }
 
@@ -199,29 +210,29 @@ void Application::InitGUI()
 void Application::SetCommandList()
 {
 	_mainLoopGraphicsContext.Reset();
-	_mainLoopGraphicsContext.SetPipelineState(_mainPass._pipelineStateFill);
+	_mainLoopGraphicsContext.SetPipelineState(_mainPass->_pipelineStateFill);
 
 	// Set necessary state.
-	_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootSignature(_mainPass._rootSignature.Get());
+	_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootSignature(_mainPass->_rootSignature.Get());
 	_mainLoopGraphicsContext.GetCommandList()->RSSetViewports(1, &D3D12Core::Swapchain::viewport);
 	_mainLoopGraphicsContext.GetCommandList()->RSSetScissorRects(1, &D3D12Core::Swapchain::surfaceSize);
 
 	ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::Resource::GetHeap(), DescriptorAllocator::Sampler::GetHeap() };
 	_mainLoopGraphicsContext.GetCommandList()->SetDescriptorHeaps(_countof(heaps), heaps);
 	
-	if (auto slot = _mainPass.GetRootParameterIndex("viewProjMatrixBuffer"))
+	if (auto slot = _mainPass->GetRootParameterIndex("viewProjMatrixBuffer"))
 		_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_VPBufferDescriptor));
 
-	if (auto slot = _mainPass.GetRootParameterIndex("cameraBuffer"))
+	if (auto slot = _mainPass->GetRootParameterIndex("cameraBuffer"))
 		_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_camPosBufferDescriptor));
 
-	if (auto slot = _mainPass.GetRootParameterIndex("plightBuffer"))
+	if (auto slot = _mainPass->GetRootParameterIndex("plightBuffer"))
 		_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_pLight->_cbvpLightCPUHandle));
 
-	if (auto slot = _mainPass.GetRootParameterIndex("dlightBuffer"))
+	if (auto slot = _mainPass->GetRootParameterIndex("dlightBuffer"))
 		_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_dLight->_cbvdLightCPUHandle));
 
-	if (auto slot = _mainPass.GetRootParameterIndex("mySampler"))
+	if (auto slot = _mainPass->GetRootParameterIndex("mySampler"))
 		_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Sampler::GetGPUHandle(_samplerCPUHandle));
 
 	D3D12_RESOURCE_BARRIER renderTargetBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
@@ -242,12 +253,21 @@ void Application::SetCommandList()
 	const float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
 	_mainLoopGraphicsContext.GetCommandList()->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 
-	_modelManager.DrawAll(_mainPass, _mainLoopGraphicsContext);
+	if (_mainPass->_usePass)
+	{
+		_modelManager.DrawAll(*_mainPass, _mainLoopGraphicsContext);
+	}
 
-	_mainLoopGraphicsContext.SetPipelineState(_mainPass._pipelineStateWireframe);
-	_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootSignature(_mainPass._rootSignature.Get());
-	
-	_modelManager.DrawAllBoundingBoxes(_mainPass, _mainLoopGraphicsContext);
+	if(_bbPass->_usePass)
+	{
+		_mainLoopGraphicsContext.SetPipelineState(_bbPass->_pipelineStateWireframe);
+		_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootSignature(_bbPass->_rootSignature.Get());
+
+		if (auto slot = _bbPass->GetRootParameterIndex("viewProjMatrixBuffer"))
+			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_VPBufferDescriptor));
+
+		_modelManager.DrawAllBoundingBoxes(*_bbPass, _mainLoopGraphicsContext);
+	}
 
 	D3D12_RESOURCE_BARRIER presentBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
 		D3D12Core::Swapchain::renderTargets[D3D12Core::Swapchain::frameIndex].Get(),

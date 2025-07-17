@@ -42,7 +42,7 @@ public:
 	static void InputFloat3(const char* label, XMFLOAT3& value);
 	static void InputFloat4(const char* label, XMFLOAT4& value);
 
-	static void Checkbox(const char* label, bool& value);
+	static void Checkbox(const char* label, bool* value);
 	static void ColorEdit3(const char* label, XMFLOAT3& color);
 	static void ColorEdit4(const char* label, XMFLOAT4& color);
 
