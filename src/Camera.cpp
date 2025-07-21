@@ -81,9 +81,9 @@ void Camera::Update()
 
 void Camera::DrawGUI()
 {
-	GUI::Begin("Camera Window");
+	ImGui::Begin("Camera Window");
 
-	GUI::DragFloat("Camera Speed", _multiplier);
+	ImGui::DragFloat("Camera Speed", &_multiplier);
 
-	GUI::End();
+	ImGui::End();
 }

@@ -14,20 +14,9 @@ Application::Application(const char* name, int32_t w, int32_t h, bool fullscreen
 		_height = h;
 	}																													 
 
-	_camera = std::make_shared<Camera>(
-		XMVectorSet(0.0f, 0.0f, 5.0f, 0.0f),
-		XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f),
-		90.0f,
-		0.0f,
-		2.5f,
-		0.1f 
-	);
-
-	_camera->RegisterWithGUI();
-
 	Init();
 	InitResources();
-	InitGUI();
+	GUI::InitializeGUI(_window.GetHWND());
 }
 
 void Application::Init()
@@ -167,6 +156,16 @@ void Application::InitResources()
 				10000.0f)
 		);
 
+		_camera = std::make_shared<Camera>(
+			XMVectorSet(0.0f, 0.0f, 5.0f, 0.0f),
+			XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f),
+			90.0f,
+			0.0f,
+			2.5f,
+			0.1f
+		);
+		_camera->RegisterWithGUI();
+
 		D3D12_RANGE readRange = { 0, 0 };
 		ThrowIfFailed(_VPBufferResource->Map(0, &readRange, reinterpret_cast<void**>(&_mappedVPBuffer)));
 		memcpy(_mappedVPBuffer, &_viewProjectionMatrix, sizeof(XMFLOAT4X4));
@@ -179,7 +178,7 @@ void Application::InitResources()
 		_camPosBufferResource->Unmap(0, nullptr);
 
 		_pLight = std::make_shared<PointLight>(1.0f, 1.0f, 1.0f);
-		_pLight->RegisterWithGUI();
+		//_pLight->RegisterWithGUI();
 
 		_dLight = std::make_shared<DirectionalLight>(1.0f, 1.0f, 1.0f, true, 2048);
 		_dLight->RegisterWithGUI();
@@ -206,11 +205,6 @@ void Application::InitResources()
 	//_modelManager.LoadModel("../assets/apollo.glb");
 }
 
-void Application::InitGUI()
-{
-	GUI::Init(_window);
-}
-
 void Application::SetCommandList()
 {
 	_mainLoopGraphicsContext.Reset();
@@ -231,7 +225,7 @@ void Application::SetCommandList()
 		_mainLoopGraphicsContext.GetCommandList()->ClearDepthStencilView(shadowMapHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0.0f, 0, nullptr);
 
 		if (auto slot = _depthPass->GetRootParameterIndex("lightViewProjMatrixBuffer"))
-			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_dLight->_dLightLVPCPUHandle));
+			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::Resource::GetGPUHandle(_dLight->_dLightLVPCPUHandle));
 
 		_modelManager.DrawAll(*_depthPass, _mainLoopGraphicsContext);
 	}
@@ -257,19 +251,19 @@ void Application::SetCommandList()
 	if (_mainPass->_usePass)
 	{
 		if (auto slot = _mainPass->GetRootParameterIndex("viewProjMatrixBuffer"))
-			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_VPBufferDescriptor));
+			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::Resource::GetGPUHandle(_VPBufferDescriptor));
 
 		if (auto slot = _mainPass->GetRootParameterIndex("cameraBuffer"))
-			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_camPosBufferDescriptor));
+			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::Resource::GetGPUHandle(_camPosBufferDescriptor));
 
 		if (auto slot = _mainPass->GetRootParameterIndex("plightBuffer"))
-			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_pLight->_cbvpLightCPUHandle));
+			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::Resource::GetGPUHandle(_pLight->_cbvpLightCPUHandle));
 
 		if (auto slot = _mainPass->GetRootParameterIndex("dlightBuffer"))
-			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_dLight->_dLightDirectionCPUHandle));
+			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::Resource::GetGPUHandle(_dLight->_dLightDirectionCPUHandle));
 
 		if (auto slot = _mainPass->GetRootParameterIndex("mySampler"))
-			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Sampler::GetGPUHandle(_samplerCPUHandle));
+			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::Sampler::GetGPUHandle(_samplerCPUHandle));
 
 		_modelManager.DrawAll(*_mainPass, _mainLoopGraphicsContext);
 	}
@@ -280,7 +274,7 @@ void Application::SetCommandList()
 		_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootSignature(_bbPass->_rootSignature.Get());
 
 		if (auto slot = _bbPass->GetRootParameterIndex("viewProjMatrixBuffer"))
-			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::Resource::GetGPUHandle(_VPBufferDescriptor));
+			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::Resource::GetGPUHandle(_VPBufferDescriptor));
 
 		_modelManager.DrawAllBoundingBoxes(*_bbPass, _mainLoopGraphicsContext);
 	}

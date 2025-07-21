@@ -113,23 +113,23 @@ void Texture::BindTexture(const ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12Grap
 	{
 	case TEXTURE_ALBEDO:
 		if (auto slot = shaderPass.GetRootParameterIndex("albedoTexture"))
-			commandList->SetGraphicsRootDescriptorTable(*slot, gpuHandle);
+			commandList->SetGraphicsRootDescriptorTable(slot.value(), gpuHandle);
 		break;
 	case TEXTURE_METALLICROUGHNESS:
 		if (auto slot = shaderPass.GetRootParameterIndex("metallicRoughnessTexture"))
-			commandList->SetGraphicsRootDescriptorTable(*slot, gpuHandle);
+			commandList->SetGraphicsRootDescriptorTable(slot.value(), gpuHandle);
 		break;
 	case TEXTURE_NORMAL:
 		if (auto slot = shaderPass.GetRootParameterIndex("normalTexture"))
-			commandList->SetGraphicsRootDescriptorTable(*slot, gpuHandle);
+			commandList->SetGraphicsRootDescriptorTable(slot.value(), gpuHandle);
 		break;
 	case TEXTURE_EMISSIVE:
 		if (auto slot = shaderPass.GetRootParameterIndex("emissiveTexture"))
-			commandList->SetGraphicsRootDescriptorTable(*slot, gpuHandle);
+			commandList->SetGraphicsRootDescriptorTable(slot.value(), gpuHandle);
 		break;
 	case TEXTURE_OCCLUSION:
 		if (auto slot = shaderPass.GetRootParameterIndex("occlusionTexture"))
-			commandList->SetGraphicsRootDescriptorTable(*slot, gpuHandle);
+			commandList->SetGraphicsRootDescriptorTable(slot.value(), gpuHandle);
 		break;
 	default:
 		break;

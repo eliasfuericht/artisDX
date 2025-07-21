@@ -128,7 +128,7 @@ namespace D3D12Core
 
 			MSWRL::ComPtr<IDXGISwapChain1> swapchain;
 			ThrowIfFailed(D3D12Core::GraphicsDevice::factory->CreateSwapChainForHwnd(CommandQueueManager::GetCommandQueue(QUEUETYPE::QUEUE_GRAPHICS)._commandQueue.Get(), hwnd, &swapchainDesc, nullptr, nullptr, &swapchain), "Failed to create swapchain");
-
+			
 			MSWRL::ComPtr<IDXGISwapChain3> swapchain3;
 			ThrowIfFailed(swapchain->QueryInterface(__uuidof(IDXGISwapChain3), (void**)&swapchain3), "QueryInterface for swapchain failed.");
 			D3D12Core::Swapchain::swapchain = swapchain3;

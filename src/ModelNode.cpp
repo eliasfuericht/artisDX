@@ -39,5 +39,5 @@ void ModelNode::BindModelMatrixData(const ShaderPass& shaderPass, MSWRL::ComPtr<
 	memcpy(_mappedCBVModelMatrixPtr, &_globalMatrix, sizeof(XMFLOAT4X4));
 
 	if (auto slot = shaderPass.GetRootParameterIndex("modelMatrixBuffer"))
-		commandList->SetGraphicsRootDescriptorTable(*slot, _cbvModelMatrixGpuHandle);
+		commandList->SetGraphicsRootDescriptorTable(slot.value(), _cbvModelMatrixGpuHandle);
 }

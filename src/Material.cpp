@@ -39,5 +39,5 @@ void Material::BindMaterialFactorsData(const ShaderPass& shaderPass, MSWRL::ComP
 	memcpy(_mappedMaterialFactorsPtr, &_pbrFactors, sizeof(PBRFactors));
 
 	if (auto slot = shaderPass.GetRootParameterIndex("pbrFactors"))
-		commandList->SetGraphicsRootDescriptorTable(*slot, _cbvMaterialFactorsGpuHandle);
+		commandList->SetGraphicsRootDescriptorTable(slot.value(), _cbvMaterialFactorsGpuHandle);
 }

@@ -149,9 +149,9 @@ void DirectionalLight::UpdateBuffer()
 void DirectionalLight::DrawGUI()
 {
 	std::string windowName = "DirectionalLight";
-	GUI::Begin(windowName.c_str());
+	ImGui::Begin(windowName.c_str());
 
-	GUI::DragFloat3("Direction", _direction);
+	ImGui::DragFloat3("Direction", &_direction.x, 0.01f);
 
-	GUI::End();
+	ImGui::End();
 }

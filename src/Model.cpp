@@ -132,25 +132,25 @@ int32_t Model::GetID()
 
 void Model::DrawGUI() {
 	std::string windowName = "Model: " + _name + " ID: " + std::to_string(_id);
-	GUI::Begin(windowName.c_str());
-	GUI::Text("Model Transforms");
-	GUI::DragFloat3("Translation", _translation);
-	GUI::DragFloat3("Rotation", _rotationEuler);
-	GUI::DragFloat3("Scale", _scale);
+	ImGui::Begin(windowName.c_str());
+	ImGui::Text("Model Transforms");
+	ImGui::DragFloat3("Translation", &_translation.x, 0.01f);
+	ImGui::DragFloat3("Rotation", &_rotationEuler.x, 0.01f);
+	ImGui::DragFloat3("Scale", &_scale.x, 0.01f);
 
 	for (ModelNode& node : _modelNodes)
 	{
 		if (node._meshIndex != NOTOK)
 		{
-			GUI::PushID(node._id);
+			ImGui::PushID(node._id);
 			std::string nodeString = "MeshNode: " + node._name + " ID: " + std::to_string(node._id);
-			GUI::Text(nodeString.c_str());
-			GUI::DragFloat3("Translation", node._translation);
-			GUI::DragFloat3("Rotation", node._rotationEuler);
-			GUI::DragFloat3("Scale", node._scale);
-			GUI::PopID();
+			ImGui::Text(nodeString.c_str());
+			ImGui::DragFloat3("Translation", &node._translation.x, 0.01f);
+			ImGui::DragFloat3("Rotation", &node._rotationEuler.x, 0.01f);
+			ImGui::DragFloat3("Scale", &node._scale.x, 0.01f);
+			ImGui::PopID();
 		}
 	}
 
-	GUI::End();
+	ImGui::End();
 }

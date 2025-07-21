@@ -194,7 +194,7 @@ std::optional<uint32_t> ShaderPass::GetRootParameterIndex(const std::string& nam
 
 void ShaderPass::DrawGUI()
 {
-	GUI::Begin(_name.c_str());
-	GUI::Checkbox("Enable Pass", &_usePass);
-	GUI::End();
+	ImGui::Begin(_name.c_str());
+	ImGui::Checkbox("Enable Pass", &_usePass);
+	ImGui::End();
 }
