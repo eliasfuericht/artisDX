@@ -71,8 +71,8 @@ void DirectionalLight::CreateShadowMapResource(int32_t resolution)
 	D3D12_RESOURCE_DESC depthResourceDesc = {};
 	depthResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 	depthResourceDesc.Alignment = 0;
-	depthResourceDesc.Width = D3D12Core::Swapchain::width;
-	depthResourceDesc.Height = D3D12Core::Swapchain::height;
+	depthResourceDesc.Width = resolution;
+	depthResourceDesc.Height = resolution;
 	depthResourceDesc.DepthOrArraySize = 1;
 	depthResourceDesc.MipLevels = 1;
 	depthResourceDesc.Format = DXGI_FORMAT_D32_FLOAT;

@@ -15,12 +15,14 @@ namespace GUI
 	void Shutdown();
 
 	void RegisterComponent(std::weak_ptr<IGUIComponent> component);
+	void SetViewportTexture(D3D12_CPU_DESCRIPTOR_HANDLE viewportTextureHandle);
 	void GetGUIComponentData();
 
 	void End();
 
 	extern ImGuiIO* imguiIO;
 	
+	extern D3D12_CPU_DESCRIPTOR_HANDLE _viewportTexture;
 	extern MSWRL::ComPtr<ID3D12DescriptorHeap> srvHeap;
 	extern MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList;
 	extern MSWRL::ComPtr<ID3D12CommandAllocator> commandAllocator;

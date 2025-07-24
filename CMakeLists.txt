@@ -33,6 +33,7 @@ set(ARTISDX_HEADERS
     src/Shader.h
     src/CommandContext.h
     src/ShadowMap.h
+    src/Renderer.h
 )
 
 set(ARTISDX_SOURCES 
@@ -60,6 +61,7 @@ set(ARTISDX_SOURCES
     src/Shader.cpp
     src/CommandContext.cpp
     src/ShadowMap.cpp
+    src/Renderer.cpp
 )
 
 add_executable(${APPLICATION_NAME} ${ARTISDX_SOURCES} ${ARTISDX_HEADERS})

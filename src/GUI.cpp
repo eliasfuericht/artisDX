@@ -54,6 +54,11 @@ namespace GUI
 		GUI::guiComponents.push_back(component);
 	}
 
+	void SetViewportTexture(D3D12_CPU_DESCRIPTOR_HANDLE viewportTextureHandle)
+	{
+		// TODO: set 
+	}
+
 	void Draw()
 	{
 		ImGui_ImplDX12_NewFrame();
