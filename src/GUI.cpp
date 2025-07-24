@@ -7,8 +7,11 @@ namespace GUI
 	MSWRL::ComPtr<ID3D12CommandAllocator> commandAllocator;
 	MSWRL::ComPtr<ID3D12DescriptorHeap> srvHeap;
 	std::vector<std::weak_ptr<IGUIComponent>> guiComponents;
+	D3D12_GPU_DESCRIPTOR_HANDLE _viewportTexture;
+	int32_t viewportWidth = 640;
+	int32_t viewportHeight = 480;
 
-	void InitializeGUI(HWND hwnd)
+	void InitializeGUI()
 	{
 		// init imgui
 		IMGUI_CHECKVERSION();
@@ -45,7 +48,7 @@ namespace GUI
 		GUI::commandList->SetName(L"GUI CommandList");
 		GUI::commandList->Close();
 
-		ImGui_ImplWin32_Init(hwnd);
+		ImGui_ImplWin32_Init(Window::hWindow);
 		ImGui_ImplDX12_Init(D3D12Core::GraphicsDevice::device.Get(), D3D12Core::Swapchain::backBufferCount, DXGI_FORMAT_R8G8B8A8_UNORM, GUI::srvHeap.Get(), GUI::srvHeap->GetCPUDescriptorHandleForHeapStart(), GUI::srvHeap->GetGPUDescriptorHandleForHeapStart());
 	}
 
@@ -54,9 +57,43 @@ namespace GUI
 		GUI::guiComponents.push_back(component);
 	}
 
-	void SetViewportTexture(D3D12_CPU_DESCRIPTOR_HANDLE viewportTextureHandle)
+	int32_t GetViewportWidth()
 	{
-		// TODO: set 
+		return viewportWidth;
+	}
+
+	int32_t GetViewportHeight()
+	{
+		return viewportHeight;
+	}
+
+	void SetViewportTextureHandle(D3D12_GPU_DESCRIPTOR_HANDLE viewportTextureHandle)
+	{
+		_viewportTexture = viewportTextureHandle;
+	}
+
+	void SetViewportComponentData()
+	{
+		ImGui::Begin("Viewport");
+
+		auto handle = D3D12Core::Swapchain::rtvHeap->GetCPUDescriptorHandleForHeapStart();
+		// The GPU SRV handle you got from the renderer
+		ImTextureID imguiTex = (ImTextureID)handle.ptr;
+
+		// Decide how big you want it
+		ImVec2 viewportSize = ImGui::GetContentRegionAvail();
+
+		// Draw it
+		ImGui::Image(
+			imguiTex,
+			viewportSize,
+			ImVec2(0, 0),  // UV top-left
+			ImVec2(1, 1),  // UV bottom-right
+			ImVec4(1, 1, 1, 1), // Tint
+			ImVec4(0, 0, 0, 0)  // Border
+		);
+
+		ImGui::End();
 	}
 
 	void Draw()
@@ -64,11 +101,12 @@ namespace GUI
 		ImGui_ImplDX12_NewFrame();
 		ImGui_ImplWin32_NewFrame();
 		ImGui::NewFrame();
-		GetGUIComponentData();
+		SetGUIComponentData();
+		//SetViewportComponentData();
 		Render();
 	}
 
-	void GetGUIComponentData()
+	void SetGUIComponentData()
 	{
 		std::vector<std::shared_ptr<IGUIComponent>> components;
 		components.reserve(GUI::guiComponents.size());

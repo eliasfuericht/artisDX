@@ -16,17 +16,21 @@ class Renderer
 {
 public:
 	Renderer() {};
-	void InitializeRenderer(Window* window);
+	void InitializeRenderer();
+	void InitializeResources();
 	void Shutdown();
 
-	// returns handle to final image
 	void Render(float dt);
 	void UpdateBuffers(float dt);
 	void SetCommandlist();
 
-	Window* _window;
-
+	//viewport stuff
+	MSWRL::ComPtr<ID3D12Resource> _viewportTexture;
 	D3D12_CPU_DESCRIPTOR_HANDLE _viewportRTV;
+	D3D12_CPU_DESCRIPTOR_HANDLE _viewportSRV_CPU;
+	D3D12_GPU_DESCRIPTOR_HANDLE _viewportSRV_GPU;
+	uint32_t _viewportWidth = 0;
+	uint32_t _viewportHeight = 0;
 
 	CommandContext _mainLoopGraphicsContext;
 	std::shared_ptr<ShaderPass> _depthPass;
@@ -56,7 +60,4 @@ public:
 	std::shared_ptr<Camera> _camera;
 
 	ModelManager _modelManager;
-
-private:
-	void InitializeResources();
 };

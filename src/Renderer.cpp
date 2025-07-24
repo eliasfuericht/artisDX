@@ -1,24 +1,66 @@
 #include "Renderer.h"
 
-void Renderer::InitializeRenderer(Window* window)
+void Renderer::InitializeRenderer()
 {
-	_window = window;
 	CommandQueueManager::InitializeCommandQueueManager();
 
 	_mainLoopGraphicsContext.InitializeCommandContext(QUEUETYPE::QUEUE_GRAPHICS);
 	_mainLoopGraphicsContext.Finish(false);
 
 	DescriptorAllocator::Resource::InitializeDescriptorAllocator(NUM_MAX_RESOURCE_DESCRIPTORS);
+	DescriptorAllocator::RenderTarget::InitializeDescriptorAllocator(NUM_MAX_RTV_DESCRIPTORS);
 	DescriptorAllocator::Sampler::InitializeDescriptorAllocator(NUM_MAX_SAMPLER_DESCRIPTORS);
-
-	D3D12Core::Swapchain::InitializeSwapchain(_window->GetWidth(), _window->GetHeight(), _window->GetHWND());
-
-	InitializeResources();
 }
 
 void Renderer::InitializeResources()
 {
+	_viewportWidth = GUI::GetViewportWidth();
+	_viewportHeight = GUI::GetViewportHeight();
+
+	D3D12_RESOURCE_DESC texDesc = {};
+	texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	texDesc.Width = _viewportWidth;
+	texDesc.Height = _viewportHeight;
+	texDesc.DepthOrArraySize = 1;
+	texDesc.MipLevels = 1;
+	texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	texDesc.SampleDesc.Count = 1;
+	texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+	D3D12_CLEAR_VALUE clearValue = {};
+	clearValue.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	clearValue.Color[0] = 0.2f;
+	clearValue.Color[1] = 0.2f;
+	clearValue.Color[2] = 0.2f;
+	clearValue.Color[3] = 1.0f;
+
+	CD3DX12_HEAP_PROPERTIES rtvheapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+	ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateCommittedResource(
+		&rtvheapProps,
+		D3D12_HEAP_FLAG_NONE,
+		&texDesc,
+		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		&clearValue,
+		IID_PPV_ARGS(&_viewportTexture)
+	));
+
+	_viewportRTV = DescriptorAllocator::RenderTarget::Allocate();
+	D3D12Core::GraphicsDevice::device->CreateRenderTargetView(_viewportTexture.Get(), nullptr, _viewportRTV);
+
+	_viewportSRV_CPU = DescriptorAllocator::Resource::Allocate();
+	_viewportSRV_GPU = DescriptorAllocator::Resource::GetGPUHandle(_viewportSRV_CPU);
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Texture2D.MipLevels = 1;
+
+	D3D12Core::GraphicsDevice::device->CreateShaderResourceView(_viewportTexture.Get(), &srvDesc, _viewportSRV_CPU);
+
 	_depthPass = std::make_shared<ShaderPass>("DepthPass");
+	_bbPass->_usePass = false;
 	_depthPass->RegisterWithGUI();
 	_depthPass->AddShader("../shaders/dShadowMap_vert.hlsl", SHADERTYPE::SHADER_VERTEX);
 	_depthPass->AddShader("../shaders/dShadowMap_frag.hlsl", SHADERTYPE::SHADER_PIXEL);
@@ -181,7 +223,7 @@ void Renderer::Render(float dt)
 {
 	UpdateBuffers(dt);
 	SetCommandlist();
-	GUI::SetViewportTexture(_viewportRTV);
+	//GUI::SetViewportTextureHandle(_samplerCPUHandle);
 }
 
 void Renderer::UpdateBuffers(float dt)
@@ -194,13 +236,13 @@ void Renderer::UpdateBuffers(float dt)
 		XMStoreFloat4x4(&_projectionMatrix,
 			XMMatrixPerspectiveFovLH(
 				XMConvertToRadians(45.0f),
-				static_cast<float>(_window->GetWidth()) / static_cast<float>(_window->GetHeight()),
+				static_cast<float>(Window::width) / static_cast<float>(Window::height),
 				0.1f,
 				10000.0f)
 		);
 	}
-	_camera->ConsumeKey(_window->GetKeys(), dt);
-	_camera->ConsumeMouse(_window->GetXChange(), _window->GetYChange());
+	_camera->ConsumeKey(Window::keys, dt);
+	_camera->ConsumeMouse(Window::GetXChange(), Window::GetYChange());
 	_camera->Update();
 	_viewMatrix = _camera->GetViewMatrix();
 
@@ -306,5 +348,4 @@ void Renderer::SetCommandlist()
 void Renderer::Shutdown()
 {
 	CommandQueueManager::GetCommandQueue(QUEUETYPE::QUEUE_GRAPHICS).WaitForFence();
-	_window = nullptr;
 }

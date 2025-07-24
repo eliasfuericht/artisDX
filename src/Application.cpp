@@ -1,7 +1,6 @@
 #include "Application.h"
 
 Application::Application(const char* name, int32_t w, int32_t h, bool fullscreen)
-	: _window(name, w, h, fullscreen)
 {
 	if (fullscreen)
 	{
@@ -12,14 +11,18 @@ Application::Application(const char* name, int32_t w, int32_t h, bool fullscreen
 	{
 		_width = w;
 		_height = h;
-	}																													 
+	}	
+
+	_name = name;
+	_fullscreen = fullscreen;
 
 	InitializeApplication();
-	GUI::InitializeGUI(_window.GetHWND());
 }
 
 void Application::InitializeApplication()
 {
+	Window::InitializeWindow(_name.c_str(), _width, _height, _fullscreen);
+
 	ThrowIfFailed(CoInitializeEx(nullptr, COINIT_MULTITHREADED));
 
 #if defined(_DEBUG)
@@ -34,13 +37,20 @@ void Application::InitializeApplication()
 	D3D12Core::GraphicsDevice::IntializeDebugDevice();
 #endif
 
-	_renderer.InitializeRenderer(&_window);
+	_renderer.InitializeRenderer();
+
+	D3D12Core::Swapchain::InitializeSwapchain();
+
+	_renderer.InitializeResources();
+
+	GUI::InitializeGUI();
+
 }
 
 void Application::Run()
 {
 	_lastTime = std::chrono::high_resolution_clock::now();
-	_window.Show();
+	Window::Show();
 	MSG msg = { 0 };
 
 	bool running = true;
@@ -88,7 +98,7 @@ void Application::Update(float dt)
 		_elapsedTime = 0.0;
 		char title[256];
 		sprintf_s(title, "FPS: %.2f", _fps);
-		SetWindowTextA(_window.GetHWND(), title);
+		SetWindowTextA(Window::hWindow, title);
 	}
 }
 
@@ -102,7 +112,7 @@ void Application::Present()
 Application::~Application()
 {
 	CoUninitialize();
-	_window.Shutdown();
+	Window::Shutdown();
 
 	// Cleanup GUI
 #if defined(_DEBUG)

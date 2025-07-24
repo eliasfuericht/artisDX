@@ -55,6 +55,7 @@ using namespace DirectX;
 #define GetHInstance() GetModuleHandle(NULL)
 
 #define NUM_MAX_RESOURCE_DESCRIPTORS 1024
+#define NUM_MAX_RTV_DESCRIPTORS 256
 #define NUM_MAX_SAMPLER_DESCRIPTORS 64
 
 template<typename... Args>

@@ -49,6 +49,52 @@ namespace DescriptorAllocator
 		}
 	}
 
+	namespace RenderTarget
+	{
+		MSWRL::ComPtr<ID3D12DescriptorHeap> heap = nullptr;
+		uint32_t descriptorSize = 0;
+		uint32_t capacity = 0;
+		std::atomic<uint32_t> currentOffset = 0;
+
+		void InitializeDescriptorAllocator(uint32_t numDescriptors)
+		{
+			DescriptorAllocator::RenderTarget::capacity = numDescriptors;
+			DescriptorAllocator::RenderTarget::descriptorSize = D3D12Core::GraphicsDevice::device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+			D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
+			heapDesc.NumDescriptors = numDescriptors;
+			heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+
+			ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&DescriptorAllocator::RenderTarget::heap)));
+		}
+
+		D3D12_CPU_DESCRIPTOR_HANDLE Allocate()
+		{
+			uint32_t offset = DescriptorAllocator::RenderTarget::currentOffset++;
+			if (offset >= DescriptorAllocator::RenderTarget::capacity)
+			{
+				throw std::runtime_error("RTV heap out of space!");
+			}
+
+			D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = DescriptorAllocator::RenderTarget::heap->GetCPUDescriptorHandleForHeapStart();
+			cpuHandle.ptr += offset * DescriptorAllocator::RenderTarget::descriptorSize;
+			return cpuHandle;
+		}
+
+		D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle)
+		{
+			D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = DescriptorAllocator::RenderTarget::heap->GetGPUDescriptorHandleForHeapStart();
+			uint32_t offset = static_cast<uint32_t>((cpuHandle.ptr - DescriptorAllocator::RenderTarget::heap->GetCPUDescriptorHandleForHeapStart().ptr) / DescriptorAllocator::RenderTarget::descriptorSize);
+			gpuHandle.ptr += offset * DescriptorAllocator::RenderTarget::descriptorSize;
+			return gpuHandle;
+		}
+
+		ID3D12DescriptorHeap* GetHeap()
+		{
+			return DescriptorAllocator::RenderTarget::heap.Get();
+		}
+	}
+
 	namespace Sampler
 	{
 		MSWRL::ComPtr<ID3D12DescriptorHeap> heap = nullptr;

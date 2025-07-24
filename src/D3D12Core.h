@@ -3,6 +3,7 @@
 #include "pch.h"
 
 #include "CommandQueue.h"
+#include "Window.h"
 
 namespace D3D12Core
 {
@@ -29,7 +30,7 @@ namespace D3D12Core
 
 	namespace Swapchain
 	{
-		void InitializeSwapchain(int32_t width, int32_t height, HWND window);
+		void InitializeSwapchain();
 		void CreateDepthBuffer(int32_t newWidth, int32_t newHeight);
 		void Resize(int32_t newWidth, int32_t newHeight);
 

@@ -27,10 +27,12 @@ private:
 	void Update(float dt);
 	void Present();
 
-	Window _window;
 	Renderer _renderer;
+
+	std::string _name;
 	uint32_t _width;
 	uint32_t _height;
+	bool _fullscreen;
 
 	std::chrono::steady_clock::time_point _tLastTime = std::chrono::steady_clock::now();
 	std::chrono::high_resolution_clock::time_point _startTime;

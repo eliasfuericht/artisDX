@@ -1,9 +1,7 @@
 #include "Window.h"
 
-LRESULT CALLBACK WindowProcess(HWND hwnd, uint32_t msg, WPARAM wParam, LPARAM lParam) {
-
-	Window* windowInstance = reinterpret_cast<Window*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
-
+LRESULT CALLBACK WindowProcess(HWND hwnd, uint32_t msg, WPARAM wParam, LPARAM lParam) 
+{
 	if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam))
 		return true;
 
@@ -13,17 +11,17 @@ LRESULT CALLBACK WindowProcess(HWND hwnd, uint32_t msg, WPARAM wParam, LPARAM lP
 			uint32_t newWidth = LOWORD(lParam);
 			uint32_t newHeight = HIWORD(lParam);
 
-			if (windowInstance && wParam != SIZE_MINIMIZED) 
+			if (Window::initialized && wParam != SIZE_MINIMIZED)
 			{
 				D3D12Core::Swapchain::Resize(newWidth, newHeight);
-				windowInstance->SetWidth(newWidth);
-				windowInstance->SetHeight(newHeight);
+				Window::width = newWidth;
+				Window::height = newHeight;
 			}
 			return 0;
 		}
 		case WM_MOUSEMOVE:
 		{
-			if (!windowInstance->_captureMouse)
+			if (!Window::initialized || !Window::captureMouse)
 				break;
 
 			POINT currentCursorPos;
@@ -38,7 +36,7 @@ LRESULT CALLBACK WindowProcess(HWND hwnd, uint32_t msg, WPARAM wParam, LPARAM lP
 
 			if (abs(deltaX) > 0 || abs(deltaY) > 0)
 			{
-				windowInstance->HandleMouse(-deltaX, deltaY);
+				Window::HandleMouse(-deltaX, deltaY);
 
 				ClientToScreen(hwnd, &center);
 				SetCursorPos(center.x, center.y);
@@ -50,7 +48,7 @@ LRESULT CALLBACK WindowProcess(HWND hwnd, uint32_t msg, WPARAM wParam, LPARAM lP
 		{
 			if (!ImGui::IsAnyItemHovered() && !ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow))
 			{
-				if (!windowInstance->_captureMouse)
+				if (!Window::captureMouse)
 				{
 					RECT clientRect;
 					GetClientRect(hwnd, &clientRect);
@@ -58,8 +56,8 @@ LRESULT CALLBACK WindowProcess(HWND hwnd, uint32_t msg, WPARAM wParam, LPARAM lP
 					ClientToScreen(hwnd, &center);
 					SetCursorPos(center.x, center.y);
 
-					windowInstance->_captureMouse = true;
-					SetCapture(windowInstance->GetHWND());
+					Window::captureMouse = true;
+					SetCapture(Window::hWindow);
 					ShowCursor(false);
 				}
 			}
@@ -67,12 +65,12 @@ LRESULT CALLBACK WindowProcess(HWND hwnd, uint32_t msg, WPARAM wParam, LPARAM lP
 		}
 		case WM_KEYDOWN:
 		{
-			windowInstance->HandleKeys(wParam, WM_KEYDOWN);
+			Window::HandleKeys(wParam, WM_KEYDOWN);
 			break;
 		}
 		case WM_KEYUP:
 		{
-			windowInstance->HandleKeys(wParam, WM_KEYUP);
+			Window::HandleKeys(wParam, WM_KEYUP);
 			break;
 		}
 		case WM_DESTROY:
@@ -85,136 +83,150 @@ LRESULT CALLBACK WindowProcess(HWND hwnd, uint32_t msg, WPARAM wParam, LPARAM lP
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-void Window::HandleKeys(int32_t key, int32_t action)
+namespace Window
 {
-	if (key >= 0 && key < 1024)
+	WNDCLASSEX windowClassEx;
+	const char* windowTitle;
+	ULONG windowMode;
+	uint32_t width;
+	uint32_t height;
+	HWND hWindow;
+
+	bool initialized = false;
+	bool captureMouse = false;
+	bool keys[1024];
+	float xChange;
+	float yChange;
+
+	void InitializeWindow(const char* title, uint32_t w, uint32_t h, bool fullscreen)
 	{
-		switch (action)
+		if (fullscreen)
 		{
+			Window::width = GetSystemMetrics(SM_CXSCREEN);
+			Window::height = GetSystemMetrics(SM_CYSCREEN);
+			Window::windowMode = WS_POPUP;
+		}
+		else
+		{
+			Window::width = w;
+			Window::height = h;
+			Window::windowMode = WS_OVERLAPPEDWINDOW;
+		}
+
+		Window::windowTitle = title;
+
+		Window::captureMouse = true;
+
+		Window::xChange = 0.0f;
+		Window::yChange = 0.0f;
+
+		for (size_t i = 0; i < 1024; i++)
+		{
+			Window::keys[i] = 0;
+		}
+
+		Create();
+	}
+
+	void HandleKeys(int32_t key, int32_t action)
+	{
+		if (key >= 0 && key < 1024)
+		{
+			switch (action)
+			{
 			case WM_KEYDOWN:
 			{
-				_keys[key] = true;
+				Window::keys[key] = true;
 				break;
 			}
 			case WM_KEYUP:
 			{
-				_keys[key] = false;
+				Window::keys[key] = false;
 				break;
 			}
 			default:
 				break;
+			}
+			if (key == KEYCODES::KEYCODE_ESC && Window::captureMouse)
+			{
+				Window::captureMouse = false;
+				ShowCursor(true);
+			}
 		}
-		if (key == KEYCODES::KEYCODE_ESC && _captureMouse)
+	}
+
+	void Window::HandleMouse(float x, float y)
+	{
+		Window::xChange += x;
+		Window::yChange += y;
+	}
+	
+	void Window::Create()
+	{
+		Window::windowClassEx.cbSize = sizeof(WNDCLASSEX);
+		Window::windowClassEx.style = CS_HREDRAW | CS_VREDRAW;
+		Window::windowClassEx.cbClsExtra = 0;
+		Window::windowClassEx.cbWndExtra = 0;
+		Window::windowClassEx.hCursor = LoadCursor(nullptr, IDC_ARROW);
+		Window::windowClassEx.hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH);
+		Window::windowClassEx.hIcon = LoadIcon(0, IDI_APPLICATION);
+		Window::windowClassEx.hIconSm = LoadIcon(0, IDI_APPLICATION);
+		const char* windowClassName = "artisDXWindow";
+		Window::windowClassEx.lpszClassName = windowClassName;
+		Window::windowClassEx.lpszMenuName = nullptr;
+		Window::windowClassEx.hInstance = GetHInstance();
+		Window::windowClassEx.lpfnWndProc = WindowProcess;
+
+		RegisterClassEx(&Window::windowClassEx);
+
+		Window::hWindow = CreateWindow(windowClassName, Window::windowTitle, Window::windowMode, CW_USEDEFAULT, 0,
+			Window::width, Window::height, nullptr, nullptr, GetHInstance(), nullptr);
+
+		if (!Window::hWindow)
 		{
-			_captureMouse = false;
-			ShowCursor(true);
+			MessageBox(0, "Failed to create window", 0, 0);
+			return;
 		}
-	}
-}
 
-void Window::HandleMouse(float x, float y)
-{
-	_xChange += x;
-	_yChange += y;
-}
+		Window::initialized = true;
 
-Window::Window(const char* title, uint32_t w, uint32_t h, bool fullscreen)
-{
-	if (fullscreen)
-	{
-		_windowWidth = GetSystemMetrics(SM_CXSCREEN);
-		_windowHeight = GetSystemMetrics(SM_CYSCREEN);
-		_windowMode = WS_POPUP;
-	}
-	else
-	{
-		_windowWidth = w;
-		_windowHeight = h;
-		_windowMode = WS_OVERLAPPEDWINDOW;
+		//SetWindowLongPtr(Window::hWindow, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+
+		ShowCursor(false);
+
+		SetCapture(Window::hWindow);
 	}
 
-	_windowTitle = title;
-
-	_captureMouse = true;
-
-	_xChange = 0.0f;
-	_yChange = 0.0f;
-	
-	for (size_t i = 0; i < 1024; i++)
+	void Show()
 	{
-		_keys[i] = 0;
-	}
-	
-	Create();
-}
-
-void Window::Create()
-{
-	_windowClassEx.cbSize = sizeof(WNDCLASSEX);
-	_windowClassEx.style = CS_HREDRAW | CS_VREDRAW;
-	_windowClassEx.cbClsExtra = 0;
-	_windowClassEx.cbWndExtra = 0;
-	_windowClassEx.hCursor = LoadCursor(nullptr, IDC_ARROW);
-	_windowClassEx.hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH);
-	_windowClassEx.hIcon = LoadIcon(0, IDI_APPLICATION);
-	_windowClassEx.hIconSm = LoadIcon(0, IDI_APPLICATION);
-	const char* windowClassName = "artisDXWindow";
-	_windowClassEx.lpszClassName = windowClassName;
-	_windowClassEx.lpszMenuName = nullptr;
-	_windowClassEx.hInstance = GetHInstance();
-	_windowClassEx.lpfnWndProc = WindowProcess;
-
-	RegisterClassEx(&_windowClassEx);
-
-	_hWindow = CreateWindow(windowClassName, _windowTitle, _windowMode, CW_USEDEFAULT, 0,
-		_windowWidth, _windowHeight, nullptr, nullptr, GetHInstance(), nullptr);
-
-	if (!_hWindow)
-	{
-		MessageBox(0, "Failed to create window", 0, 0);
-		return;
+		ShowWindow(Window::hWindow, SW_SHOW);
 	}
 
-	SetWindowLongPtr(_hWindow, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
-
-	ShowCursor(false);
-
-	SetCapture(_hWindow);
-}
-
-void Window::Show()
-{
-	ShowWindow(_hWindow, SW_SHOW);
-}
-
-HWND Window::GetHWND() {
-	return _hWindow;
-}
-
-float Window::GetXChange()
-{
-	float changeValueX = _xChange;
-	_xChange = 0.0f;
-	return changeValueX;
-}
-
-float Window::GetYChange()
-{
-	float changeValueY = _yChange;
-	_yChange = 0.0f;
-	return changeValueY;
-}
-
-void Window::Shutdown()
-{
-	if (_hWindow)
+	float GetXChange()
 	{
-		DestroyWindow(_hWindow);
-		_hWindow = nullptr;
+		float changeValueX = Window::xChange;
+		Window::xChange = 0.0f;
+		return changeValueX;
 	}
 
-	if (_windowClassEx.lpszClassName)
+	float GetYChange()
 	{
-		UnregisterClass(_windowClassEx.lpszClassName, _windowClassEx.hInstance);
+		float changeValueY = Window::yChange;
+		Window::yChange = 0.0f;
+		return changeValueY;
+	}
+
+	void Shutdown()
+	{
+		if (Window::hWindow)
+		{
+			DestroyWindow(Window::hWindow);
+			Window::hWindow = nullptr;
+		}
+
+		if (Window::windowClassEx.lpszClassName)
+		{
+			UnregisterClass(Window::windowClassEx.lpszClassName, Window::windowClassEx.hInstance);
+		}
 	}
 }
