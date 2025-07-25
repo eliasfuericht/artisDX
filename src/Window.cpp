@@ -44,25 +44,6 @@ LRESULT CALLBACK WindowProcess(HWND hwnd, uint32_t msg, WPARAM wParam, LPARAM lP
 
 			break;
 		}
-		case WM_LBUTTONDOWN:
-		{
-			if (!ImGui::IsAnyItemHovered() && !ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow))
-			{
-				if (!Window::captureMouse)
-				{
-					RECT clientRect;
-					GetClientRect(hwnd, &clientRect);
-					POINT center = { (clientRect.right - clientRect.left) / 2, (clientRect.bottom - clientRect.top) / 2 };
-					ClientToScreen(hwnd, &center);
-					SetCursorPos(center.x, center.y);
-
-					Window::captureMouse = true;
-					SetCapture(Window::hWindow);
-					ShowCursor(false);
-				}
-			}
-			break;
-		}
 		case WM_KEYDOWN:
 		{
 			Window::HandleKeys(wParam, WM_KEYDOWN);

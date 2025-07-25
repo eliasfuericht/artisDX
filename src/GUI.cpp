@@ -3,13 +3,12 @@
 namespace GUI
 {
 	ImGuiIO* imguiIO = nullptr;
-	MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList;
-	MSWRL::ComPtr<ID3D12CommandAllocator> commandAllocator;
-	MSWRL::ComPtr<ID3D12DescriptorHeap> srvHeap;
+	CommandContext guiContext;
 	std::vector<std::weak_ptr<IGUIComponent>> guiComponents;
 	D3D12_GPU_DESCRIPTOR_HANDLE _viewportTexture;
-	int32_t viewportWidth = 640;
-	int32_t viewportHeight = 480;
+	int32_t viewportWidth = 1920;
+	int32_t viewportHeight = 1080;
+	bool viewportResized = false;
 
 	void InitializeGUI()
 	{
@@ -36,20 +35,12 @@ namespace GUI
 			style.Colors[ImGuiCol_WindowBg].w = 1.0f;
 		}
 
-		D3D12_DESCRIPTOR_HEAP_DESC desc = {};
-		desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		desc.NumDescriptors = 1;
-		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-		ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&GUI::srvHeap)));
-
-		// Create Command Allocator & Command List
-		ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&GUI::commandAllocator)));
-		ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, GUI::commandAllocator.Get(), nullptr, IID_PPV_ARGS(&GUI::commandList)));
-		GUI::commandList->SetName(L"GUI CommandList");
-		GUI::commandList->Close();
-
 		ImGui_ImplWin32_Init(Window::hWindow);
-		ImGui_ImplDX12_Init(D3D12Core::GraphicsDevice::device.Get(), D3D12Core::Swapchain::backBufferCount, DXGI_FORMAT_R8G8B8A8_UNORM, GUI::srvHeap.Get(), GUI::srvHeap->GetCPUDescriptorHandleForHeapStart(), GUI::srvHeap->GetGPUDescriptorHandleForHeapStart());
+		auto handle = DescriptorAllocator::Resource::Allocate();
+		ImGui_ImplDX12_Init(D3D12Core::GraphicsDevice::device.Get(), D3D12Core::Swapchain::backBufferCount, DXGI_FORMAT_R8G8B8A8_UNORM, DescriptorAllocator::Resource::GetHeap(), handle, DescriptorAllocator::Resource::GetGPUHandle(handle));
+		
+		GUI::guiContext.InitializeCommandContext(QUEUETYPE::QUEUE_GRAPHICS);
+		GUI::guiContext.Finish(false);
 	}
 
 	void RegisterComponent(std::weak_ptr<IGUIComponent> component)
@@ -76,34 +67,44 @@ namespace GUI
 	{
 		ImGui::Begin("Viewport");
 
-		auto handle = D3D12Core::Swapchain::rtvHeap->GetCPUDescriptorHandleForHeapStart();
-		// The GPU SRV handle you got from the renderer
-		ImTextureID imguiTex = (ImTextureID)handle.ptr;
+		ImVec2 avail = ImGui::GetContentRegionAvail();
+		ImTextureID texID = (ImTextureID)_viewportTexture.ptr;
 
-		// Decide how big you want it
-		ImVec2 viewportSize = ImGui::GetContentRegionAvail();
-
-		// Draw it
 		ImGui::Image(
-			imguiTex,
-			viewportSize,
-			ImVec2(0, 0),  // UV top-left
-			ImVec2(1, 1),  // UV bottom-right
-			ImVec4(1, 1, 1, 1), // Tint
-			ImVec4(0, 0, 0, 0)  // Border
+			texID,
+			avail,
+			ImVec2(0, 0),
+			ImVec2(1, 1),
+			ImVec4(1, 1, 1, 1),
+			ImVec4(0, 0, 0, 0)
 		);
+		
+		bool hovered = ImGui::IsItemHovered();
+		bool clicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
+
+		if (hovered && clicked && !Window::captureMouse)
+		{			
+				RECT clientRect;
+				GetClientRect(Window::hWindow, &clientRect);
+				POINT center = { (clientRect.right - clientRect.left) / 2, (clientRect.bottom - clientRect.top) / 2 };
+				ClientToScreen(Window::hWindow, &center);
+				SetCursorPos(center.x, center.y);
+
+				Window::captureMouse = true;
+				SetCapture(Window::hWindow);
+				ShowCursor(false);
+		}
+
+		viewportResized = false;
+		if (avail.x != viewportWidth || avail.y != viewportHeight)
+		{
+			viewportWidth = avail.x;
+			viewportHeight = avail.y;
+			viewportResized = true;
+		}
+
 
 		ImGui::End();
-	}
-
-	void Draw()
-	{
-		ImGui_ImplDX12_NewFrame();
-		ImGui_ImplWin32_NewFrame();
-		ImGui::NewFrame();
-		SetGUIComponentData();
-		//SetViewportComponentData();
-		Render();
 	}
 
 	void SetGUIComponentData()
@@ -122,62 +123,85 @@ namespace GUI
 		}
 	}
 
-	void Render()
+	void BeginDockspace()
 	{
+		ImGuiViewport* viewport = ImGui::GetMainViewport();
+
+		ImGui::SetNextWindowPos(viewport->WorkPos);
+		ImGui::SetNextWindowSize(viewport->WorkSize);
+		ImGui::SetNextWindowViewport(viewport->ID);
+
+		ImGuiWindowFlags windowFlags =
+			ImGuiWindowFlags_NoTitleBar |
+			ImGuiWindowFlags_NoCollapse |
+			ImGuiWindowFlags_NoResize |
+			ImGuiWindowFlags_NoMove |
+			ImGuiWindowFlags_NoBringToFrontOnFocus |
+			ImGuiWindowFlags_NoNavFocus |
+			ImGuiWindowFlags_NoDocking; // important for root
+
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+
+		ImGui::Begin("DockspaceRoot", nullptr, windowFlags);
+		ImGui::PopStyleVar(3);
+
+		ImGuiID dockspaceID = ImGui::GetID("MainDockspace");
+		ImGui::DockSpace(dockspaceID, ImVec2(0.0f, 0.0f));
+
+		ImGui::End();
+	}
+
+	void Draw()
+	{
+		ImGui_ImplDX12_NewFrame();
+		ImGui_ImplWin32_NewFrame();
+		ImGui::NewFrame();
+
+		BeginDockspace();
+		SetGUIComponentData();
+		SetViewportComponentData();
+
 		ImGui::Render();
 
-		if (GUI::imguiIO->ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-		{
+		if (GUI::imguiIO->ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
 			ImGui::UpdatePlatformWindows();
-			ImGui::RenderPlatformWindowsDefault(nullptr, (void*)GUI::commandList.Get());
+			ImGui::RenderPlatformWindowsDefault(nullptr, (void*)GUI::guiContext.GetCommandList().Get());
 		}
 
-		// Reset Command Allocator and List
-		ThrowIfFailed(GUI::commandAllocator->Reset());
-		ThrowIfFailed(GUI::commandList->Reset(GUI::commandAllocator.Get(), nullptr));
+		GUI::guiContext.Reset();
 
-		// Set Descriptor Heap
-		ID3D12DescriptorHeap* heaps[] = { GUI::srvHeap.Get() };
-		GUI::commandList->SetDescriptorHeaps(1, heaps);
+		UINT frameIndex = D3D12Core::Swapchain::frameIndex;
+		auto backbuffer = D3D12Core::Swapchain::renderTargets[frameIndex].Get();
 
-		uint32_t frameIndex = D3D12Core::Swapchain::frameIndex;
+		auto toRT = CD3DX12_RESOURCE_BARRIER::Transition(
+			backbuffer,
+			D3D12_RESOURCE_STATE_PRESENT,
+			D3D12_RESOURCE_STATE_RENDER_TARGET
+		);
+		GUI::guiContext.GetCommandList()->ResourceBarrier(1, &toRT);
 
 		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = D3D12Core::Swapchain::rtvHeap->GetCPUDescriptorHandleForHeapStart();
-		rtvHandle.ptr += (frameIndex * D3D12Core::Swapchain::rtvDescriptorSize);
+		rtvHandle.ptr += frameIndex * D3D12Core::Swapchain::rtvDescriptorSize;
+		GUI::guiContext.GetCommandList()->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+		const float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
+		GUI::guiContext.GetCommandList()->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 
-		// Transition backbuffer from PRESENT -> RENDER_TARGET
-		D3D12_RESOURCE_BARRIER renderTargetBarrier = {};
-		renderTargetBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-		renderTargetBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-		renderTargetBarrier.Transition.pResource = D3D12Core::Swapchain::renderTargets[frameIndex].Get();
-		renderTargetBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-		renderTargetBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-		renderTargetBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-		GUI::commandList->ResourceBarrier(1, &renderTargetBarrier);
+		ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::Resource::GetHeap() };
+		GUI::guiContext.GetCommandList()->SetDescriptorHeaps(_countof(heaps), heaps);
 
-		// Set render target for ImGui
-		GUI::commandList->OMSetRenderTargets(1, &rtvHandle, false, nullptr);
+		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), GUI::guiContext.GetCommandList().Get());
 
-		// Set Descriptor Heap for ImGui
-		ID3D12DescriptorHeap* descriptorHeaps[] = { GUI::srvHeap.Get() };
-		GUI::commandList->SetDescriptorHeaps(1, descriptorHeaps);
+		auto toPresent = CD3DX12_RESOURCE_BARRIER::Transition(
+			backbuffer,
+			D3D12_RESOURCE_STATE_RENDER_TARGET,
+			D3D12_RESOURCE_STATE_PRESENT
+		);
+		GUI::guiContext.GetCommandList()->ResourceBarrier(1, &toPresent);
 
-		// Render ImGui onto the same backbuffer
-		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), GUI::commandList.Get());
-
-		// Transition backbuffer back to PRESENT
-		D3D12_RESOURCE_BARRIER presentBarrier = {};
-		presentBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-		presentBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-		presentBarrier.Transition.pResource = D3D12Core::Swapchain::renderTargets[frameIndex].Get();
-		presentBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-		presentBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
-		presentBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-		GUI::commandList->ResourceBarrier(1, &presentBarrier);
-
-		// Close & Execute
-		ThrowIfFailed(GUI::commandList->Close());
-		ID3D12CommandList* lists[] = { GUI::commandList.Get() };
+		ThrowIfFailed(GUI::guiContext.GetCommandList()->Close());
+		ID3D12CommandList* lists[] = { GUI::guiContext.GetCommandList().Get() };
 		CommandQueueManager::GetCommandQueue(QUEUETYPE::QUEUE_GRAPHICS)._commandQueue->ExecuteCommandLists(_countof(lists), lists);
 	}
 

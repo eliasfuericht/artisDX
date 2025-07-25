@@ -18,6 +18,9 @@ public:
 	Renderer() {};
 	void InitializeRenderer();
 	void InitializeResources();
+	void CreateRTV();
+	void CreateDepthBuffer();
+	void CreateConstantBuffers();
 	void Shutdown();
 
 	void Render(float dt);
@@ -29,8 +32,11 @@ public:
 	D3D12_CPU_DESCRIPTOR_HANDLE _viewportRTV;
 	D3D12_CPU_DESCRIPTOR_HANDLE _viewportSRV_CPU;
 	D3D12_GPU_DESCRIPTOR_HANDLE _viewportSRV_GPU;
-	uint32_t _viewportWidth = 0;
-	uint32_t _viewportHeight = 0;
+	D3D12_VIEWPORT _vp;
+	D3D12_RECT _scissor;
+
+	MSWRL::ComPtr<ID3D12Resource> _depthStencilBuffer;
+	MSWRL::ComPtr<ID3D12DescriptorHeap> _dsvHeap;
 
 	CommandContext _mainLoopGraphicsContext;
 	std::shared_ptr<ShaderPass> _depthPass;
