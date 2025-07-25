@@ -30,8 +30,9 @@ public:
 	XMFLOAT4X4 _lightViewProjMatrix;
 	XMFLOAT4X4 _shadowTransformMatrix;
 
-	MSWRL::ComPtr<ID3D12DescriptorHeap> _directionalShadowMapHeap;
 	MSWRL::ComPtr<ID3D12Resource> _directionalShadowMapBuffer;
+	CD3DX12_CPU_DESCRIPTOR_HANDLE _directionalShadowMapDSVCPUHandle;
+	CD3DX12_CPU_DESCRIPTOR_HANDLE _directionalShadowMapSRVCPUHandle;
 
 private:
 	void BuildLightProjMatrix();

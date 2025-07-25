@@ -9,6 +9,7 @@ void Renderer::InitializeRenderer()
 
 	DescriptorAllocator::Resource::InitializeDescriptorAllocator(NUM_MAX_RESOURCE_DESCRIPTORS);
 	DescriptorAllocator::RenderTarget::InitializeDescriptorAllocator(NUM_MAX_RTV_DESCRIPTORS);
+	DescriptorAllocator::DepthStencil::InitializeDescriptorAllocator(NUM_MAX_RTV_DESCRIPTORS);
 	DescriptorAllocator::Sampler::InitializeDescriptorAllocator(NUM_MAX_SAMPLER_DESCRIPTORS);
 }
 
@@ -18,7 +19,6 @@ void Renderer::InitializeResources()
 	CreateDepthBuffer();
 
 	_depthPass = std::make_shared<ShaderPass>("DepthPass");
-	_depthPass->_usePass = false;
 	_depthPass->RegisterWithGUI();
 	_depthPass->AddShader("../shaders/dShadowMap_vert.hlsl", SHADERTYPE::SHADER_VERTEX);
 	_depthPass->AddShader("../shaders/dShadowMap_frag.hlsl", SHADERTYPE::SHADER_PIXEL);
@@ -112,14 +112,6 @@ void Renderer::CreateRTV()
 
 void Renderer::CreateDepthBuffer()
 {
-	// Heap properties for creating the texture (GPU read/write)
-	D3D12_HEAP_PROPERTIES heapProps = {};
-	heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
-	heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-	heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-	heapProps.CreationNodeMask = 1;
-	heapProps.VisibleNodeMask = 1;
-
 	// Create Depth-Stencil Resource (Texture2D)
 	D3D12_RESOURCE_DESC depthResourceDesc = {};
 	depthResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -139,6 +131,8 @@ void Renderer::CreateDepthBuffer()
 	depthOptimizedClearValue.DepthStencil.Depth = 1.0f;
 	depthOptimizedClearValue.DepthStencil.Stencil = 0;
 
+	D3D12_HEAP_PROPERTIES heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+
 	ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateCommittedResource(
 		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
@@ -148,21 +142,15 @@ void Renderer::CreateDepthBuffer()
 		IID_PPV_ARGS(&_depthStencilBuffer)
 	));
 
-	// Create the DSV Heap
-	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
-	dsvHeapDesc.NumDescriptors = 1;
-	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-
-	ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&_dsvHeap)));
-
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
 	dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 	dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
 
+	_dsvCPUHandle = DescriptorAllocator::DepthStencil::Allocate();
+
 	// Create the DSV for the depth-stencil buffer
-	D3D12Core::GraphicsDevice::device->CreateDepthStencilView(_depthStencilBuffer.Get(), &dsvDesc, _dsvHeap->GetCPUDescriptorHandleForHeapStart());
+	D3D12Core::GraphicsDevice::device->CreateDepthStencilView(_depthStencilBuffer.Get(), &dsvDesc, _dsvCPUHandle);
 }
 
 void Renderer::CreateConstantBuffers()
@@ -249,7 +237,7 @@ void Renderer::CreateConstantBuffers()
 			XMConvertToRadians(45.0f),
 			static_cast<float>(GUI::viewportWidth) / static_cast<float>(GUI::viewportHeight),
 			0.1f,
-			10000.0f)
+			100.0f)
 	);
 
 	_camera = std::make_shared<Camera>(
@@ -300,7 +288,6 @@ void Renderer::Render(float dt)
 
 void Renderer::UpdateBuffers(float dt)
 {
-	
 	if (GUI::viewportResized)
 	{
 		XMStoreFloat4x4(&_projectionMatrix,
@@ -308,11 +295,11 @@ void Renderer::UpdateBuffers(float dt)
 				XMConvertToRadians(45.0f),
 				static_cast<float>(GUI::viewportWidth) / static_cast<float>(GUI::viewportHeight),
 				0.1f,
-				10000.0f)
+				100.0f)
 		);
 	}
 	
-		_camera->ConsumeKey(Window::keys, dt);
+	_camera->ConsumeKey(Window::keys, dt);
 	_camera->ConsumeMouse(Window::GetXChange(), Window::GetYChange());
 	_camera->Update();
 	_viewMatrix = _camera->GetViewMatrix();
@@ -346,14 +333,29 @@ void Renderer::SetCommandlist()
 
 	if (_depthPass->_usePass)
 	{
-		D3D12_CPU_DESCRIPTOR_HANDLE shadowMapHandle = _dLight->_directionalShadowMapHeap->GetCPUDescriptorHandleForHeapStart();
-		_mainLoopGraphicsContext.GetCommandList()->OMSetRenderTargets(0, nullptr, false, &shadowMapHandle);
-		_mainLoopGraphicsContext.GetCommandList()->ClearDepthStencilView(shadowMapHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0.0f, 0, nullptr);
+		D3D12_RESOURCE_BARRIER depthmapbarrier = CD3DX12_RESOURCE_BARRIER::Transition(
+			_dLight->_directionalShadowMapBuffer.Get(),
+			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+			D3D12_RESOURCE_STATE_DEPTH_WRITE,
+			D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+
+		_mainLoopGraphicsContext.GetCommandList()->ResourceBarrier(1, &depthmapbarrier);
+
+		_mainLoopGraphicsContext.GetCommandList()->OMSetRenderTargets(0, nullptr, false, &_dLight->_directionalShadowMapDSVCPUHandle);
+		_mainLoopGraphicsContext.GetCommandList()->ClearDepthStencilView(_dLight->_directionalShadowMapDSVCPUHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0.0f, 0, nullptr);
 
 		if (auto slot = _depthPass->GetRootParameterIndex("lightViewProjMatrixBuffer"))
 			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::Resource::GetGPUHandle(_dLight->_dLightLVPCPUHandle));
 
 		_modelManager.DrawAll(*_depthPass, _mainLoopGraphicsContext);
+
+		D3D12_RESOURCE_BARRIER depthmapbarrierpresent = CD3DX12_RESOURCE_BARRIER::Transition(
+			_dLight->_directionalShadowMapBuffer.Get(),
+			D3D12_RESOURCE_STATE_DEPTH_WRITE,
+			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+			D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+
+		_mainLoopGraphicsContext.GetCommandList()->ResourceBarrier(1, &depthmapbarrierpresent);
 	}
 
 	D3D12_RESOURCE_BARRIER renderTargetBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
@@ -363,11 +365,10 @@ void Renderer::SetCommandlist()
 		D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 
 	_mainLoopGraphicsContext.GetCommandList()->ResourceBarrier(1, &renderTargetBarrier);
-	auto dsvHandle = _dsvHeap->GetCPUDescriptorHandleForHeapStart();
-	_mainLoopGraphicsContext.GetCommandList()->OMSetRenderTargets(1, &_viewportRTV, false, &dsvHandle);
+	_mainLoopGraphicsContext.GetCommandList()->OMSetRenderTargets(1, &_viewportRTV, false, &_dsvCPUHandle);
 
 	// Clear the render target.
-	_mainLoopGraphicsContext.GetCommandList()->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0.0f, 0, nullptr);
+	_mainLoopGraphicsContext.GetCommandList()->ClearDepthStencilView(_dsvCPUHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0.0f, 0, nullptr);
 	const float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
 	_mainLoopGraphicsContext.GetCommandList()->ClearRenderTargetView(_viewportRTV, clearColor, 0, nullptr);
 

@@ -36,7 +36,7 @@ public:
 	D3D12_RECT _scissor;
 
 	MSWRL::ComPtr<ID3D12Resource> _depthStencilBuffer;
-	MSWRL::ComPtr<ID3D12DescriptorHeap> _dsvHeap;
+	CD3DX12_CPU_DESCRIPTOR_HANDLE _dsvCPUHandle;
 
 	CommandContext _mainLoopGraphicsContext;
 	std::shared_ptr<ShaderPass> _depthPass;

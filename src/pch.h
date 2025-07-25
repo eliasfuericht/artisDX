@@ -56,6 +56,7 @@ using namespace DirectX;
 
 #define NUM_MAX_RESOURCE_DESCRIPTORS 1024
 #define NUM_MAX_RTV_DESCRIPTORS 256
+#define NUM_MAX_DSV_DESCRIPTORS 128
 #define NUM_MAX_SAMPLER_DESCRIPTORS 64
 
 template<typename... Args>

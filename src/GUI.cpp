@@ -103,7 +103,6 @@ namespace GUI
 			viewportResized = true;
 		}
 
-
 		ImGui::End();
 	}
 
