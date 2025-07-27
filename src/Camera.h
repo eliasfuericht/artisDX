@@ -8,7 +8,7 @@
 class Camera : public IGUIComponent
 {
 public:
-	Camera() {};
+	Camera() = default;
 	Camera(XMVECTOR pos, XMVECTOR startUp, float startYaw, float startPitch, float startMoveSpeed, float startTurnSpeed);
 
 	void ConsumeMouse(float xChange, float yChange);

@@ -15,10 +15,10 @@
 class Renderer
 {
 public:
-	Renderer() {};
+	Renderer() = default;
 	void InitializeRenderer();
 	void InitializeResources();
-	void CreateRTV();
+	void CreateRenderTarget();
 	void CreateDepthBuffer();
 	void CreateConstantBuffers();
 	void Shutdown();
@@ -45,13 +45,11 @@ public:
 
 	// ViewProjMatrix CBV
 	MSWRL::ComPtr<ID3D12Resource> _VPBufferResource;
-	MSWRL::ComPtr<ID3D12DescriptorHeap> _VPBufferHeap;
 	D3D12_CPU_DESCRIPTOR_HANDLE _VPBufferDescriptor;
 	uint8_t* _mappedVPBuffer;
 
 	// ViewMatrix CBV
 	MSWRL::ComPtr<ID3D12Resource> _camPosBufferResource;
-	MSWRL::ComPtr<ID3D12DescriptorHeap> _camPosBufferHeap;
 	D3D12_CPU_DESCRIPTOR_HANDLE _camPosBufferDescriptor;
 	uint8_t* _mappedCamPosBuffer;
 

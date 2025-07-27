@@ -5,7 +5,7 @@
 
 namespace DescriptorAllocator
 {
-	namespace Resource
+	namespace CBVSRVUAV
 	{
 		void InitializeDescriptorAllocator(uint32_t numDescriptors);
 
@@ -19,7 +19,7 @@ namespace DescriptorAllocator
 		extern std::atomic<uint32_t> currentOffset;
 	}
 
-	namespace RenderTarget
+	namespace RTV
 	{
 		void InitializeDescriptorAllocator(uint32_t numDescriptors);
 
@@ -32,7 +32,7 @@ namespace DescriptorAllocator
 		extern std::atomic<uint32_t> currentOffset;
 	}
 
-	namespace DepthStencil
+	namespace DSV
 	{
 		void InitializeDescriptorAllocator(uint32_t numDescriptors);
 

@@ -36,8 +36,8 @@ namespace GUI
 		}
 
 		ImGui_ImplWin32_Init(Window::hWindow);
-		auto handle = DescriptorAllocator::Resource::Allocate();
-		ImGui_ImplDX12_Init(D3D12Core::GraphicsDevice::device.Get(), D3D12Core::Swapchain::backBufferCount, DXGI_FORMAT_R8G8B8A8_UNORM, DescriptorAllocator::Resource::GetHeap(), handle, DescriptorAllocator::Resource::GetGPUHandle(handle));
+		auto handle = DescriptorAllocator::CBVSRVUAV::Allocate();
+		ImGui_ImplDX12_Init(D3D12Core::GraphicsDevice::device.Get(), D3D12Core::Swapchain::backBufferCount, DXGI_FORMAT_R8G8B8A8_UNORM, DescriptorAllocator::CBVSRVUAV::GetHeap(), handle, DescriptorAllocator::CBVSRVUAV::GetGPUHandle(handle));
 		
 		GUI::guiContext.InitializeCommandContext(QUEUETYPE::QUEUE_GRAPHICS);
 		GUI::guiContext.Finish(false);
@@ -187,7 +187,7 @@ namespace GUI
 		const float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
 		GUI::guiContext.GetCommandList()->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 
-		ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::Resource::GetHeap() };
+		ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::CBVSRVUAV::GetHeap() };
 		GUI::guiContext.GetCommandList()->SetDescriptorHeaps(_countof(heaps), heaps);
 
 		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), GUI::guiContext.GetCommandList().Get());

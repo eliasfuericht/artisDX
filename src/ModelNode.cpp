@@ -7,7 +7,7 @@ ModelNode::ModelNode()
 
 void ModelNode::CreateCBV()
 {
-	D3D12_CPU_DESCRIPTOR_HANDLE cbvCpuHandle = DescriptorAllocator::Resource::Allocate();
+	D3D12_CPU_DESCRIPTOR_HANDLE cbvCpuHandle = DescriptorAllocator::CBVSRVUAV::Allocate();
 
 	const uint32_t bufferSize = (sizeof(XMFLOAT4X4) + 255) & ~255;
 
@@ -31,7 +31,7 @@ void ModelNode::CreateCBV()
 
 	D3D12Core::GraphicsDevice::device->CreateConstantBufferView(&cbvDesc, cbvCpuHandle);
 
-	_cbvModelMatrixGpuHandle = DescriptorAllocator::Resource::GetGPUHandle(cbvCpuHandle);
+	_cbvModelMatrixGpuHandle = DescriptorAllocator::CBVSRVUAV::GetGPUHandle(cbvCpuHandle);
 }
 
 void ModelNode::BindModelMatrixData(const ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)

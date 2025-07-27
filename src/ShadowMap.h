@@ -5,7 +5,7 @@
 class DirectionalShadowMap
 {
 public:
-	DirectionalShadowMap() {};
+	DirectionalShadowMap() = default;
 
 private:
 

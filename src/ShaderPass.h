@@ -11,7 +11,7 @@
 class ShaderPass : public IGUIComponent
 {
 public:
-	ShaderPass() {};
+	ShaderPass() = default;
 	ShaderPass(const std::string& name);
 
 	void AddShader(const std::filesystem::path& path, SHADERTYPE shaderType);

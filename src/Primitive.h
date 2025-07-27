@@ -8,7 +8,7 @@
 class Primitive
 {
 public:
-	Primitive() {};
+	Primitive() = default;
 	Primitive(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, int32_t materialIndex);
 	void BindPrimitiveData(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 

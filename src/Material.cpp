@@ -7,7 +7,7 @@ Material::Material()
 
 void Material::CreateCBV()
 {
-	D3D12_CPU_DESCRIPTOR_HANDLE cbvCpuHandle = DescriptorAllocator::Resource::Allocate();
+	D3D12_CPU_DESCRIPTOR_HANDLE cbvCpuHandle = DescriptorAllocator::CBVSRVUAV::Allocate();
 
 	const uint32_t bufferSize = (sizeof(PBRFactors) + 255) & ~255;
 
@@ -31,7 +31,7 @@ void Material::CreateCBV()
 
 	D3D12Core::GraphicsDevice::device->CreateConstantBufferView(&cbvDesc, cbvCpuHandle);
 
-	_cbvMaterialFactorsGpuHandle = DescriptorAllocator::Resource::GetGPUHandle(cbvCpuHandle);
+	_cbvMaterialFactorsGpuHandle = DescriptorAllocator::CBVSRVUAV::GetGPUHandle(cbvCpuHandle);
 }
 
 void Material::BindMaterialFactorsData(const ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)

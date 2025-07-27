@@ -11,7 +11,7 @@
 class PointLight : public IGUIComponent
 {
 public:
-	PointLight() {};
+	PointLight() = default;
 	PointLight(float x, float y, float z);
 	
 	void UpdateBuffer();

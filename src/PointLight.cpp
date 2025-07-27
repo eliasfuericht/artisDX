@@ -8,7 +8,7 @@ PointLight::PointLight(float x, float y, float z)
 
 void PointLight::CreateCBV()
 {
-	_cbvpLightCPUHandle = DescriptorAllocator::Resource::Allocate();
+	_cbvpLightCPUHandle = DescriptorAllocator::CBVSRVUAV::Allocate();
 
 	const uint32_t bufferSize = (sizeof(XMFLOAT3) + 255) & ~255;
 

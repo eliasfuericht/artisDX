@@ -94,7 +94,7 @@ void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList
 
 	UpdateSubresources(commandList.Get(), _textureResource.Get(), _textureUploadHeap.Get(), 0, 0, _mipCount, subresources.data());
 
-	_srvCpuHandle = DescriptorAllocator::Resource::Allocate();
+	_srvCpuHandle = DescriptorAllocator::CBVSRVUAV::Allocate();
 
 	// Describe and create a SRV for the texture.
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -108,7 +108,7 @@ void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList
 
 void Texture::BindTexture(const ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
-	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = DescriptorAllocator::Resource::GetGPUHandle(_srvCpuHandle);
+	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_srvCpuHandle);
 	switch (_textureType)
 	{
 	case TEXTURE_ALBEDO:

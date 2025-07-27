@@ -18,25 +18,34 @@ void DirectionalLight::BuildLightProjMatrix()
 {
 	XMVECTOR lightDir = XMVector3Normalize(XMLoadFloat3(&_direction));
 
-	XMVECTOR sceneCenter = XMVectorZero();
-	XMVECTOR lightPos = sceneCenter - XMVectorScale(lightDir, 100.0f);
+	XMVECTOR sceneCenter = XMLoadFloat3(&_sceneCenter);
+	XMVECTOR lightPos = sceneCenter - lightDir;
 
-	XMVECTOR up = XMVectorSet(0, 1, 0, 0);
+	XMVECTOR up = XMVectorSet(0, 1, 0, 1);
 	XMMATRIX lightView = XMMatrixLookAtLH(lightPos, sceneCenter, up);
 
-	float orthoWidth = 200.0f;
-	float orthoHeight = 200.0f;
-	float nearPlane = 0.1f;
-	float farPlane = 100.0f;
-	XMMATRIX lightProj = XMMatrixOrthographicLH(orthoWidth, orthoHeight, nearPlane, farPlane);
+	
+	XMMATRIX lightProj = XMMatrixOrthographicLH(_orthoWidth, _orthoHeight, _nearPlane, _farPlane);
 
 	XMMATRIX lightViewProj = lightProj * lightView;
 
-	XMStoreFloat4x4(&_lightViewProjMatrix, XMMatrixTranspose(lightViewProj));
+	XMStoreFloat4x4(&_lightViewProjMatrix, lightViewProj);
 }
 
 void DirectionalLight::CreateShadowMapResource(int32_t resolution)
 {
+	_vp.TopLeftX = 0;
+	_vp.TopLeftY = 0;
+	_vp.Width = static_cast<float>(resolution);
+	_vp.Height = static_cast<float>(resolution);
+	_vp.MinDepth = 0.0f;
+	_vp.MaxDepth = 1.0f;
+
+	_scissor.left = 0;
+	_scissor.top = 0;
+	_scissor.right = resolution;
+	_scissor.bottom = resolution;
+
 	D3D12_RESOURCE_DESC depthResourceDesc = {};
 	depthResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 	depthResourceDesc.Alignment = 0;
@@ -71,7 +80,7 @@ void DirectionalLight::CreateShadowMapResource(int32_t resolution)
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 	dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
 
-	_directionalShadowMapDSVCPUHandle = DescriptorAllocator::DepthStencil::Allocate();
+	_directionalShadowMapDSVCPUHandle = DescriptorAllocator::DSV::Allocate();
 	D3D12Core::GraphicsDevice::device->CreateDepthStencilView(_directionalShadowMapBuffer.Get(), &dsvDesc, _directionalShadowMapDSVCPUHandle);
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -80,13 +89,13 @@ void DirectionalLight::CreateShadowMapResource(int32_t resolution)
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.Texture2D.MipLevels = 1;
 
-	_directionalShadowMapSRVCPUHandle = DescriptorAllocator::Resource::Allocate();
+	_directionalShadowMapSRVCPUHandle = DescriptorAllocator::CBVSRVUAV::Allocate();
 	D3D12Core::GraphicsDevice::device->CreateShaderResourceView(_directionalShadowMapBuffer.Get(), &srvDesc, _directionalShadowMapSRVCPUHandle);
 }
 
 void DirectionalLight::CreateCBV(unsigned long long size, D3D12_CPU_DESCRIPTOR_HANDLE& handle, MSWRL::ComPtr<ID3D12Resource>& buffer, uint8_t*& mappedPtr)
 {
-	handle = DescriptorAllocator::Resource::Allocate();
+	handle = DescriptorAllocator::CBVSRVUAV::Allocate();
 
 	const uint32_t bufferSize = (size + 255) & ~255;
 
@@ -125,22 +134,28 @@ void DirectionalLight::DrawGUI()
 	ImGui::Begin(windowName.c_str());
 
 	ImGui::DragFloat3("Direction", &_direction.x, 0.01f);
+	ImGui::DragFloat("width", &_orthoWidth, 0.01f);
+	ImGui::DragFloat("height", &_orthoHeight, 0.01f);
+	ImGui::DragFloat("near", &_nearPlane, 0.01f);
+	ImGui::DragFloat("far", &_farPlane, 0.01f);
+	ImGui::DragFloat3("focuscenter", &_sceneCenter.x, 0.01f);
 
-	windowName = "ShadowMap";
-	ImGui::Begin(windowName.c_str());
-	auto gpuHandle = DescriptorAllocator::Resource::GetGPUHandle(_directionalShadowMapSRVCPUHandle);
-	ImTextureID texID = (ImTextureID)gpuHandle.ptr;
+	{
+		windowName = "ShadowMap";
+		ImGui::Begin(windowName.c_str());
+		auto gpuHandle = DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_directionalShadowMapSRVCPUHandle);
+		ImTextureID texID = (ImTextureID)gpuHandle.ptr;
 
-	ImGui::Image(
-		texID,
-		ImVec2(300, 300),
-		ImVec2(0, 0),
-		ImVec2(1, 1),
-		ImVec4(1, 1, 1, 1),
-		ImVec4(0, 0, 0, 0)
-	);
-	ImGui::End();
-
+		ImGui::Image(
+			texID,
+			ImVec2(300, 300),
+			ImVec2(0, 0),
+			ImVec2(1, 1),
+			ImVec4(1, 1, 1, 1),
+			ImVec4(0, 0, 0, 0)
+		);
+		ImGui::End();
+	}
 
 	ImGui::End();
 }

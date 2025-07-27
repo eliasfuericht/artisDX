@@ -7,7 +7,7 @@
 class AABB
 {
 public:
-	AABB() {};
+	AABB() = default;
 	AABB(const std::vector<Vertex>& vertices);
 
 	void ComputeFromVertices(const std::vector<Vertex>& vertices);

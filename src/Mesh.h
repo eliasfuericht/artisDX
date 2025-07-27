@@ -7,7 +7,7 @@
 class Mesh
 {
 public:
-	Mesh() {};
+	Mesh() = default;
 	Mesh(int32_t meshId, std::vector<Primitive> primitives);
 
 	int32_t _id = NOTOK;

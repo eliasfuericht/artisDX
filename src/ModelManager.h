@@ -10,7 +10,7 @@
 class ModelManager
 {
 public:
-	ModelManager() {};
+	ModelManager() = default;
 
 	void LoadModel(const std::filesystem::path& path);
 	void DrawAll(const ShaderPass& shaderPass, CommandContext& commandContext);

@@ -7,15 +7,15 @@ void Renderer::InitializeRenderer()
 	_mainLoopGraphicsContext.InitializeCommandContext(QUEUETYPE::QUEUE_GRAPHICS);
 	_mainLoopGraphicsContext.Finish(false);
 
-	DescriptorAllocator::Resource::InitializeDescriptorAllocator(NUM_MAX_RESOURCE_DESCRIPTORS);
-	DescriptorAllocator::RenderTarget::InitializeDescriptorAllocator(NUM_MAX_RTV_DESCRIPTORS);
-	DescriptorAllocator::DepthStencil::InitializeDescriptorAllocator(NUM_MAX_RTV_DESCRIPTORS);
+	DescriptorAllocator::CBVSRVUAV::InitializeDescriptorAllocator(NUM_MAX_RESOURCE_DESCRIPTORS);
+	DescriptorAllocator::RTV::InitializeDescriptorAllocator(NUM_MAX_RTV_DESCRIPTORS);
+	DescriptorAllocator::DSV::InitializeDescriptorAllocator(NUM_MAX_RTV_DESCRIPTORS);
 	DescriptorAllocator::Sampler::InitializeDescriptorAllocator(NUM_MAX_SAMPLER_DESCRIPTORS);
 }
 
 void Renderer::InitializeResources()
 {
-	CreateRTV();
+	CreateRenderTarget();
 	CreateDepthBuffer();
 
 	_depthPass = std::make_shared<ShaderPass>("DepthPass");
@@ -42,18 +42,16 @@ void Renderer::InitializeResources()
 
 	CreateConstantBuffers();
 
-	// MODELLOADING
-
 	//_modelManager.LoadModel("../assets/helmet.glb");
 	//_modelManager.LoadModel("../assets/helmets.glb");
 	//_modelManager.LoadModel("../assets/sponza.glb");
-	//_modelManager.LoadModel("../assets/brick_wall.glb");
+	_modelManager.LoadModel("../assets/brick_wall.glb");
 	_modelManager.LoadModel("../assets/DamagedHelmet.glb");
 	//_modelManager.LoadModel("../assets/apollo.glb");
 	//_modelManager.LoadModel("../assets/bistro.glb");
 }
 
-void Renderer::CreateRTV()
+void Renderer::CreateRenderTarget()
 {
 	_vp.TopLeftX = 0;
 	_vp.TopLeftY = 0;
@@ -95,11 +93,11 @@ void Renderer::CreateRTV()
 		IID_PPV_ARGS(&_viewportTexture)
 	));
 
-	_viewportRTV = DescriptorAllocator::RenderTarget::Allocate();
+	_viewportRTV = DescriptorAllocator::RTV::Allocate();
 	D3D12Core::GraphicsDevice::device->CreateRenderTargetView(_viewportTexture.Get(), nullptr, _viewportRTV);
 
-	_viewportSRV_CPU = DescriptorAllocator::Resource::Allocate();
-	_viewportSRV_GPU = DescriptorAllocator::Resource::GetGPUHandle(_viewportSRV_CPU);
+	_viewportSRV_CPU = DescriptorAllocator::CBVSRVUAV::Allocate();
+	_viewportSRV_GPU = DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_viewportSRV_CPU);
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -112,7 +110,6 @@ void Renderer::CreateRTV()
 
 void Renderer::CreateDepthBuffer()
 {
-	// Create Depth-Stencil Resource (Texture2D)
 	D3D12_RESOURCE_DESC depthResourceDesc = {};
 	depthResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 	depthResourceDesc.Alignment = 0;
@@ -147,7 +144,7 @@ void Renderer::CreateDepthBuffer()
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 	dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
 
-	_dsvCPUHandle = DescriptorAllocator::DepthStencil::Allocate();
+	_dsvCPUHandle = DescriptorAllocator::DSV::Allocate();
 
 	// Create the DSV for the depth-stencil buffer
 	D3D12Core::GraphicsDevice::device->CreateDepthStencilView(_depthStencilBuffer.Get(), &dsvDesc, _dsvCPUHandle);
@@ -155,13 +152,8 @@ void Renderer::CreateDepthBuffer()
 
 void Renderer::CreateConstantBuffers()
 {
-	D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
-	heapDesc.NumDescriptors = 1;
-	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-
-	ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_VPBufferHeap)));
-	ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_camPosBufferHeap)));
+	_VPBufferDescriptor = DescriptorAllocator::CBVSRVUAV::Allocate();
+	_camPosBufferDescriptor = DescriptorAllocator::CBVSRVUAV::Allocate();
 
 	D3D12_RESOURCE_DESC matrixBufferResourceDesc;
 	matrixBufferResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -191,8 +183,6 @@ void Renderer::CreateConstantBuffers()
 		nullptr,
 		IID_PPV_ARGS(&_VPBufferResource)));
 
-	_VPBufferHeap->SetName(L"VP Constant Buffer Upload Heap");
-
 	D3D12_RESOURCE_DESC float3BufferResourceDesc;
 	float3BufferResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 	float3BufferResourceDesc.Alignment = 0;
@@ -214,30 +204,23 @@ void Renderer::CreateConstantBuffers()
 		nullptr,
 		IID_PPV_ARGS(&_camPosBufferResource)));
 
-	_camPosBufferHeap->SetName(L"Cam Pos Constant Buffer Upload Heap");
-
-	D3D12_CPU_DESCRIPTOR_HANDLE vpCbvCpuHandle = DescriptorAllocator::Resource::Allocate();
 	D3D12_CONSTANT_BUFFER_VIEW_DESC vpCbvDesc = {};
 	vpCbvDesc.BufferLocation = _VPBufferResource->GetGPUVirtualAddress();
 	vpCbvDesc.SizeInBytes = (sizeof(XMFLOAT4X4) + 255) & ~255; // CB size is required to be 256-byte aligned.
-	D3D12Core::GraphicsDevice::device->CreateConstantBufferView(&vpCbvDesc, vpCbvCpuHandle);
-	_VPBufferDescriptor = vpCbvCpuHandle; // viewProjMatrix
+	D3D12Core::GraphicsDevice::device->CreateConstantBufferView(&vpCbvDesc, _VPBufferDescriptor);
 
-	D3D12_CPU_DESCRIPTOR_HANDLE viewCbvCpuHandle = DescriptorAllocator::Resource::Allocate();
 	D3D12_CONSTANT_BUFFER_VIEW_DESC viewCbvDesc = {};
 	viewCbvDesc.BufferLocation = _camPosBufferResource->GetGPUVirtualAddress();
 	viewCbvDesc.SizeInBytes = (sizeof(XMFLOAT3) + 255) & ~255; // CB size is required to be 256-byte aligned.
-	D3D12Core::GraphicsDevice::device->CreateConstantBufferView(&viewCbvDesc, viewCbvCpuHandle);
-	_camPosBufferDescriptor = viewCbvCpuHandle; // viewMatrix
+	D3D12Core::GraphicsDevice::device->CreateConstantBufferView(&viewCbvDesc, _camPosBufferDescriptor);
 
-	// Get viewport size from GUI::GetViewportSize()
 	// setup matrices
 	XMStoreFloat4x4(&_projectionMatrix,
 		XMMatrixPerspectiveFovLH(
 			XMConvertToRadians(45.0f),
 			static_cast<float>(GUI::viewportWidth) / static_cast<float>(GUI::viewportHeight),
 			0.1f,
-			100.0f)
+			1000.0f)
 	);
 
 	_camera = std::make_shared<Camera>(
@@ -321,18 +304,17 @@ void Renderer::UpdateBuffers(float dt)
 void Renderer::SetCommandlist()
 {
 	_mainLoopGraphicsContext.Reset();
-	_mainLoopGraphicsContext.SetPipelineState(_mainPass->_pipelineState);
 
-	// Set necessary state.
-	_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootSignature(_mainPass->_rootSignature.Get());
-	_mainLoopGraphicsContext.GetCommandList()->RSSetViewports(1, &_vp);
-	_mainLoopGraphicsContext.GetCommandList()->RSSetScissorRects(1, &_scissor);
-
-	ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::Resource::GetHeap(), DescriptorAllocator::Sampler::GetHeap() };
+	ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::CBVSRVUAV::GetHeap(), DescriptorAllocator::Sampler::GetHeap() };
 	_mainLoopGraphicsContext.GetCommandList()->SetDescriptorHeaps(_countof(heaps), heaps);
 
 	if (_depthPass->_usePass)
 	{
+		_mainLoopGraphicsContext.SetPipelineState(_depthPass->_pipelineState);
+		_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootSignature(_depthPass->_rootSignature.Get());
+		_mainLoopGraphicsContext.GetCommandList()->RSSetViewports(1, &_dLight->_vp);
+		_mainLoopGraphicsContext.GetCommandList()->RSSetScissorRects(1, &_dLight->_scissor);
+
 		D3D12_RESOURCE_BARRIER depthmapbarrier = CD3DX12_RESOURCE_BARRIER::Transition(
 			_dLight->_directionalShadowMapBuffer.Get(),
 			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
@@ -345,7 +327,7 @@ void Renderer::SetCommandlist()
 		_mainLoopGraphicsContext.GetCommandList()->ClearDepthStencilView(_dLight->_directionalShadowMapDSVCPUHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0.0f, 0, nullptr);
 
 		if (auto slot = _depthPass->GetRootParameterIndex("lightViewProjMatrixBuffer"))
-			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::Resource::GetGPUHandle(_dLight->_dLightLVPCPUHandle));
+			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_dLight->_dLightLVPCPUHandle));
 
 		_modelManager.DrawAll(*_depthPass, _mainLoopGraphicsContext);
 
@@ -374,17 +356,22 @@ void Renderer::SetCommandlist()
 
 	if (_mainPass->_usePass)
 	{
+		_mainLoopGraphicsContext.SetPipelineState(_mainPass->_pipelineState);
+		_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootSignature(_mainPass->_rootSignature.Get());
+		_mainLoopGraphicsContext.GetCommandList()->RSSetViewports(1, &_vp);
+		_mainLoopGraphicsContext.GetCommandList()->RSSetScissorRects(1, &_scissor);
+
 		if (auto slot = _mainPass->GetRootParameterIndex("viewProjMatrixBuffer"))
-			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::Resource::GetGPUHandle(_VPBufferDescriptor));
+			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_VPBufferDescriptor));
 
 		if (auto slot = _mainPass->GetRootParameterIndex("cameraBuffer"))
-			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::Resource::GetGPUHandle(_camPosBufferDescriptor));
+			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_camPosBufferDescriptor));
 
 		if (auto slot = _mainPass->GetRootParameterIndex("plightBuffer"))
-			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::Resource::GetGPUHandle(_pLight->_cbvpLightCPUHandle));
+			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_pLight->_cbvpLightCPUHandle));
 
 		if (auto slot = _mainPass->GetRootParameterIndex("dlightBuffer"))
-			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::Resource::GetGPUHandle(_dLight->_dLightDirectionCPUHandle));
+			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_dLight->_dLightDirectionCPUHandle));
 
 		if (auto slot = _mainPass->GetRootParameterIndex("mySampler"))
 			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::Sampler::GetGPUHandle(_samplerCPUHandle));
@@ -396,9 +383,14 @@ void Renderer::SetCommandlist()
 	{
 		_mainLoopGraphicsContext.SetPipelineState(_bbPass->_pipelineState);
 		_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootSignature(_bbPass->_rootSignature.Get());
+		_mainLoopGraphicsContext.GetCommandList()->RSSetViewports(1, &_vp);
+		_mainLoopGraphicsContext.GetCommandList()->RSSetScissorRects(1, &_scissor);
+
+		_mainLoopGraphicsContext.SetPipelineState(_bbPass->_pipelineState);
+		_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootSignature(_bbPass->_rootSignature.Get());
 
 		if (auto slot = _bbPass->GetRootParameterIndex("viewProjMatrixBuffer"))
-			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::Resource::GetGPUHandle(_VPBufferDescriptor));
+			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_VPBufferDescriptor));
 
 		_modelManager.DrawAllBoundingBoxes(*_bbPass, _mainLoopGraphicsContext);
 	}

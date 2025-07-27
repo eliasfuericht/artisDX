@@ -15,7 +15,7 @@ enum SHADERTYPE : int32_t
 class Shader
 {
 public:
-	Shader() {};
+	Shader() = default;
 	Shader(const std::filesystem::path&, SHADERTYPE shaderType);
 
 	SHADERTYPE _shaderType = SHADER_INVALID;

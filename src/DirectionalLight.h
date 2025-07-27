@@ -11,13 +11,18 @@
 class DirectionalLight : public IGUIComponent
 {
 public:
-	DirectionalLight() {};
+	DirectionalLight() = default;
 	DirectionalLight(float x, float y, float z, float enableShadowMap, int32_t shadowMapResolution);
 
 	void UpdateBuffer();
 	void DrawGUI();
 
 	XMFLOAT3 _direction = { 0, 0, 0 };
+	XMFLOAT3 _sceneCenter = { 0, 0, 0 };
+	float _orthoWidth = 5.0f;
+	float _orthoHeight = 5.0f;
+	float _nearPlane = 0.1f;
+	float _farPlane = 100.0f;
 
 	uint8_t* _mappedDirectionPtr = nullptr;
 	uint8_t* _mappedLVPPtr = nullptr;
@@ -33,6 +38,9 @@ public:
 	MSWRL::ComPtr<ID3D12Resource> _directionalShadowMapBuffer;
 	CD3DX12_CPU_DESCRIPTOR_HANDLE _directionalShadowMapDSVCPUHandle;
 	CD3DX12_CPU_DESCRIPTOR_HANDLE _directionalShadowMapSRVCPUHandle;
+
+	D3D12_VIEWPORT _vp;
+	D3D12_RECT _scissor;
 
 private:
 	void BuildLightProjMatrix();

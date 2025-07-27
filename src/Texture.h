@@ -24,7 +24,7 @@ public:
 	};
 
 public:
-	Texture() {};
+	Texture() = default;
 	Texture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, Texture::TEXTURETYPE texType, ScratchImage& scratchImage);
 	void BindTexture(const ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 

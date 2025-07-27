@@ -8,7 +8,7 @@
 class CommandContext
 {
 public:
-	CommandContext() {};
+	CommandContext() = default;
 
 	void InitializeCommandContext(QUEUETYPE queueType);
 
