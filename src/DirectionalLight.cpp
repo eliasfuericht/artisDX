@@ -2,7 +2,7 @@
 
 DirectionalLight::DirectionalLight(float x, float y, float z, float enableShadowMap, int32_t shadowMapResolution)
 {
-	_direction = XMFLOAT3(x, y, z);
+	_position = XMFLOAT3(x, y, z);
 
 	BuildLightProjMatrix();
 
@@ -16,18 +16,15 @@ DirectionalLight::DirectionalLight(float x, float y, float z, float enableShadow
 
 void DirectionalLight::BuildLightProjMatrix()
 {
-	XMVECTOR lightDir = XMVector3Normalize(XMLoadFloat3(&_direction));
-
 	XMVECTOR sceneCenter = XMLoadFloat3(&_sceneCenter);
-	XMVECTOR lightPos = sceneCenter - lightDir;
+	XMVECTOR lightPos = XMVector4Normalize(XMLoadFloat3(&_position));
 
-	XMVECTOR up = XMVectorSet(0, 1, 0, 1);
+	XMVECTOR up = XMVectorSet(0, 1, 0, 0);
 	XMMATRIX lightView = XMMatrixLookAtLH(lightPos, sceneCenter, up);
 
-	
 	XMMATRIX lightProj = XMMatrixOrthographicLH(_orthoWidth, _orthoHeight, _nearPlane, _farPlane);
 
-	XMMATRIX lightViewProj = lightProj * lightView;
+	XMMATRIX lightViewProj = lightView * lightProj;
 
 	XMStoreFloat4x4(&_lightViewProjMatrix, lightViewProj);
 }
@@ -122,7 +119,7 @@ void DirectionalLight::CreateCBV(unsigned long long size, D3D12_CPU_DESCRIPTOR_H
 
 void DirectionalLight::UpdateBuffer()
 {
-	memcpy(_mappedDirectionPtr, &_direction, sizeof(XMFLOAT3));
+	memcpy(_mappedDirectionPtr, &_position, sizeof(XMFLOAT3));
 
 	BuildLightProjMatrix();
 	memcpy(_mappedLVPPtr, &_lightViewProjMatrix, sizeof(XMFLOAT4X4));
@@ -133,7 +130,7 @@ void DirectionalLight::DrawGUI()
 	std::string windowName = "DirectionalLight";
 	ImGui::Begin(windowName.c_str());
 
-	ImGui::DragFloat3("Direction", &_direction.x, 0.01f);
+	ImGui::DragFloat3("Direction", &_position.x, 0.01f);
 	ImGui::DragFloat("width", &_orthoWidth, 0.01f);
 	ImGui::DragFloat("height", &_orthoHeight, 0.01f);
 	ImGui::DragFloat("near", &_nearPlane, 0.01f);

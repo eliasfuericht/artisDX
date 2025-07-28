@@ -17,12 +17,12 @@ public:
 	void UpdateBuffer();
 	void DrawGUI();
 
-	XMFLOAT3 _direction = { 0, 0, 0 };
+	XMFLOAT3 _position = { 0, 0, 0 };
 	XMFLOAT3 _sceneCenter = { 0, 0, 0 };
 	float _orthoWidth = 5.0f;
 	float _orthoHeight = 5.0f;
 	float _nearPlane = 0.1f;
-	float _farPlane = 100.0f;
+	float _farPlane = 1.0f;
 
 	uint8_t* _mappedDirectionPtr = nullptr;
 	uint8_t* _mappedLVPPtr = nullptr;

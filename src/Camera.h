@@ -35,4 +35,6 @@ private:
 	float _turnSpeed;
 
 	float _multiplier = 15.0f;
+	XMFLOAT3 _uiposition;
+
 };

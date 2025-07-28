@@ -4,6 +4,7 @@ Camera::Camera(XMVECTOR pos, XMVECTOR startUp, float startYaw, float startPitch,
 	: _position(pos), _worldUp(startUp), _yaw(startYaw), _pitch(startPitch), _moveSpeed(startMoveSpeed), _turnSpeed(startTurnSpeed)
 {
 	_front = XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f);
+	XMStoreFloat3(&_uiposition, _position);
 }
 
 void Camera::ConsumeMouse(float xChange, float yChange)
@@ -33,6 +34,8 @@ void Camera::ConsumeKey(bool* keys, float deltaTime)
 		multiplier = _multiplier;
 	}
 
+	_position = XMLoadFloat3(&_uiposition);
+
 	float velocity = _moveSpeed * deltaTime * multiplier;
 
 	if (keys[KEYCODES::KEYCODE_W])
@@ -59,6 +62,8 @@ void Camera::ConsumeKey(bool* keys, float deltaTime)
 	{
 		_position = XMVectorSubtract(_position, XMVectorScale(_up, velocity));
 	}
+
+	XMStoreFloat3(&_uiposition, _position);
 }
 
 void Camera::Update()
@@ -83,7 +88,8 @@ void Camera::DrawGUI()
 {
 	ImGui::Begin("Camera Window");
 
-	ImGui::DragFloat("Camera Speed", &_multiplier);
+	ImGui::InputFloat("Camera Speed", &_multiplier);
+	ImGui::DragFloat3("Position", &_uiposition.x, 0.01f);
 
 	ImGui::End();
 }
