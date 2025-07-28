@@ -45,7 +45,7 @@ void Renderer::InitializeResources()
 	//_modelManager.LoadModel("../assets/helmet.glb");
 	//_modelManager.LoadModel("../assets/helmets.glb");
 	//_modelManager.LoadModel("../assets/sponza.glb");
-	_modelManager.LoadModel("../assets/brick_wall.glb");
+	//_modelManager.LoadModel("../assets/brick_wall.glb");
 	_modelManager.LoadModel("../assets/DamagedHelmet.glb");
 	//_modelManager.LoadModel("../assets/apollo.glb");
 	//_modelManager.LoadModel("../assets/bistro.glb");

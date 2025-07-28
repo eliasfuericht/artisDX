@@ -3,6 +3,7 @@
 #include "pch.h"
 
 #include "CommandQueue.h"
+#include "DescriptorAllocator.h"
 #include "Window.h"
 
 namespace D3D12Core
@@ -31,28 +32,19 @@ namespace D3D12Core
 	namespace Swapchain
 	{
 		void InitializeSwapchain();
-		void CreateDepthBuffer(int32_t newWidth, int32_t newHeight);
 		void Resize(int32_t newWidth, int32_t newHeight);
 
 		extern uint32_t width;
 		extern uint32_t height;
-		extern bool windowResized;
 
 		extern MSWRL::ComPtr<IDXGISwapChain3> swapchain;
 		extern D3D12_VIEWPORT viewport;
 		extern D3D12_RECT surfaceSize;
 
-		extern uint32_t frameIndex;
-		extern uint32_t currentBuffer;
 		static const uint32_t backBufferCount = 2;
 
-		extern MSWRL::ComPtr<ID3D12DescriptorHeap> rtvHeap;
-		extern uint32_t rtvDescriptorSize;
 		extern D3D12_CPU_DESCRIPTOR_HANDLE rtvCPUHandle[backBufferCount];
 		extern MSWRL::ComPtr<ID3D12Resource> renderTargets[backBufferCount];
-
-		extern MSWRL::ComPtr<ID3D12Resource> depthStencilBuffer;
-		extern MSWRL::ComPtr<ID3D12DescriptorHeap> dsvHeap;
 	}
 
 	namespace ShaderCompiler

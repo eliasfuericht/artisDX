@@ -171,8 +171,8 @@ namespace GUI
 
 		GUI::guiContext.Reset();
 
-		UINT frameIndex = D3D12Core::Swapchain::frameIndex;
-		auto backbuffer = D3D12Core::Swapchain::renderTargets[frameIndex].Get();
+		uint32_t frameIndex = D3D12Core::Swapchain::swapchain->GetCurrentBackBufferIndex();
+		ID3D12Resource* backbuffer = D3D12Core::Swapchain::renderTargets[frameIndex].Get();
 
 		auto toRT = CD3DX12_RESOURCE_BARRIER::Transition(
 			backbuffer,
@@ -180,12 +180,10 @@ namespace GUI
 			D3D12_RESOURCE_STATE_RENDER_TARGET
 		);
 		GUI::guiContext.GetCommandList()->ResourceBarrier(1, &toRT);
-
-		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = D3D12Core::Swapchain::rtvHeap->GetCPUDescriptorHandleForHeapStart();
-		rtvHandle.ptr += frameIndex * D3D12Core::Swapchain::rtvDescriptorSize;
-		GUI::guiContext.GetCommandList()->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+		D3D12_CPU_DESCRIPTOR_HANDLE currentRTVHandle = D3D12Core::Swapchain::rtvCPUHandle[frameIndex];
+		GUI::guiContext.GetCommandList()->OMSetRenderTargets(1, &currentRTVHandle, FALSE, nullptr);
 		const float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
-		GUI::guiContext.GetCommandList()->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+		GUI::guiContext.GetCommandList()->ClearRenderTargetView(currentRTVHandle, clearColor, 0, nullptr);
 
 		ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::CBVSRVUAV::GetHeap() };
 		GUI::guiContext.GetCommandList()->SetDescriptorHeaps(_countof(heaps), heaps);

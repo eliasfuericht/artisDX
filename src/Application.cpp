@@ -79,7 +79,7 @@ void Application::Run()
 		Update(deltaTime);
 		_renderer.Render(deltaTime);
 		GUI::Draw();
-		Present();
+		D3D12Core::Swapchain::swapchain->Present(0, 0);
 	}
 
 	_renderer.Shutdown();
@@ -100,13 +100,6 @@ void Application::Update(float dt)
 		sprintf_s(title, "FPS: %.2f", _fps);
 		SetWindowTextA(Window::hWindow, title);
 	}
-}
-
-void Application::Present()
-{
-	D3D12Core::Swapchain::swapchain->Present(0, 0);
-
-	D3D12Core::Swapchain::frameIndex = D3D12Core::Swapchain::swapchain->GetCurrentBackBufferIndex();
 }
 
 Application::~Application()

@@ -25,7 +25,6 @@ public:
 private:
 	void InitializeApplication();
 	void Update(float dt);
-	void Present();
 
 	Renderer _renderer;
 
