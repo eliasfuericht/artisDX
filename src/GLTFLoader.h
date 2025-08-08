@@ -11,7 +11,7 @@ namespace GLTFLoader
 	void ExtractIndices(const fastgltf::Asset& asset, const fastgltf::Primitive& primitive, std::vector<uint32_t>& indices);
 	void ExtractVertices(const fastgltf::Asset& asset, const fastgltf::Primitive& primitive, std::vector<Vertex>& vertices, bool& generateTangents);
 	void GenerateTangents(std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
-	void GenerateBiTangents(std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
+	void GenerateBiTangents(std::vector<Vertex>& vertices);
 
 	ScratchImage ExtractImageFromBuffer(const fastgltf::Asset& asset, const fastgltf::Image& assetImage);
 

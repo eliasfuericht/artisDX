@@ -2,24 +2,24 @@
 
 Primitive::Primitive(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, int32_t materialIndex)
 {
-	_vertexCount = vertices.size();
-	uint32_t vertexBufferSize = vertices.size() * sizeof(Vertex);
+	_vertexCount = static_cast<uint32_t>(vertices.size());
+	auto vertexBufferSize = vertices.size() * sizeof(Vertex);
 	_vertexBuffer = CreateBuffer(vertexBufferSize, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
 	_vertexBuffer->SetName(L"VertexBufferResource");
 
-	_indexCount = indices.size();
-	uint32_t indexBufferSize = _indexCount * sizeof(uint32_t);
+	_indexCount = static_cast<uint32_t>(indices.size());
+	auto indexBufferSize = _indexCount * sizeof(uint32_t);
 	_indexBuffer = CreateBuffer(indexBufferSize, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
 	_indexBuffer->SetName(L"IndexBufferResource");
 
-	UploadBuffers(vertices, vertexBufferSize, indices, indexBufferSize);
+	UploadBuffers(vertices, static_cast<uint32_t>(vertexBufferSize), indices, static_cast<uint32_t>(indexBufferSize));
 
 	_vertexBufferView.BufferLocation = _vertexBuffer->GetGPUVirtualAddress();
-	_vertexBufferView.SizeInBytes = vertexBufferSize;
+	_vertexBufferView.SizeInBytes = static_cast<uint32_t>(vertexBufferSize);
 	_vertexBufferView.StrideInBytes = sizeof(Vertex);
 
 	_indexBufferView.BufferLocation = _indexBuffer->GetGPUVirtualAddress();
-	_indexBufferView.SizeInBytes = indexBufferSize;
+	_indexBufferView.SizeInBytes = static_cast<uint32_t>(indexBufferSize);
 	_indexBufferView.Format = DXGI_FORMAT_R32_UINT;
 
 	_materialIndex = materialIndex;

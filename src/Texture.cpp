@@ -45,14 +45,14 @@ Texture::Texture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, Texture::
 void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
 	const TexMetadata& metadata = _image.GetMetadata();
-	_mipCount = metadata.mipLevels;
+	_mipCount = static_cast<uint32_t>(metadata.mipLevels);
 
 	D3D12_RESOURCE_DESC textureDesc = {};
 	textureDesc.Dimension = static_cast<D3D12_RESOURCE_DIMENSION>(metadata.dimension);
-	textureDesc.Width = metadata.width;
-	textureDesc.Height = metadata.height;
-	textureDesc.DepthOrArraySize = metadata.arraySize;
-	textureDesc.MipLevels = _mipCount;
+	textureDesc.Width = static_cast<uint32_t>(metadata.width);
+	textureDesc.Height = static_cast<uint32_t>(metadata.height);
+	textureDesc.DepthOrArraySize = static_cast<uint16_t>(metadata.arraySize);
+	textureDesc.MipLevels = static_cast<uint16_t>(_mipCount);
 	textureDesc.Format = metadata.format;
 	textureDesc.SampleDesc.Count = 1;
 	textureDesc.SampleDesc.Quality = 0;

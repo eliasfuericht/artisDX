@@ -66,7 +66,21 @@ set(ARTISDX_SOURCES
 
 add_executable(${APPLICATION_NAME} ${ARTISDX_SOURCES} ${ARTISDX_HEADERS})
 
+target_compile_features(${APPLICATION_NAME} PRIVATE cxx_std_20)
+
 target_precompile_headers(${APPLICATION_NAME} PRIVATE src/pch.h)
+
+if (MSVC)
+    target_compile_options(${APPLICATION_NAME} PRIVATE
+        /std:c++20
+        /Zc:__cplusplus
+        /MP						# parallel build
+        /external:W0            # external headers → warning level 0
+        /external:anglebrackets # treat <…> as external
+        /W4						# warning level 4  (use /Wall for **all** warnings)
+        /WX						# treat warnings as errors
+    )
+endif()
 
 message(STATUS "Configuring external libraries...")
 

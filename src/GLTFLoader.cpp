@@ -9,7 +9,7 @@ namespace GLTFLoader
 	{
 		constexpr auto gltfOptions =
 			fastgltf::Options::DontRequireValidAssetMember | fastgltf::Options::AllowDouble
-			| fastgltf::Options::LoadGLBBuffers | fastgltf::Options::LoadExternalBuffers
+			| fastgltf::Options::LoadExternalBuffers
 			| fastgltf::Options::LoadExternalImages | fastgltf::Options::DecomposeNodeMatrices
 			| fastgltf::Options::None;
 
@@ -47,10 +47,10 @@ namespace GLTFLoader
 				if (generateTangents)
 					GenerateTangents(vertices, indices);
 
-				GenerateBiTangents(vertices, indices);
+				GenerateBiTangents(vertices);
 
-				int32_t materialIndex = primitive.materialIndex.value();
-				primitives.emplace_back(Primitive(vertices, indices, materialIndex));
+				auto materialIndex = primitive.materialIndex.value();
+				primitives.emplace_back(Primitive{vertices, indices, static_cast<int32_t>(materialIndex)});
 			}
 
 			meshes.emplace_back(Mesh(meshIdIncrementor++, primitives));
@@ -203,13 +203,13 @@ namespace GLTFLoader
 		for (size_t i = 0; i < asset->nodes.size(); ++i)
 		{
 			const fastgltf::Node& node = asset->nodes[i];
-			for (uint32_t childIndex : node.children) {
+			for (auto childIndex : node.children) {
 				modelNodes[i]._children.push_back(static_cast<int>(childIndex));
 				modelNodes[childIndex]._parentIndex = static_cast<int>(i);
 			}
 		}
 
-		model = std::make_shared<Model>(GLTFLoader::modelIdIncrementor++, modelName, commandList, meshes, std::move(textures), materials, modelNodes);
+		model = std::make_shared<Model>(modelIdIncrementor++, modelName, meshes, std::move(textures), materials, modelNodes);
 	}
 
 	ScratchImage GLTFLoader::ExtractImageFromBuffer(const fastgltf::Asset& asset, const fastgltf::Image& assetImage)
@@ -222,7 +222,6 @@ namespace GLTFLoader
 		{
 			const fastgltf::sources::BufferView& view = *bufferViewPtr;
 			const auto& bufferViewMeta = asset.bufferViews[view.bufferViewIndex];
-			const auto& textureName = bufferViewMeta.name;
 			const auto& buffer = asset.buffers[bufferViewMeta.bufferIndex];
 
 			if (auto arrayPtr = std::get_if<fastgltf::sources::Array>(&buffer.data))
@@ -412,7 +411,7 @@ namespace GLTFLoader
 		}
 	}
 
-	void GLTFLoader::GenerateBiTangents(std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices)
+	void GLTFLoader::GenerateBiTangents(std::vector<Vertex>& vertices)
 	{
 		for (size_t i = 0; i < vertices.size(); ++i) {
 			XMVECTOR N = XMLoadFloat3(&vertices[i].normal);

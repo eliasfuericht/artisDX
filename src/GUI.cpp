@@ -98,8 +98,8 @@ namespace GUI
 		viewportResized = false;
 		if (avail.x != viewportWidth || avail.y != viewportHeight)
 		{
-			viewportWidth = avail.x;
-			viewportHeight = avail.y;
+			viewportWidth = static_cast<int32_t>(avail.x);
+			viewportHeight = static_cast<int32_t>(avail.y);
 			viewportResized = true;
 		}
 

@@ -1,31 +1,35 @@
 // pch - PRECOMPILED HEADER
 #pragma once
 
-// Windows
-#include <windows.h> 
-#include <wrl.h>
-#include <filesystem>
-
-// DirectX
-#include <direct.h>
-#include <d3d12.h>
-#include <../build/_deps/d3dx12-src/include/directx/d3dx12.h>
-#include <d3dcompiler.h>
-#include <dxgi1_4.h>
-#include <DirectXMath.h>
-#include <dxcapi.h>
-#include <d3d12shader.h>
-
 // STL
+#include <string>
+#include <list>
+#include <vector>
 #include <memory>
+#include <tuple>
 #include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <chrono>
-#include <comdef.h> 
 #include <sstream>
 #include <numeric>
-#include <tuple>
+#include <filesystem>
+
+// Windows
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#include <wrl.h>
+#include <comdef.h>
+
+// DirectX core
+#include <d3d12.h>
+#include <dxgi1_4.h>
+#include <d3dcompiler.h>
+#include <d3d12shader.h>
+#include <DirectXMath.h>
+#include <dxcapi.h>
+#include <../build/_deps/d3dx12-src/include/directx/d3dx12.h>
 
 // GLM (not used directly but fastgltf depends on it - cant remove it)
 #include <../build/_deps/glm-src/glm/glm.hpp>
@@ -33,17 +37,17 @@
 
 // IMGUI
 #define IMGUI_DEFINE_MATH_OPERATORS
-#include "../build/_deps/imgui-src/imgui.h"
-#include "../build/_deps/imgui-src/backends/imgui_impl_win32.h"
+#include <../build/_deps/imgui-src/imgui.h>
+#include <../build/_deps/imgui-src/backends/imgui_impl_win32.h>
 
 // fastgltf 
-#include "../build/_deps/fastgltf-src/include/fastgltf/core.hpp"
-#include "../build/_deps/fastgltf-src/include/fastgltf/types.hpp"
-#include "../build/_deps/fastgltf-src/include/fastgltf/tools.hpp"
+#include <../build/_deps/fastgltf-src/include/fastgltf/core.hpp>
+#include <../build/_deps/fastgltf-src/include/fastgltf/types.hpp>
+#include <../build/_deps/fastgltf-src/include/fastgltf/tools.hpp>
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, uint32_t msg, WPARAM wParam, LPARAM lParam);
 
-#include "../build/_deps/imgui-src/backends/imgui_impl_dx12.h"
+#include <../build/_deps/imgui-src/backends/imgui_impl_dx12.h>
 
 using namespace DirectX;
 

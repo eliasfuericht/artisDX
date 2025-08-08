@@ -32,12 +32,12 @@ namespace D3D12Core
 			// iterate over all available adapters
 			for (uint32_t adapterIndex = 0; ; ++adapterIndex)
 			{
-				MSWRL::ComPtr<IDXGIAdapter1> adapter;
-				if (D3D12Core::GraphicsDevice::factory->EnumAdapters1(adapterIndex, &adapter) == DXGI_ERROR_NOT_FOUND)
+				MSWRL::ComPtr<IDXGIAdapter1> adapter1;
+				if (D3D12Core::GraphicsDevice::factory->EnumAdapters1(adapterIndex, &adapter1) == DXGI_ERROR_NOT_FOUND)
 					break;
 
 				DXGI_ADAPTER_DESC1 desc;
-				adapter->GetDesc1(&desc);
+				adapter1->GetDesc1(&desc);
 
 				// Skip software adapters
 				if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
@@ -48,7 +48,7 @@ namespace D3D12Core
 					if (desc.DedicatedVideoMemory > maxMemSize)
 					{
 						maxMemSize = desc.DedicatedVideoMemory;
-						D3D12Core::GraphicsDevice::adapter = adapter;
+						D3D12Core::GraphicsDevice::adapter = adapter1;
 					}
 				}
 			}
@@ -116,17 +116,17 @@ namespace D3D12Core
 			swapchainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 			swapchainDesc.SampleDesc.Count = 1;
 
-			MSWRL::ComPtr<IDXGISwapChain1> swapchain;
-			ThrowIfFailed(D3D12Core::GraphicsDevice::factory->CreateSwapChainForHwnd(CommandQueueManager::GetCommandQueue(QUEUETYPE::QUEUE_GRAPHICS)._commandQueue.Get(), Window::hWindow, &swapchainDesc, nullptr, nullptr, &swapchain), "Failed to create swapchain");
+			MSWRL::ComPtr<IDXGISwapChain1> swapchain1;
+			ThrowIfFailed(D3D12Core::GraphicsDevice::factory->CreateSwapChainForHwnd(CommandQueueManager::GetCommandQueue(QUEUETYPE::QUEUE_GRAPHICS)._commandQueue.Get(), Window::hWindow, &swapchainDesc, nullptr, nullptr, &swapchain1), "Failed to create swapchain");
 			
 			MSWRL::ComPtr<IDXGISwapChain3> swapchain3;
-			ThrowIfFailed(swapchain->QueryInterface(__uuidof(IDXGISwapChain3), (void**)&swapchain3), "QueryInterface for swapchain failed.");
+			ThrowIfFailed(swapchain1->QueryInterface(__uuidof(IDXGISwapChain3), (void**)&swapchain3), "QueryInterface for swapchain failed.");
 			D3D12Core::Swapchain::swapchain = swapchain3;
 
 			for (size_t i = 0; i < D3D12Core::Swapchain::backBufferCount; i++)
 			{
 				D3D12Core::Swapchain::rtvCPUHandle[i] = DescriptorAllocator::RTV::Allocate();
-				ThrowIfFailed(D3D12Core::Swapchain::swapchain->GetBuffer(i, IID_PPV_ARGS(&D3D12Core::Swapchain::renderTargets[i])));
+				ThrowIfFailed(D3D12Core::Swapchain::swapchain->GetBuffer(static_cast<uint32_t>(i), IID_PPV_ARGS(&D3D12Core::Swapchain::renderTargets[i])));
 				D3D12Core::GraphicsDevice::device->CreateRenderTargetView(D3D12Core::Swapchain::renderTargets[i].Get(), nullptr, rtvCPUHandle[i]);
 			}
 		}
@@ -147,7 +147,7 @@ namespace D3D12Core
 
 			for (size_t i = 0; i < D3D12Core::Swapchain::backBufferCount; ++i)
 			{
-				ThrowIfFailed(D3D12Core::Swapchain::swapchain->GetBuffer(i, IID_PPV_ARGS(&D3D12Core::Swapchain::renderTargets[i])));
+				ThrowIfFailed(D3D12Core::Swapchain::swapchain->GetBuffer(static_cast<uint32_t>(i), IID_PPV_ARGS(&D3D12Core::Swapchain::renderTargets[i])));
 				D3D12Core::GraphicsDevice::device->CreateRenderTargetView(D3D12Core::Swapchain::renderTargets[i].Get(), nullptr, D3D12Core::Swapchain::rtvCPUHandle[i]);
 			}
 

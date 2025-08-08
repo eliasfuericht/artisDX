@@ -24,11 +24,13 @@ void AABB::ComputeFromVertices(const std::vector<Vertex>& vertices)
 	_min = min;
 	_max = max;
 
+	/*
 	XMFLOAT3 position;
 	XMFLOAT3 normal;
 	XMFLOAT2 uv;
 	XMFLOAT4 tangent;
 	XMFLOAT3 bitangent;
+	*/
 
 	_aabbVertices = {
 			{{_min.x, _min.y, _min.z}, {0, 1, 0}, {0, 0}, {1, 0, 0, 1}, {1, 0, 0}},
@@ -50,21 +52,21 @@ void AABB::ComputeFromVertices(const std::vector<Vertex>& vertices)
 		2, 3, 6, 3, 7, 6  
 	};
 
-	uint32_t vertexBufferSize = _aabbVertices.size() * sizeof(Vertex);
+	auto vertexBufferSize = _aabbVertices.size() * sizeof(Vertex);
 	_vertexBuffer = CreateBuffer(vertexBufferSize, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
 
-	_indicesSize = _aabbIndices.size();
-	uint32_t indexBufferSize = _indicesSize * sizeof(uint32_t);
+	_indicesSize = static_cast<uint32_t>(_aabbIndices.size());
+	auto indexBufferSize = _indicesSize * sizeof(uint32_t);
 	_indexBuffer = CreateBuffer(indexBufferSize, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
 
 	UploadBuffers();
 
 	_vertexBufferView.BufferLocation = _vertexBuffer->GetGPUVirtualAddress();
-	_vertexBufferView.SizeInBytes = vertexBufferSize;
+	_vertexBufferView.SizeInBytes = static_cast<uint32_t>(vertexBufferSize);
 	_vertexBufferView.StrideInBytes = sizeof(Vertex);
 
 	_indexBufferView.BufferLocation = _indexBuffer->GetGPUVirtualAddress();
-	_indexBufferView.SizeInBytes = indexBufferSize;
+	_indexBufferView.SizeInBytes = static_cast<uint32_t>(indexBufferSize);
 	_indexBufferView.Format = DXGI_FORMAT_R32_UINT;
 }
 
@@ -149,13 +151,13 @@ void AABB::UploadBuffers()
 	// Map vertex buffer and copy data
 	void* mappedData = nullptr;
 	_vertexBuffer->Map(0, nullptr, &mappedData);
-	uint32_t vertexBufferSize = _aabbVertices.size() * sizeof(Vertex);
+	auto vertexBufferSize = _aabbVertices.size() * sizeof(Vertex);
 	memcpy(mappedData, _aabbVertices.data(), vertexBufferSize);
 	_vertexBuffer->Unmap(0, nullptr);
 
 	// Map index buffer and copy data
 	_indexBuffer->Map(0, nullptr, &mappedData);
-	uint32_t indexBufferSize = _aabbIndices.size() * sizeof(uint32_t);
+	auto indexBufferSize = _aabbIndices.size() * sizeof(uint32_t);
 
 	memcpy(mappedData, _aabbIndices.data(), indexBufferSize);
 	_indexBuffer->Unmap(0, nullptr);

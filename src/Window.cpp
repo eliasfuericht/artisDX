@@ -36,7 +36,7 @@ LRESULT CALLBACK WindowProcess(HWND hwnd, uint32_t msg, WPARAM wParam, LPARAM lP
 
 			if (abs(deltaX) > 0 || abs(deltaY) > 0)
 			{
-				Window::HandleMouse(-deltaX, deltaY);
+				Window::HandleMouse(static_cast<float>(-deltaX), static_cast<float>(deltaY));
 
 				ClientToScreen(hwnd, &center);
 				SetCursorPos(center.x, center.y);
@@ -46,12 +46,12 @@ LRESULT CALLBACK WindowProcess(HWND hwnd, uint32_t msg, WPARAM wParam, LPARAM lP
 		}
 		case WM_KEYDOWN:
 		{
-			Window::HandleKeys(wParam, WM_KEYDOWN);
+			Window::HandleKeys(static_cast<int32_t>(wParam), WM_KEYDOWN);
 			break;
 		}
 		case WM_KEYUP:
 		{
-			Window::HandleKeys(wParam, WM_KEYUP);
+			Window::HandleKeys(static_cast<int32_t>(wParam), WM_KEYUP);
 			break;
 		}
 		case WM_DESTROY:

@@ -34,7 +34,7 @@ void ShaderPass::GenerateGraphicsRootSignature()
 		for (size_t i = 0; i < shaderDesc.BoundResources; i++)
 		{
 			D3D12_SHADER_INPUT_BIND_DESC bindDesc{};
-			shaderReflection->GetResourceBindingDesc(i, &bindDesc);
+			shaderReflection->GetResourceBindingDesc(static_cast<uint32_t>(i), &bindDesc);
 
 			_bindingMap.try_emplace(bindDesc.Name, incrementor++);
 
@@ -104,7 +104,7 @@ void ShaderPass::GenerateGraphicsRootSignature()
 
 	D3D12_VERSIONED_ROOT_SIGNATURE_DESC rootDesc{};
 	rootDesc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
-	rootDesc.Desc_1_1.NumParameters = rootParams.size();
+	rootDesc.Desc_1_1.NumParameters = static_cast<uint32_t>(rootParams.size());
 	rootDesc.Desc_1_1.pParameters = rootParams.data();
 	rootDesc.Desc_1_1.NumStaticSamplers = 0;
 	rootDesc.Desc_1_1.pStaticSamplers = nullptr;

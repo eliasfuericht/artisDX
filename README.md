@@ -15,6 +15,10 @@
 1. Run the `setup.bat` script in the root directory.
 2. Navigate to the `build` folder and open the project in your preferred IDE.
 
+## Requirements:
+- Windows SDK 10.0.26100
+- DirectXShader Compiler 
+
 ### Manual Build
    ```bash
    mkdir build

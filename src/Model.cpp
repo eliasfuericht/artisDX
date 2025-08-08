@@ -1,6 +1,6 @@
 #include "Model.h"
 
-Model::Model(int32_t id, std::string name, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, std::vector<Mesh> meshes, std::vector<Texture> textures, std::vector<Material> materials, std::vector<ModelNode> modelNodes)
+Model::Model(int32_t id, std::string name, std::vector<Mesh> meshes, std::vector<Texture> textures, std::vector<Material> materials, std::vector<ModelNode> modelNodes)
 {
 	_id = id;
 	_name = name;
@@ -87,7 +87,7 @@ void Model::ComputeGlobalTransforms()
 	{
 		if (_modelNodes[i]._parentIndex == -1) 
 		{
-			ComputeNodeGlobal(i, XMLoadFloat4x4(&_globalMatrix));
+			ComputeNodeGlobal(static_cast<int32_t>(i), XMLoadFloat4x4(&_globalMatrix));
 		}
 	}
 

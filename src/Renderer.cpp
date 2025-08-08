@@ -44,9 +44,9 @@ void Renderer::InitializeResources()
 
 	//_modelManager.LoadModel("../assets/helmet.glb");
 	//_modelManager.LoadModel("../assets/helmets.glb");
-	//_modelManager.LoadModel("../assets/sponza.glb");
-	_modelManager.LoadModel("../assets/brick_wall.glb");
-	_modelManager.LoadModel("../assets/DamagedHelmet.glb");
+	_modelManager.LoadModel("../assets/sponza.glb");
+	//_modelManager.LoadModel("../assets/brick_wall.glb");
+	//_modelManager.LoadModel("../assets/DamagedHelmet.glb");
 	//_modelManager.LoadModel("../assets/apollo.glb");
 	//_modelManager.LoadModel("../assets/bistro.glb");
 }
@@ -324,7 +324,7 @@ void Renderer::SetCommandlist()
 		_mainLoopGraphicsContext.GetCommandList()->ResourceBarrier(1, &depthmapbarrier);
 
 		_mainLoopGraphicsContext.GetCommandList()->OMSetRenderTargets(0, nullptr, false, &_dLight->_directionalShadowMapDSVCPUHandle);
-		_mainLoopGraphicsContext.GetCommandList()->ClearDepthStencilView(_dLight->_directionalShadowMapDSVCPUHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0.0f, 0, nullptr);
+		_mainLoopGraphicsContext.GetCommandList()->ClearDepthStencilView(_dLight->_directionalShadowMapDSVCPUHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, '\0', 0, nullptr);
 
 		if (auto slot = _depthPass->GetRootParameterIndex("lightViewProjMatrixBuffer"))
 			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_dLight->_dLightLVPCPUHandle));
@@ -350,7 +350,7 @@ void Renderer::SetCommandlist()
 	_mainLoopGraphicsContext.GetCommandList()->OMSetRenderTargets(1, &_viewportRTV, false, &_dsvCPUHandle);
 
 	// Clear the render target.
-	_mainLoopGraphicsContext.GetCommandList()->ClearDepthStencilView(_dsvCPUHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0.0f, 0, nullptr);
+	_mainLoopGraphicsContext.GetCommandList()->ClearDepthStencilView(_dsvCPUHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, '\0', 0, nullptr);
 	const float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
 	_mainLoopGraphicsContext.GetCommandList()->ClearRenderTargetView(_viewportRTV, clearColor, 0, nullptr);
 
