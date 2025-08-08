@@ -11,7 +11,6 @@ DirectionalLight::DirectionalLight(float x, float y, float z, float enableShadow
 
 	CreateCBV(sizeof(XMFLOAT3), _dLightDirectionCPUHandle, _dLightDirectionBufferResource, _mappedDirectionPtr);
 	CreateCBV(sizeof(XMFLOAT4X4), _dLightLVPCPUHandle, _dLightLVPBufferResource, _mappedLVPPtr);
-	CreateCBV(sizeof(XMFLOAT4X4), _dLightSTCPUHandle, _dLightSTBufferResource, _mappedSTPtr);
 }
 
 void DirectionalLight::BuildLightProjMatrix()

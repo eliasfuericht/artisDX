@@ -20,7 +20,7 @@ struct StageInput
 struct StageOutput
 {
     float4 outPosition : SV_Position;
-    float3 outWorldPos : TEXCOORD0;
+    float3 outWorldPos : WORLDPOS;
     float2 outUV : TEXCOORD1;
     float3 outNormal : NORMAL;
     float4 outTangent : TANGENT;

@@ -27,8 +27,8 @@ void Renderer::InitializeResources()
 
 	_mainPass = std::make_shared<ShaderPass>("Main");
 	_mainPass->RegisterWithGUI();
-	_mainPass->AddShader("../shaders/pbr_vert.hlsl", SHADERTYPE::SHADER_VERTEX);
-	_mainPass->AddShader("../shaders/pbr_frag.hlsl", SHADERTYPE::SHADER_PIXEL);
+	_mainPass->AddShader("../shaders/basic_vert.hlsl", SHADERTYPE::SHADER_VERTEX);
+	_mainPass->AddShader("../shaders/basic_frag.hlsl", SHADERTYPE::SHADER_PIXEL);
 	_mainPass->GenerateGraphicsRootSignature();
 	_mainPass->GeneratePipeLineStateObjectForwardPass(D3D12_FILL_MODE_SOLID, D3D12_CULL_MODE_BACK, true);
 
@@ -206,12 +206,12 @@ void Renderer::CreateConstantBuffers()
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC vpCbvDesc = {};
 	vpCbvDesc.BufferLocation = _VPBufferResource->GetGPUVirtualAddress();
-	vpCbvDesc.SizeInBytes = (sizeof(XMFLOAT4X4) + 255) & ~255; // CB size is required to be 256-byte aligned.
+	vpCbvDesc.SizeInBytes = (sizeof(XMFLOAT4X4) + 255) & ~255;
 	D3D12Core::GraphicsDevice::device->CreateConstantBufferView(&vpCbvDesc, _VPBufferDescriptor);
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC viewCbvDesc = {};
 	viewCbvDesc.BufferLocation = _camPosBufferResource->GetGPUVirtualAddress();
-	viewCbvDesc.SizeInBytes = (sizeof(XMFLOAT3) + 255) & ~255; // CB size is required to be 256-byte aligned.
+	viewCbvDesc.SizeInBytes = (sizeof(XMFLOAT3) + 255) & ~255;
 	D3D12Core::GraphicsDevice::device->CreateConstantBufferView(&viewCbvDesc, _camPosBufferDescriptor);
 
 	// setup matrices
@@ -247,7 +247,7 @@ void Renderer::CreateConstantBuffers()
 	_pLight = std::make_shared<PointLight>(1.0f, 1.0f, 1.0f);
 	//_pLight->RegisterWithGUI();
 
-	_dLight = std::make_shared<DirectionalLight>(1.0f, 1.0f, 1.0f, true, 2048);
+	_dLight = std::make_shared<DirectionalLight>(1.0f, 1.0f, 1.0f, true, 4096);
 	_dLight->RegisterWithGUI();
 
 	_samplerCPUHandle = DescriptorAllocator::Sampler::Allocate();
@@ -375,6 +375,15 @@ void Renderer::SetCommandlist()
 
 		if (auto slot = _mainPass->GetRootParameterIndex("mySampler"))
 			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::Sampler::GetGPUHandle(_samplerCPUHandle));
+		
+		if (_depthPass->_usePass)
+		{
+			if (auto slot = _mainPass->GetRootParameterIndex("dShadowMap"))
+				_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_dLight->_directionalShadowMapSRVCPUHandle));
+
+			if (auto slot = _mainPass->GetRootParameterIndex("lightViewProjMatrixBuffer"))
+				_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_dLight->_dLightLVPCPUHandle));
+		}
 
 		_modelManager.DrawAll(*_mainPass, _mainLoopGraphicsContext);
 	}

@@ -24,14 +24,6 @@ void AABB::ComputeFromVertices(const std::vector<Vertex>& vertices)
 	_min = min;
 	_max = max;
 
-	/*
-	XMFLOAT3 position;
-	XMFLOAT3 normal;
-	XMFLOAT2 uv;
-	XMFLOAT4 tangent;
-	XMFLOAT3 bitangent;
-	*/
-
 	_aabbVertices = {
 			{{_min.x, _min.y, _min.z}, {0, 1, 0}, {0, 0}, {1, 0, 0, 1}, {1, 0, 0}},
 			{{_min.x, _max.y, _min.z}, {0, 1, 0}, {1, 1}, {1, 0, 0, 1}, {1, 0, 0}},

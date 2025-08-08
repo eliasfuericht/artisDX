@@ -108,7 +108,6 @@ target_link_libraries(
   d3d12    
   dxgi        
   dxguid      
-  D3DCompiler 
   dxcompiler
   DearImGui
   fastgltf

@@ -19,21 +19,19 @@ public:
 
 	XMFLOAT3 _position = { 0, 0, 0 };
 	XMFLOAT3 _sceneCenter = { 0, 0, 0 };
-	float _orthoWidth = 5.0f;
-	float _orthoHeight = 5.0f;
-	float _nearPlane = 0.1f;
-	float _farPlane = 1.0f;
+	float _orthoWidth = 7.5f;
+	float _orthoHeight = 7.5f;
+	float _nearPlane = -5.0f;
+	float _farPlane = 20.0f;
 
 	uint8_t* _mappedDirectionPtr = nullptr;
 	uint8_t* _mappedLVPPtr = nullptr;
-	uint8_t* _mappedSTPtr = nullptr;
 
 	D3D12_CPU_DESCRIPTOR_HANDLE _dLightDirectionCPUHandle = {};
 	D3D12_CPU_DESCRIPTOR_HANDLE _dLightLVPCPUHandle = {};
 	D3D12_CPU_DESCRIPTOR_HANDLE _dLightSTCPUHandle = {};
 
 	XMFLOAT4X4 _lightViewProjMatrix;
-	XMFLOAT4X4 _shadowTransformMatrix;
 
 	MSWRL::ComPtr<ID3D12Resource> _directionalShadowMapBuffer;
 	CD3DX12_CPU_DESCRIPTOR_HANDLE _directionalShadowMapDSVCPUHandle;

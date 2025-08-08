@@ -22,7 +22,7 @@ cbuffer dlightBuffer : register(b4)
 struct StageInput
 {
     float4 inPosition : SV_Position;
-    float3 inWorldPos : TEXCOORD0;
+    float3 inWorldPos : WORLDPOS;
     float2 inUV : TEXCOORD1;
     float3 inNormal : NORMAL;
     float4 inTangent : TANGENT;
