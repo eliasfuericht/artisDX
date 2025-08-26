@@ -19,6 +19,7 @@ void Renderer::InitializeResources()
 	CreateDepthBuffer();
 
 	_depthPass = std::make_shared<ShaderPass>("DepthPass");
+	_depthPass->_usePass = false;
 	_depthPass->RegisterWithGUI();
 	_depthPass->AddShader("../shaders/dShadowMap_vert.hlsl", SHADERTYPE::SHADER_VERTEX);
 	_depthPass->AddShader("../shaders/dShadowMap_frag.hlsl", SHADERTYPE::SHADER_PIXEL);
@@ -27,8 +28,8 @@ void Renderer::InitializeResources()
 
 	_mainPass = std::make_shared<ShaderPass>("Main");
 	_mainPass->RegisterWithGUI();
-	_mainPass->AddShader("../shaders/basic_vert.hlsl", SHADERTYPE::SHADER_VERTEX);
-	_mainPass->AddShader("../shaders/basic_frag.hlsl", SHADERTYPE::SHADER_PIXEL);
+	_mainPass->AddShader("../shaders/pbr_vert.hlsl", SHADERTYPE::SHADER_VERTEX);
+	_mainPass->AddShader("../shaders/pbr_frag.hlsl", SHADERTYPE::SHADER_PIXEL);
 	_mainPass->GenerateGraphicsRootSignature();
 	_mainPass->GeneratePipeLineStateObjectForwardPass(D3D12_FILL_MODE_SOLID, D3D12_CULL_MODE_BACK, true);
 
