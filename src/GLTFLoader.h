@@ -6,7 +6,7 @@
 
 namespace GLTFLoader
 {
-	void ConstructModelFromFile(const std::filesystem::path& path, std::shared_ptr<Model>& model, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
+	bool ConstructModelFromFile(const std::filesystem::path& path, std::shared_ptr<Model>& model, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 
 	void ExtractIndices(const fastgltf::Asset& asset, const fastgltf::Primitive& primitive, std::vector<uint32_t>& indices);
 	void ExtractVertices(const fastgltf::Asset& asset, const fastgltf::Primitive& primitive, std::vector<Vertex>& vertices, bool& generateTangents);

@@ -5,7 +5,7 @@ namespace GLTFLoader
 	fastgltf::Parser parser;
 	int32_t modelIdIncrementor = 0;
 
-	void GLTFLoader::ConstructModelFromFile(const std::filesystem::path& path, std::shared_ptr<Model>& model, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
+	bool GLTFLoader::ConstructModelFromFile(const std::filesystem::path& path, std::shared_ptr<Model>& model, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 	{
 		constexpr auto gltfOptions =
 			fastgltf::Options::DontRequireValidAssetMember | fastgltf::Options::AllowDouble
@@ -15,8 +15,8 @@ namespace GLTFLoader
 
 		auto data = fastgltf::MappedGltfFile::FromPath(path);
 		if (!bool(data)) {
-			std::cerr << "Failed to open glTF file: " << fastgltf::getErrorMessage(data.error()) << '\n';
-			return;
+			std::cerr << "Failed to open glTF file at " << path << ". Error: " << fastgltf::getErrorMessage(data.error()) << '\n';
+			return false;
 		}
 
 		auto asset = GLTFLoader::parser.loadGltf(data.get(), path.parent_path(), gltfOptions);
@@ -24,7 +24,7 @@ namespace GLTFLoader
 		{
 			// Some error occurred while reading the buffer, parsing the JSON, or validating the data.
 			std::cout << "Error occurred while parsing " << path << '\n';
-			return;
+			return false;
 		}
 
 		std::string modelName = path.filename().string();
@@ -210,6 +210,8 @@ namespace GLTFLoader
 		}
 
 		model = std::make_shared<Model>(modelIdIncrementor++, modelName, meshes, std::move(textures), materials, modelNodes);
+
+		return true;
 	}
 
 	ScratchImage GLTFLoader::ExtractImageFromBuffer(const fastgltf::Asset& asset, const fastgltf::Image& assetImage)

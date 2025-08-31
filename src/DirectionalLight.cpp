@@ -13,7 +13,7 @@ DirectionalLight::DirectionalLight(float x, float y, float z, float enableShadow
 	CreateCBV(sizeof(XMFLOAT4X4), _dLightLVPCPUHandle, _dLightLVPBufferResource, _mappedLVPPtr);
 }
 
-void DirectionalLight::BuildLightProjMatrix()
+void DirectionalLight::BuildLightProjMatrix() 
 {
 	XMVECTOR sceneCenter = XMLoadFloat3(&_sceneCenter);
 	XMVECTOR lightPos = XMVector4Normalize(XMLoadFloat3(&_position));

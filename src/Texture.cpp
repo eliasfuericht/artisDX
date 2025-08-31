@@ -4,23 +4,6 @@ Texture::Texture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, Texture::
 {
 	_image = std::move(scratchImage);
 
-	// convert image if needed
-	if (_image.GetMetadata().format != DXGI_FORMAT_R8G8B8A8_UNORM)
-	{
-		ScratchImage converted;
-		ThrowIfFailed(Convert(
-			_image.GetImages(),
-			_image.GetImageCount(),
-			_image.GetMetadata(),
-			DXGI_FORMAT_R8G8B8A8_UNORM,
-			TEX_FILTER_DEFAULT,
-			TEX_THRESHOLD_DEFAULT,
-			converted
-		));
-
-		_image = std::move(converted);
-	}
-
 	// dont generate mipmaps for fallbacktextures -> throws error
 	if (_image.GetMetadata().width > 1 && _image.GetMetadata().height > 1)
 	{

@@ -7,11 +7,14 @@ void ModelManager::LoadModel(const std::filesystem::path& path)
 
 	std::shared_ptr<Model> model;
 
-	GLTFLoader::ConstructModelFromFile(path, model, uploadContext.GetCommandList());
+	bool constructedModel = GLTFLoader::ConstructModelFromFile(path, model, uploadContext.GetCommandList());
 
-	model->RegisterWithGUI();
+	if (constructedModel)
+	{
+		model->RegisterWithGUI();
 
-	_models.push_back(std::move(model));
+		_models.push_back(std::move(model));
+	}
 
 	uploadContext.Finish(true);
 }

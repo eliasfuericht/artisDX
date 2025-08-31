@@ -114,6 +114,12 @@ target_link_libraries(
   DirectXTex
 )
  
+add_custom_command(TARGET ${APPLICATION_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_SOURCE_DIR}/extern/dlls/dxcompiler.dll
+        $<TARGET_FILE_DIR:${APPLICATION_NAME}>
+)
+
 ### Organization in VS ###
 file(GLOB_RECURSE ARTISDX_SHADERS "shaders/*.hlsl")
 set_source_files_properties(${ARTISDX_SHADERS} PROPERTIES HEADER_FILE_ONLY TRUE)
