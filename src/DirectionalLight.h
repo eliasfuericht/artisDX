@@ -21,8 +21,8 @@ public:
 	XMFLOAT3 _sceneCenter = { 0, 0, 0 };
 	float _orthoWidth = 7.5f;
 	float _orthoHeight = 7.5f;
-	float _nearPlane = -5.0f;
-	float _farPlane = 20.0f;
+	float _nearPlane = 0.1f;
+	float _farPlane = 50.0f;
 
 	uint8_t* _mappedDirectionPtr = nullptr;
 	uint8_t* _mappedLVPPtr = nullptr;

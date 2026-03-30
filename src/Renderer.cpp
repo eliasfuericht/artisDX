@@ -237,13 +237,11 @@ void Renderer::CreateConstantBuffers()
 	D3D12_RANGE readRange = { 0, 0 };
 	ThrowIfFailed(_VPBufferResource->Map(0, &readRange, reinterpret_cast<void**>(&_mappedVPBuffer)));
 	memcpy(_mappedVPBuffer, &_viewProjectionMatrix, sizeof(XMFLOAT4X4));
-	_VPBufferResource->Unmap(0, nullptr);
 
 	XMFLOAT3 camPos;
 	XMStoreFloat3(&camPos, _camera->_position);
 	ThrowIfFailed(_camPosBufferResource->Map(0, &readRange, reinterpret_cast<void**>(&_mappedCamPosBuffer)));
 	memcpy(_mappedCamPosBuffer, &camPos, sizeof(XMFLOAT3));
-	_camPosBufferResource->Unmap(0, nullptr);
 
 	_pLight = std::make_shared<PointLight>(1.0f, 1.0f, 1.0f);
 	//_pLight->RegisterWithGUI();

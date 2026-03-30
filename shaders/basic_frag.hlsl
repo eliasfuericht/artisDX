@@ -23,11 +23,18 @@ StageOutput main(StageInput stageInput)
     float4 albedo = albedoTexture.Sample(mySampler, stageInput.inUV);
     
     float3 projCoords = stageInput.inFragPosLightSpace.xyz / stageInput.inFragPosLightSpace.w;
-    projCoords = projCoords * 0.5f + 0.5f; 
-    
-    float depthFromShadowMap = dShadowMap.Sample(mySampler, projCoords.xy).r;
-    
-    float shadow = projCoords.z > depthFromShadowMap ? 1.0f : 0.0f;
+    projCoords = projCoords * 0.5f + 0.5f;
+    projCoords.y = 1.0f - projCoords.y;
+
+    float shadow = 0.0f;
+    if (projCoords.x >= 0.0f && projCoords.x <= 1.0f &&
+        projCoords.y >= 0.0f && projCoords.y <= 1.0f &&
+        projCoords.z >= 0.0f && projCoords.z <= 1.0f)
+    {
+        float depthFromShadowMap = dShadowMap.Sample(mySampler, projCoords.xy).r;
+        float bias = 0.005f;
+        shadow = projCoords.z - bias > depthFromShadowMap ? 1.0f : 0.0f;
+    }
     
     stageOutput.outFragColor = float4(albedo.rgb * (1.0f - shadow + 0.2f), albedo.a);
     return stageOutput;
