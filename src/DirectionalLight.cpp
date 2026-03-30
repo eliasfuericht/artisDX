@@ -16,8 +16,7 @@ DirectionalLight::DirectionalLight(float x, float y, float z, float enableShadow
 void DirectionalLight::BuildLightProjMatrix() 
 {
 	XMVECTOR sceneCenter = XMLoadFloat3(&_sceneCenter);
-	XMVECTOR lightDir = XMVector3Normalize(XMLoadFloat3(&_position));
-	XMVECTOR lightPos = sceneCenter + lightDir * 20.0f;
+	XMVECTOR lightPos = XMVector4Normalize(XMLoadFloat3(&_position));
 
 	XMVECTOR up = XMVectorSet(0, 1, 0, 0);
 	XMMATRIX lightView = XMMatrixLookAtLH(lightPos, sceneCenter, up);
