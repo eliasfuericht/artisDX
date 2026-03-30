@@ -23,11 +23,19 @@ StageOutput main(StageInput stageInput)
     float4 albedo = albedoTexture.Sample(mySampler, stageInput.inUV);
     
     float3 projCoords = stageInput.inFragPosLightSpace.xyz / stageInput.inFragPosLightSpace.w;
-    projCoords = projCoords * 0.5f + 0.5f; 
-    
-    float depthFromShadowMap = dShadowMap.Sample(mySampler, projCoords.xy).r;
-    
-    float shadow = projCoords.z > depthFromShadowMap ? 1.0f : 0.0f;
+
+    // Convert XY from NDC [-1,1] to UV [0,1], flip Y for DX texture coords
+    float2 shadowUV;
+    shadowUV.x = projCoords.x * 0.5f + 0.5f;
+    shadowUV.y = projCoords.y * -0.5f + 0.5f;
+
+    // Z is already [0,1] in DirectX orthographic projection - don't remap
+    float currentDepth = projCoords.z;
+
+    float depthFromShadowMap = dShadowMap.Sample(mySampler, shadowUV).r;
+
+    float bias = 0.001f;
+    float shadow = (currentDepth - bias) > depthFromShadowMap ? 1.0f : 0.0f;
     
     stageOutput.outFragColor = float4(albedo.rgb * (1.0f - shadow + 0.2f), albedo.a);
     return stageOutput;
