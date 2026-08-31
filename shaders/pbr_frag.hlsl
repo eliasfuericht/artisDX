@@ -4,6 +4,7 @@ Texture2D metallicRoughnessTexture  : register(t1);
 Texture2D normalTexture             : register(t2);
 Texture2D emissiveTexture           : register(t3);
 Texture2D occlusionTexture          : register(t4);
+Texture2D dShadowMap : register(t5);
 
 SamplerState mySampler              : register(s0);
 
@@ -37,6 +38,7 @@ struct StageInput
     float3 inNormal : NORMAL;
     float4 inTangent : TANGENT;
     float3 inBiTangent : BITANGENT;
+    float4 inFragPosLightSpace : FRAGPOSLIGHTSPACE;
 };
 
 struct StageOutput
@@ -82,6 +84,32 @@ float GeometrySmith(float3 N, float3 V, float3 L, float roughness)
 float3 FresnelSchlick(float cosTheta, float3 F0)
 {
     return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
+}
+
+float PercentageCloserFiltering(Texture2D shadowMap, SamplerState shadowSampler, float2 locationUV, float currentDepth, int samplingDistance)
+{
+    uint width, height;
+    shadowMap.GetDimensions(width, height);
+
+    float2 texelSize = 1.0f / float2(width, height);
+    float bias = 0.001f;
+    float shadow = 0.0f;
+    int sampleCount = 0;
+
+    for (int y = -samplingDistance; y <= samplingDistance; ++y)
+    {
+        for (int x = -samplingDistance; x <= samplingDistance; ++x)
+        {
+            float2 sampleUV = locationUV + float2(x, y) * texelSize;
+
+            float sampledDepth = shadowMap.SampleLevel(shadowSampler, sampleUV, 0).r;
+
+            shadow += currentDepth - bias > sampledDepth ? 1.0f : 0.0f;
+            sampleCount++;
+        }
+    }
+
+    return shadow / float(sampleCount);
 }
 
 StageOutput main(StageInput stageInput)
@@ -138,6 +166,20 @@ StageOutput main(StageInput stageInput)
     
     color = pow(color, 1.0 / 2.2);
     
-    stageOutput.outFragColor = float4(color, albedoalpha.a);
+    float3 projCoords = stageInput.inFragPosLightSpace.xyz / stageInput.inFragPosLightSpace.w;
+
+    // Convert XY from NDC [-1,1] to UV [0,1], flip Y for DX texture coords
+    float2 shadowUV;
+    shadowUV.x = projCoords.x * 0.5f + 0.5f;
+    shadowUV.y = projCoords.y * -0.5f + 0.5f;
+
+    // Z is already [0,1] in DirectX orthographic projection - don't remap
+    float currentDepth = projCoords.z;
+
+    float shadow = PercentageCloserFiltering(dShadowMap, mySampler, shadowUV, currentDepth, 5);
+    
+    float shadowFactor = lerp(1.0f, 0.5f, shadow);
+    
+    stageOutput.outFragColor = float4(color.rgb * shadowFactor, albedoalpha.a);
     return stageOutput;
 }
