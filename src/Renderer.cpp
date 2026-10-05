@@ -219,7 +219,8 @@ void Renderer::CreateConstantBuffers()
 	XMStoreFloat4x4(&_projectionMatrix,
 		XMMatrixPerspectiveFovLH(
 			XMConvertToRadians(45.0f),
-			static_cast<float>(GUI::viewportWidth) / static_cast<float>(GUI::viewportHeight),
+			(GUI::viewportWidth > 0 && GUI::viewportHeight > 0)
+				? static_cast<float>(GUI::viewportWidth) / static_cast<float>(GUI::viewportHeight) : 1.0f,
 			0.1f,
 			1000.0f)
 	);
@@ -264,13 +265,14 @@ void Renderer::CreateConstantBuffers()
 void Renderer::Render(float dt)
 {
 	UpdateBuffers(dt);
+	_modelManager.ComputeGlobalTransforms();
 	SetCommandlist();
 	GUI::SetViewportTextureHandle(_viewportSRV_GPU);
 }
 
 void Renderer::UpdateBuffers(float dt)
 {
-	if (GUI::viewportResized)
+	if (GUI::viewportResized && GUI::viewportWidth > 0 && GUI::viewportHeight > 0)
 	{
 		XMStoreFloat4x4(&_projectionMatrix,
 			XMMatrixPerspectiveFovLH(

@@ -306,7 +306,11 @@ namespace
     {
         Renderer renderer;
         renderer.InitializeRenderer();
+        GUI::viewportWidth = GUI::viewportHeight = 0;
         renderer.CreateConstantBuffers();
+        Require(std::isfinite(renderer._projectionMatrix._11) && renderer._projectionMatrix._11 > 0 &&
+            renderer._projectionMatrix._11 == renderer._projectionMatrix._22, "Invalid startup extent must use a valid square projection");
+        GUI::viewportWidth = GUI::viewportHeight = ViewportSize;
         renderer.UpdateBuffers(0);
         Window::keys[KEYCODE_W] = true;
         for (int frame = 1; frame <= 16; ++frame)
@@ -336,6 +340,52 @@ namespace
         for (const auto& row : after.m)
             for (float value : row)
                 Require(std::isfinite(value), "Updated view-projection values must be finite");
+        // Exercise the production panel-size conversion, not only direct integer globals.
+        const auto lastProjection = renderer._projectionMatrix;
+        const auto lastVP = ReadConstant<XMFLOAT4X4>(renderer._VPBufferResource.Get());
+        for (const ImVec2 extent : {ImVec2(0, 96), ImVec2(96, 0), ImVec2(-5, 96), ImVec2(96, -5),
+            ImVec2(0.5f, 96), ImVec2(96, 0.5f), ImVec2(0, 0)})
+        {
+            GUI::SetViewportExtent(extent);
+            Require(GUI::viewportWidth == 192 && GUI::viewportHeight == 96 && !GUI::viewportResized,
+                "Invalid/subpixel panel extent must retain the last valid integer dimensions");
+            renderer.UpdateBuffers(0);
+            const auto matrix = ReadConstant<XMFLOAT4X4>(renderer._VPBufferResource.Get());
+            Require(std::memcmp(&matrix, &lastVP, sizeof(matrix)) == 0 &&
+                std::memcmp(&renderer._projectionMatrix, &lastProjection, sizeof(lastProjection)) == 0,
+                "Invalid panel extent must retain the last valid projection/VP");
+        }
+        GUI::SetViewportExtent(ImVec2(192.9f, 96.9f));
+        Require(!GUI::viewportResized, "Unchanged integer extent must not repeatedly update projection");
+        // Renderer must also defend against invalid dimensions supplied outside the GUI helper.
+        for (const auto extent : {std::pair{0, 96}, std::pair{96, 0}, std::pair{-1, 96}, std::pair{96, -1}})
+        {
+            GUI::viewportWidth = extent.first;
+            GUI::viewportHeight = extent.second;
+            GUI::viewportResized = true;
+            renderer.UpdateBuffers(0);
+            const auto matrix = ReadConstant<XMFLOAT4X4>(renderer._VPBufferResource.Get());
+            Require(std::memcmp(&matrix, &lastVP, sizeof(matrix)) == 0, "Invalid renderer extents must not change projection");
+        }
+        Window::keys[KEYCODE_W] = true;
+        renderer.UpdateBuffers(0.1f);
+        Window::keys[KEYCODE_W] = false;
+        const auto moved = ReadConstant<XMFLOAT4X4>(renderer._VPBufferResource.Get());
+        Require(std::memcmp(&moved, &lastVP, sizeof(moved)) != 0, "Camera must keep updating while panel extent is invalid");
+        for (const auto& row : moved.m)
+            for (const float value : row) Require(std::isfinite(value), "Collapsed-panel camera updates must stay finite");
+        for (const ImVec2 extent : {ImVec2(192, 96), ImVec2(96, 192), ImVec2(1, 1), ImVec2(96, 96)})
+        {
+            GUI::SetViewportExtent(extent);
+            renderer.UpdateBuffers(0);
+            const auto matrix = ReadConstant<XMFLOAT4X4>(renderer._VPBufferResource.Get());
+            const auto expected = XMMatrixPerspectiveFovLH(XMConvertToRadians(45.0f), extent.x / extent.y, 0.1f, 100.0f);
+            XMFLOAT4X4 expectedVP;
+            XMStoreFloat4x4(&expectedVP, XMLoadFloat4x4(&renderer._viewMatrix) * expected);
+            for (int row = 0; row < 4; ++row)
+                for (int col = 0; col < 4; ++col)
+                    Near(matrix.m[row][col], expectedVP.m[row][col], "Restored panel must upload the correct wide/tall VP");
+        }
         renderer.Shutdown();
     }
 
@@ -707,6 +757,39 @@ namespace
         renderer.Shutdown();
     }
 
+    void TestTransforms(const std::filesystem::path& scene)
+    {
+        Renderer renderer;
+        renderer.InitializeRenderer();
+        renderer.InitializeResources(scene);
+        renderer._mainPass->_usePass = renderer._depthPass->_usePass = renderer._bbPass->_usePass = false;
+        renderer.Render(0);
+        Require(DrawnPixels(CaptureTexture(renderer._viewportTexture.Get())) == 0,
+            "All disabled passes must leave the color target clear");
+
+        // No ordinary drawing pass has run: boxes must already have the authored hierarchy pose.
+        renderer._bbPass->_usePass = true;
+        renderer.Render(0);
+        const auto boxesOnly = CaptureTexture(renderer._viewportTexture.Get());
+        Require(DrawnPixels(boxesOnly) > 10, "Boxes must have valid transforms before Main or Depth ever draws");
+        for (int cycle = 0; cycle < 3; ++cycle)
+            for (unsigned mask = 0; mask < 8; ++mask)
+            {
+                renderer._mainPass->_usePass = (mask & 1) != 0;
+                renderer._depthPass->_usePass = (mask & 2) != 0;
+                renderer._bbPass->_usePass = (mask & 4) != 0;
+                renderer.Render(0);
+                const auto pixels = CaptureTexture(renderer._viewportTexture.Get());
+                if (mask == 4)
+                    Require(pixels == boxesOnly, "Ordinary passes and unchanged frames must preserve the boxes-only pose");
+                if (mask == 1)
+                    Require(DrawnPixels(pixels) > 100, "Re-enabled Main must draw the authored pose");
+                if (mask == 0 || mask == 2)
+                    Require(DrawnPixels(pixels) == 0, "All-off and depth-only rendering must leave the color target clear");
+            }
+        renderer.Shutdown();
+    }
+
     void TestRender(const std::filesystem::path& scene)
     {
         Renderer renderer;
@@ -764,6 +847,7 @@ namespace
             else if (test == "render") TestRender(argument);
             else if (test == "retirement") TestRetirement(argument);
             else if (test == "resource-uses") TestResourceUses(argument);
+            else if (test == "transforms") TestTransforms(argument);
             else throw std::runtime_error("Unknown GPU test: " + std::string(test));
             // Only the isolated negative case expects a deliberately closed-list error.
             CheckGpuDiagnostics(test == "commands" ? std::optional{D3D12_MESSAGE_ID_COMMAND_LIST_CLOSED} : std::nullopt);

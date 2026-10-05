@@ -13,8 +13,6 @@ Model::Model(int32_t id, std::string name, std::vector<Mesh> meshes, std::vector
 
 void Model::DrawModel(const ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
-	ComputeGlobalTransforms();
-
 	for (ModelNode& node : _modelNodes)
 	{
 		if (node._meshIndex == -1)

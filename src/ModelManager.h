@@ -14,6 +14,7 @@ public:
 
 	void ClearModels();
 	void LoadModel(const std::filesystem::path& path);
+	void ComputeGlobalTransforms();
 	void DrawAll(const ShaderPass& shaderPass, CommandContext& commandContext);
 	void DrawAllBoundingBoxes(const ShaderPass& shaderPass, CommandContext& commandContext);
 

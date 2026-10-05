@@ -20,6 +20,12 @@ void ModelManager::LoadModel(const std::filesystem::path& path)
 	uploadContext.Finish(true);
 }
 
+void ModelManager::ComputeGlobalTransforms()
+{
+	for (auto& model : _models)
+		model->ComputeGlobalTransforms();
+}
+
 void ModelManager::DrawAll(const ShaderPass& shaderPass, CommandContext& commandContext)
 {
 	for (auto& model : _models)

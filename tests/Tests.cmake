@@ -65,3 +65,5 @@ artisDX_add_test(command_submission_completion gpu completion)
 artisDX_add_test(submission_resource_retirement gpu retirement "${PROJECT_SOURCE_DIR}/tests/fixtures/regression.glb")
 
 artisDX_add_test(fixed_pass_resource_uses gpu resource-uses "${PROJECT_SOURCE_DIR}/tests/fixtures/regression.glb")
+
+artisDX_add_test(pass_independent_transforms gpu transforms "${PROJECT_SOURCE_DIR}/tests/fixtures/regression.glb")

@@ -21,6 +21,7 @@ namespace GUI
 	void SetViewportTextureHandle(D3D12_GPU_DESCRIPTOR_HANDLE viewportTextureHandle);
 	void SetGUIComponentData();
 	void SetViewportComponentData();
+	void SetViewportExtent(const ImVec2& available);
 
 	void End();
 

@@ -1,4 +1,5 @@
 #include "GUI.h"
+#include <cmath>
 
 namespace GUI
 {
@@ -95,15 +96,27 @@ namespace GUI
 				ShowCursor(false);
 		}
 
-		viewportResized = false;
-		if (avail.x != viewportWidth || avail.y != viewportHeight)
-		{
-			viewportWidth = static_cast<int32_t>(avail.x);
-			viewportHeight = static_cast<int32_t>(avail.y);
-			viewportResized = true;
-		}
+		SetViewportExtent(avail);
 
 		ImGui::End();
+	}
+
+	void SetViewportExtent(const ImVec2& available)
+	{
+		viewportResized = false;
+		// Keep conversion defined, then validate the integer dimensions we consume.
+		if (!std::isfinite(available.x) || !std::isfinite(available.y) || available.x <= 0 || available.y <= 0 ||
+			available.x >= static_cast<float>(INT32_MAX) || available.y >= static_cast<float>(INT32_MAX))
+			return;
+		const int32_t width = static_cast<int32_t>(available.x);
+		const int32_t height = static_cast<int32_t>(available.y);
+		if (width <= 0 || height <= 0) return;
+		if (width != viewportWidth || height != viewportHeight)
+		{
+			viewportWidth = width;
+			viewportHeight = height;
+			viewportResized = true;
+		}
 	}
 
 	void SetGUIComponentData()

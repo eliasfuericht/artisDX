@@ -18,6 +18,7 @@ public:
 	Model() = default;
 	Model(int32_t id, std::string name, std::vector<Mesh> meshes, std::vector<Texture> textures, std::vector<Material> materials, std::vector<ModelNode> modelNodes);
 
+	void ComputeGlobalTransforms();
 	void DrawModel(const ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 	void DrawModelBoundingBox(const ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 
@@ -25,7 +26,6 @@ public:
 	int32_t GetID();
 
 private:
-	void ComputeGlobalTransforms();
 	void ComputeNodeGlobal(int32_t nodeIndex, const XMMATRIX& parentMatrix);
 
 	int32_t _id = NOTOK;
