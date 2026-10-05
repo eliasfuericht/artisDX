@@ -24,12 +24,18 @@ namespace
 
     MSWRL::ComPtr<ID3D12InfoQueue> infoQueue;
 
-    void InitializeGpu(bool hardware)
+    void InitializeGpu(bool hardware, bool validateShaders)
     {
         MSWRL::ComPtr<ID3D12Debug> debug;
         if (FAILED(D3D12GetDebugInterface(IID_PPV_ARGS(&debug))))
             throw GpuUnavailable("D3D12 debug layer unavailable. Install Windows Graphics Tools and rerun the GPU tests.");
         debug->EnableDebugLayer();
+        if (validateShaders)
+        {
+            MSWRL::ComPtr<ID3D12Debug1> validation;
+            ThrowIfFailed(debug.As(&validation));
+            validation->SetEnableGPUBasedValidation(true);
+        }
         ThrowIfFailed(CreateDXGIFactory2(0, IID_PPV_ARGS(&D3D12Core::GraphicsDevice::factory)));
         if (hardware)
         {
@@ -344,6 +350,32 @@ namespace
         return enabled;
     }
 
+    void TestTextureUpload(const std::filesystem::path& scene)
+    {
+        Renderer renderer;
+        renderer.InitializeRenderer();
+        // Isolate uploads from the known startup allocator-reset defect.
+        CommandQueueManager::GetCommandQueue(QUEUE_GRAPHICS).WaitForFence();
+        renderer.InitializeResources(scene);
+        CheckGpuDiagnostics();
+        renderer.Render(0);
+        const auto pixels = CaptureTexture(renderer._viewportTexture.Get());
+        Require(DrawnPixels(pixels) > 100, "Copy-queue uploads must be usable by the first graphics draw");
+
+        // The textured quad's center must retain the fixture's red albedo.
+        XMFLOAT3 projectedCenter;
+        XMStoreFloat3(&projectedCenter, XMVector3TransformCoord(XMVectorSet(-0.9f, 0, 0, 1),
+            XMLoadFloat4x4(&renderer._viewProjectionMatrix)));
+        const int x = static_cast<int>((projectedCenter.x * 0.5f + 0.5f) * ViewportSize);
+        const int y = static_cast<int>((0.5f - projectedCenter.y * 0.5f) * ViewportSize);
+        Require(x >= 0 && x < static_cast<int>(ViewportSize) && y >= 0 && y < static_cast<int>(ViewportSize),
+            "The uploaded texture's test pixel must be inside the viewport");
+        const auto offset = (static_cast<size_t>(y) * ViewportSize + x) * 4;
+        Require(pixels[offset] > pixels[offset + 1] + 10 && pixels[offset] > pixels[offset + 2] + 10,
+            "The first graphics draw must sample the uploaded red albedo texture");
+        renderer.Shutdown();
+    }
+
     void TestRender(const std::filesystem::path& scene)
     {
         Renderer renderer;
@@ -388,11 +420,12 @@ namespace
         try
         {
             ComApartment apartment;
-            InitializeGpu(hardware);
+            InitializeGpu(hardware, test == "upload");
             if (test == "constants") TestConstants();
             else if (test == "bounds") TestBounds();
             else if (test == "rtv") TestRtvDescriptors();
             else if (test == "pipeline") TestPipeline(argument);
+            else if (test == "upload") TestTextureUpload(argument);
             else if (test == "render") TestRender(argument);
             else throw std::runtime_error("Unknown GPU test: " + std::string(test));
             CheckGpuDiagnostics();

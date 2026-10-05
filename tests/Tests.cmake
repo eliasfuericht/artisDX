@@ -52,6 +52,7 @@ artisDX_add_test(rtv_descriptor_spacing gpu rtv)
 foreach(pass pbr dShadowMap bb basic normal)
     artisDX_add_test(pipeline_${pass} gpu pipeline ${pass})
 endforeach()
+artisDX_add_test(texture_copy_upload gpu upload "${PROJECT_SOURCE_DIR}/tests/fixtures/regression.glb")
 artisDX_add_test(glb_render_smoke gpu render "${PROJECT_SOURCE_DIR}/tests/fixtures/regression.glb")
 # Keep known defects visible: this is a normal failing test, not WILL_FAIL or DISABLED.
 set_property(TEST glb_render_smoke PROPERTY LABELS "gpu;known_failure")
