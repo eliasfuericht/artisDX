@@ -2,6 +2,7 @@
 #include "TestSupport.h"
 #include "Renderer.h"
 
+#include <array>
 #include <cstring>
 
 namespace Testing
@@ -195,6 +196,53 @@ namespace
         return pixels;
     }
 
+    void TestRtvDescriptors()
+    {
+        auto* device = D3D12Core::GraphicsDevice::device.Get();
+        const auto rtvIncrement = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+        const auto resourceIncrement = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        std::cout << "Descriptor increments: RTV=" << rtvIncrement << ", CBV/SRV/UAV=" << resourceIncrement << '\n';
+
+        DescriptorAllocator::RTV::InitializeDescriptorAllocator(3);
+        Require(DescriptorAllocator::RTV::descriptorSize == rtvIncrement,
+            "RTV allocator must use the device's RTV increment");
+        const auto heapStart = DescriptorAllocator::RTV::GetHeap()->GetCPUDescriptorHandleForHeapStart();
+
+        CommandQueueManager::InitializeCommandQueueManager();
+        CommandContext context;
+        context.InitializeCommandContext(QUEUE_GRAPHICS);
+        const float colors[3][4] = {{1, 0, 0, 1}, {0, 1, 0, 1}, {0, 0, 1, 1}};
+        std::array<MSWRL::ComPtr<ID3D12Resource>, 3> textures;
+        const CD3DX12_HEAP_PROPERTIES heap(D3D12_HEAP_TYPE_DEFAULT);
+        auto description = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, 8, 8, 1, 1);
+        description.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+        for (size_t i = 0; i < textures.size(); ++i)
+        {
+            const auto handle = DescriptorAllocator::RTV::Allocate();
+            Require(handle.ptr == heapStart.ptr + i * rtvIncrement,
+                "Each RTV must occupy the next slot at the device's RTV stride");
+            D3D12_CLEAR_VALUE clear{};
+            clear.Format = description.Format;
+            std::memcpy(clear.Color, colors[i], sizeof(clear.Color));
+            ThrowIfFailed(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &description,
+                D3D12_RESOURCE_STATE_RENDER_TARGET, &clear, IID_PPV_ARGS(&textures[i])));
+            device->CreateRenderTargetView(textures[i].Get(), nullptr, handle);
+            context.GetCommandList()->ClearRenderTargetView(handle, colors[i], 0, nullptr);
+            const D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(textures[i].Get(),
+                D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            context.GetCommandList()->ResourceBarrier(1, &barrier);
+        }
+        context.Finish(true);
+        for (size_t i = 0; i < textures.size(); ++i)
+        {
+            const auto pixels = CaptureTexture(textures[i].Get());
+            for (size_t pixel = 0; pixel < pixels.size(); pixel += 4)
+                for (size_t channel = 0; channel < 4; ++channel)
+                    Require(pixels[pixel + channel] == static_cast<uint8_t>(colors[i][channel] * 255),
+                        "Clearing each RTV must write its own texture without overwriting another target");
+        }
+    }
+
     size_t DrawnPixels(const std::vector<uint8_t>& pixels)
     {
         size_t drawn = 0;
@@ -343,6 +391,7 @@ namespace
             InitializeGpu(hardware);
             if (test == "constants") TestConstants();
             else if (test == "bounds") TestBounds();
+            else if (test == "rtv") TestRtvDescriptors();
             else if (test == "pipeline") TestPipeline(argument);
             else if (test == "render") TestRender(argument);
             else throw std::runtime_error("Unknown GPU test: " + std::string(test));

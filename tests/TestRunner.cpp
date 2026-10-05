@@ -5,7 +5,7 @@ int Testing::RunTestCase(int argc, char** argv)
 {
     try
     {
-        Require(argc >= 2, "Usage: artisDX.exe -test-case camera|tangents|shader|constants|bounds|pipeline|render [arguments] [--hardware]");
+        Require(argc >= 2, "Usage: artisDX.exe -test-case camera|tangents|shader|constants|bounds|rtv|pipeline|render [arguments] [--hardware]");
         const std::string_view test(argv[1]);
         if (test == "camera" || test == "tangents")
         {
@@ -23,7 +23,7 @@ int Testing::RunTestCase(int argc, char** argv)
         else
         {
             const bool needsArgument = test == "pipeline" || test == "render";
-            Require(needsArgument || test == "constants" || test == "bounds", "Unknown test: " + std::string(test));
+            Require(needsArgument || test == "constants" || test == "bounds" || test == "rtv", "Unknown test: " + std::string(test));
             const bool hardware = std::string_view(argv[argc - 1]) == "--hardware";
             Require(argc == 2 + static_cast<int>(needsArgument) + static_cast<int>(hardware),
                 "GPU tests take a pass/scene argument where required, followed by optional --hardware");

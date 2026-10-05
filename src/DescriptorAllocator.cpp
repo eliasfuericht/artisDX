@@ -59,7 +59,7 @@ namespace DescriptorAllocator
 		void InitializeDescriptorAllocator(uint32_t numDescriptors)
 		{
 			DescriptorAllocator::RTV::capacity = numDescriptors;
-			DescriptorAllocator::RTV::descriptorSize = D3D12Core::GraphicsDevice::device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+			DescriptorAllocator::RTV::descriptorSize = D3D12Core::GraphicsDevice::device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
 			D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
 			heapDesc.NumDescriptors = numDescriptors;

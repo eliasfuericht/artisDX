@@ -48,6 +48,7 @@ endforeach()
 
 artisDX_add_test(camera_constants_readback gpu constants)
 artisDX_add_test(bounding_box_transforms gpu bounds)
+artisDX_add_test(rtv_descriptor_spacing gpu rtv)
 foreach(pass pbr dShadowMap bb basic normal)
     artisDX_add_test(pipeline_${pass} gpu pipeline ${pass})
 endforeach()
