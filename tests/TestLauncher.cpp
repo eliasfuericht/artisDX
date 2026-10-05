@@ -25,8 +25,9 @@ namespace
         PROCESS_INFORMATION process{};
         std::cout << "Running artisDX regression tests (" << std::filesystem::path(ARTISDX_TEST_CONFIG).string()
             << ")...\n" << std::flush;
+        // Inherit the console as well as its handles, so results stay visible.
         if (!CreateProcessW(ARTISDX_CTEST_PATH, commandLine.data(), nullptr, nullptr, true,
-            CREATE_NO_WINDOW, nullptr, ARTISDX_TEST_BUILD_DIR, &startup, &process))
+            0, nullptr, ARTISDX_TEST_BUILD_DIR, &startup, &process))
         {
             std::cerr << "Could not start the test runner (Windows error " << GetLastError() << ").\n";
             return 1;

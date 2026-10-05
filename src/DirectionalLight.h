@@ -14,7 +14,7 @@ public:
 	DirectionalLight() = default;
 	DirectionalLight(float x, float y, float z, float enableShadowMap, int32_t shadowMapResolution);
 
-	void UpdateBuffer();
+	void UpdateBuffer(bool shadowsEnabled);
 	void DrawGUI();
 
 	XMFLOAT3 _position = { 0, 0, 0 };

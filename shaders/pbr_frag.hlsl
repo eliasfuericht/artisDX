@@ -21,6 +21,7 @@ cbuffer plightBuffer : register(b3)
 cbuffer dlightBuffer : register(b4)
 {
     float3 c_dLightDirection : packoffset(c0);
+    float c_shadowsEnabled : packoffset(c0.w);
 };
 
 cbuffer pbrFactors : register(b5)
@@ -166,19 +167,24 @@ StageOutput main(StageInput stageInput)
     
     color = pow(color, 1.0 / 2.2);
     
-    float3 projCoords = stageInput.inFragPosLightSpace.xyz / stageInput.inFragPosLightSpace.w;
+    // DepthPass off means full visibility, without reading unrendered or stale depth.
+    float shadowFactor = 1.0f;
+    [branch]
+    if (c_shadowsEnabled != 0.0f)
+    {
+        float3 projCoords = stageInput.inFragPosLightSpace.xyz / stageInput.inFragPosLightSpace.w;
 
-    // Convert XY from NDC [-1,1] to UV [0,1], flip Y for DX texture coords
-    float2 shadowUV;
-    shadowUV.x = projCoords.x * 0.5f + 0.5f;
-    shadowUV.y = projCoords.y * -0.5f + 0.5f;
+        // Convert XY from NDC [-1,1] to UV [0,1], flip Y for DX texture coords
+        float2 shadowUV;
+        shadowUV.x = projCoords.x * 0.5f + 0.5f;
+        shadowUV.y = projCoords.y * -0.5f + 0.5f;
 
-    // Z is already [0,1] in DirectX orthographic projection - don't remap
-    float currentDepth = projCoords.z;
+        // Z is already [0,1] in DirectX orthographic projection - don't remap
+        float currentDepth = projCoords.z;
 
-    float shadow = PercentageCloserFiltering(dShadowMap, mySampler, shadowUV, currentDepth, 5);
-    
-    float shadowFactor = lerp(1.0f, 0.5f, shadow);
+        float shadow = PercentageCloserFiltering(dShadowMap, mySampler, shadowUV, currentDepth, 5);
+        shadowFactor = lerp(1.0f, 0.5f, shadow);
+    }
     
     stageOutput.outFragColor = float4(color.rgb * shadowFactor, albedoalpha.a);
     return stageOutput;

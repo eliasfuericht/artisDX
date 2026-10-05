@@ -9,7 +9,7 @@ DirectionalLight::DirectionalLight(float x, float y, float z, float enableShadow
 	if(enableShadowMap)
 		CreateShadowMapResource(shadowMapResolution);
 
-	CreateCBV(sizeof(XMFLOAT3), _dLightDirectionCPUHandle, _dLightDirectionBufferResource, _mappedDirectionPtr);
+	CreateCBV(sizeof(XMFLOAT4), _dLightDirectionCPUHandle, _dLightDirectionBufferResource, _mappedDirectionPtr);
 	CreateCBV(sizeof(XMFLOAT4X4), _dLightLVPCPUHandle, _dLightLVPBufferResource, _mappedLVPPtr);
 }
 
@@ -116,9 +116,11 @@ void DirectionalLight::CreateCBV(unsigned long long size, D3D12_CPU_DESCRIPTOR_H
 	D3D12Core::GraphicsDevice::device->CreateConstantBufferView(&cbvDesc, handle);
 }
 
-void DirectionalLight::UpdateBuffer()
+void DirectionalLight::UpdateBuffer(bool shadowsEnabled)
 {
-	memcpy(_mappedDirectionPtr, &_position, sizeof(XMFLOAT3));
+	// Match dlightBuffer: direction in xyz, the current DepthPass toggle in w.
+	const XMFLOAT4 directionAndShadows(_position.x, _position.y, _position.z, shadowsEnabled ? 1.0f : 0.0f);
+	memcpy(_mappedDirectionPtr, &directionAndShadows, sizeof(directionAndShadows));
 
 	BuildLightProjMatrix();
 	memcpy(_mappedLVPPtr, &_lightViewProjMatrix, sizeof(XMFLOAT4X4));

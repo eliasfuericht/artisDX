@@ -219,13 +219,89 @@ namespace
             "Could not save render capture");
     }
 
+    void ClearShadowDepth(Renderer& renderer, float depth)
+    {
+        CommandContext context;
+        context.InitializeCommandContext(QUEUE_GRAPHICS);
+        D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(renderer._dLight->_directionalShadowMapBuffer.Get(),
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+        context.GetCommandList()->ResourceBarrier(1, &barrier);
+        context.GetCommandList()->ClearDepthStencilView(renderer._dLight->_directionalShadowMapDSVCPUHandle,
+            D3D12_CLEAR_FLAG_DEPTH, depth, 0, 0, nullptr);
+        std::swap(barrier.Transition.StateBefore, barrier.Transition.StateAfter);
+        context.GetCommandList()->ResourceBarrier(1, &barrier);
+        context.Finish(true);
+    }
+
+    std::vector<uint8_t> TestShadowToggle(Renderer& renderer)
+    {
+        renderer._depthPass->_usePass = false;
+        renderer.Render(0);
+        const auto disabled = CaptureTexture(renderer._viewportTexture.Get());
+        WriteCapture(disabled, "shadows_off");
+        Require(DrawnPixels(disabled) > 100, "Main must render before the first shadow frame, with DepthPass off");
+
+        // Force stale depth to fully occluding and fully visible values.
+        ClearShadowDepth(renderer, 0);
+        renderer.Render(0);
+        Require(CaptureTexture(renderer._viewportTexture.Get()) == disabled,
+            "Shadows off must ignore fully occluding stale depth");
+
+        renderer._dLight->_position = {-1, 0.7f, 1};
+        renderer.Render(0);
+        const auto movedLight = CaptureTexture(renderer._viewportTexture.Get());
+        Require(DrawnPixels(movedLight) > 100 && movedLight != disabled,
+            "Moving the light with shadows off must still update directional lighting");
+        ClearShadowDepth(renderer, 1);
+        renderer.Render(0);
+        Require(CaptureTexture(renderer._viewportTexture.Get()) == movedLight,
+            "Shadows off must ignore stale depth after moving the light");
+
+        const auto lightMatrix = renderer._dLight->_lightViewProjMatrix;
+        renderer._dLight->_orthoWidth = 10;
+        renderer._dLight->_sceneCenter = {0.4f, 0.2f, 0};
+        renderer.Render(0);
+        Require(std::memcmp(&lightMatrix, &renderer._dLight->_lightViewProjMatrix, sizeof(lightMatrix)) != 0,
+            "The test must change the shadow projection");
+        Require(CaptureTexture(renderer._viewportTexture.Get()) == movedLight,
+            "Shadow projection changes must not affect Main with shadows off");
+
+        renderer._dLight->_position = {1, 1, 1};
+        renderer._dLight->_orthoWidth = 7.5f;
+        renderer._dLight->_sceneCenter = {0, 0, 0};
+        renderer.Render(0);
+        Require(CaptureTexture(renderer._viewportTexture.Get()) == disabled,
+            "Restoring the light with shadows off must restore full visibility");
+
+        renderer._depthPass->_usePass = true;
+        renderer.Render(0);
+        const auto enabled = CaptureTexture(renderer._viewportTexture.Get());
+        size_t shadowedPixels = 0;
+        for (size_t i = 0; i < enabled.size(); i += 4)
+        {
+            const int enabledColor = enabled[i] + enabled[i + 1] + enabled[i + 2];
+            const int disabledColor = disabled[i] + disabled[i + 1] + disabled[i + 2];
+            shadowedPixels += disabledColor - enabledColor > 20;
+        }
+        Require(shadowedPixels > 5, "Enabling DepthPass must produce visible shadows on the receiver quad");
+        renderer._depthPass->_usePass = false;
+        renderer.Render(0);
+        Require(CaptureTexture(renderer._viewportTexture.Get()) == disabled,
+            "Disabling an already rendered shadow map must restore full visibility");
+        renderer._depthPass->_usePass = true;
+        renderer.Render(0);
+        Require(CaptureTexture(renderer._viewportTexture.Get()) == enabled,
+            "Re-enabling DepthPass must regenerate the same shadows at the unchanged pose");
+        std::cout << "PASS: shadow toggle checks (first frame, stale depth, moving light, off/on)\n";
+        return enabled;
+    }
+
     void TestRender(const std::filesystem::path& scene)
     {
         Renderer renderer;
         renderer.InitializeRenderer();
         renderer.InitializeResources(scene);
-        renderer.Render(0);
-        const auto mainPixels = CaptureTexture(renderer._viewportTexture.Get());
+        const auto mainPixels = TestShadowToggle(renderer);
         WriteCapture(mainPixels, "pbr");
         Require(DrawnPixels(mainPixels) > 100, "GLB geometry/materials must produce visible PBR pixels");
         const auto depth = CaptureTexture(renderer._dLight->_directionalShadowMapBuffer.Get());

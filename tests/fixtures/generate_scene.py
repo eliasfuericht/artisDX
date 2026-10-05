@@ -42,7 +42,8 @@ def generate():
         "scene": 0, "scenes": [{"nodes": [0]}],
         "nodes": [{"name": "Parent", "children": [1, 2]},
                   {"name": "Textured", "mesh": 0, "translation": [-0.9, 0, 0]},
-                  {"name": "FallbackBlend", "mesh": 1, "translation": [0.9, 0, 0], "scale": [0.8, 0.8, 1]}],
+                  # This raised quad casts a visible shadow onto the textured quad.
+                  {"name": "FallbackBlend", "mesh": 1, "translation": [0, 0.8, 1], "scale": [0.4, 0.4, 1]}],
         "meshes": [{"primitives": [{"attributes": {"POSITION": 0, "NORMAL": 1, "TEXCOORD_0": 2},
                                       "indices": 3, "material": material}]} for material in range(2)],
         "materials": [

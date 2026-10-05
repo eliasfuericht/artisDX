@@ -292,7 +292,7 @@ void Renderer::UpdateBuffers(float dt)
 	memcpy(_mappedCamPosBuffer, &camPos, sizeof(XMFLOAT3));
 
 	_pLight->UpdateBuffer();
-	_dLight->UpdateBuffer();
+	_dLight->UpdateBuffer(_depthPass && _depthPass->_usePass);
 
 	XMStoreFloat4x4(&_viewProjectionMatrix, XMMatrixMultiply(XMLoadFloat4x4(&_viewMatrix), XMLoadFloat4x4(&_projectionMatrix)));
 
@@ -375,14 +375,12 @@ void Renderer::SetCommandlist()
 		if (auto slot = _mainPass->GetRootParameterIndex("mySampler"))
 			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::Sampler::GetGPUHandle(_samplerCPUHandle));
 		
-		if (_depthPass->_usePass)
-		{
-			if (auto slot = _mainPass->GetRootParameterIndex("dShadowMap"))
-				_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_dLight->_directionalShadowMapSRVCPUHandle));
+		// Main's shader interface remains valid even when the shadow producer is off.
+		if (auto slot = _mainPass->GetRootParameterIndex("dShadowMap"))
+			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_dLight->_directionalShadowMapSRVCPUHandle));
 
-			if (auto slot = _mainPass->GetRootParameterIndex("lightViewProjMatrixBuffer"))
-				_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_dLight->_dLightLVPCPUHandle));
-		}
+		if (auto slot = _mainPass->GetRootParameterIndex("lightViewProjMatrixBuffer"))
+			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_dLight->_dLightLVPCPUHandle));
 
 		_modelManager.DrawAll(*_mainPass, _mainLoopGraphicsContext);
 	}
