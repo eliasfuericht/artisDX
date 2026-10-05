@@ -13,5 +13,6 @@ namespace Testing
     void TestCamera();
     void TestTangents();
     void TestShader(const std::filesystem::path& path, bool optimized);
+    void TestShaderFailures(const std::filesystem::path& fixtures);
     int RunGpuTest(std::string_view test, const std::string& argument, bool hardware);
 }

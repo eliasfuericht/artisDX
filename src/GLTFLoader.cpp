@@ -295,7 +295,7 @@ namespace GLTFLoader
 	ScratchImage GLTFLoader::Create1x1Texture(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 	{
 		ScratchImage image;
-		image.Initialize2D(DXGI_FORMAT_R8G8B8A8_UNORM, 1, 1, 1, 1);
+		ThrowIfFailed(image.Initialize2D(DXGI_FORMAT_R8G8B8A8_UNORM, 1, 1, 1, 1), "Fallback texture: image initialization failed");
 		uint8_t* pixels = image.GetImage(0, 0, 0)->pixels;
 		pixels[0] = r;
 		pixels[1] = g;

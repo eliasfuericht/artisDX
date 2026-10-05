@@ -13,6 +13,19 @@ namespace Testing
             throw std::runtime_error(std::string(message));
     }
 
+    template<typename Action>
+    void ExpectFailure(Action action, std::string_view diagnostic)
+    {
+        try { action(); }
+        catch (const std::runtime_error& error)
+        {
+            Require(std::string_view(error.what()).find(diagnostic) != std::string_view::npos,
+                "Failure must identify " + std::string(diagnostic) + ": " + error.what());
+            return;
+        }
+        Require(false, "Expected failure identifying " + std::string(diagnostic));
+    }
+
     inline void Near(float actual, float expected, const std::string& message)
     {
         Require(std::isfinite(actual) && std::abs(actual - expected) < 0.0001f,

@@ -14,16 +14,16 @@ void ModelNode::CreateCBV()
 	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
 	CD3DX12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
 
-	D3D12Core::GraphicsDevice::device->CreateCommittedResource(
+	ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateCommittedResource(
 		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
 		&bufferDesc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(&_ModelMatrixBufferResource));
+		IID_PPV_ARGS(&_ModelMatrixBufferResource)), "Model node matrix: buffer creation failed");
 
 	CD3DX12_RANGE readRange(0, 0);
-	_ModelMatrixBufferResource->Map(0, &readRange, reinterpret_cast<void**>(&_mappedCBVModelMatrixPtr));
+	ThrowIfFailed(_ModelMatrixBufferResource->Map(0, &readRange, reinterpret_cast<void**>(&_mappedCBVModelMatrixPtr)), "Model node matrix: Map failed");
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 	cbvDesc.BufferLocation = _ModelMatrixBufferResource->GetGPUVirtualAddress();

@@ -28,30 +28,35 @@ namespace D3D12Core
 				InitializeFactory();
 
 			SIZE_T maxMemSize = 0;
+			adapter.Reset();
 
 			// iterate over all available adapters
 			for (uint32_t adapterIndex = 0; ; ++adapterIndex)
 			{
 				MSWRL::ComPtr<IDXGIAdapter1> adapter1;
-				if (D3D12Core::GraphicsDevice::factory->EnumAdapters1(adapterIndex, &adapter1) == DXGI_ERROR_NOT_FOUND)
+				const HRESULT enumerationResult = D3D12Core::GraphicsDevice::factory->EnumAdapters1(adapterIndex, &adapter1);
+				if (enumerationResult == DXGI_ERROR_NOT_FOUND)
 					break;
+				ThrowIfFailed(enumerationResult, "Adapter enumeration failed at index " + std::to_string(adapterIndex));
 
-				DXGI_ADAPTER_DESC1 desc;
-				adapter1->GetDesc1(&desc);
+				DXGI_ADAPTER_DESC1 desc{};
+				ThrowIfFailed(adapter1->GetDesc1(&desc), "Adapter description failed at index " + std::to_string(adapterIndex));
 
 				// Skip software adapters
 				if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
 					continue;
 
-				if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_0, __uuidof(ID3D12Device), nullptr)))
+				if (SUCCEEDED(D3D12CreateDevice(adapter1.Get(), D3D_FEATURE_LEVEL_12_0, __uuidof(ID3D12Device), nullptr)))
 				{
-					if (desc.DedicatedVideoMemory > maxMemSize)
+					if (!adapter || desc.DedicatedVideoMemory > maxMemSize)
 					{
 						maxMemSize = desc.DedicatedVideoMemory;
 						D3D12Core::GraphicsDevice::adapter = adapter1;
 					}
 				}
 			}
+			if (!adapter)
+				ThrowException("No hardware adapter supports D3D feature level 12.0");
 		}
 
 		void InitializeDevice()
@@ -133,7 +138,7 @@ namespace D3D12Core
 
 		void D3D12Core::Swapchain::Resize(int32_t newWidth, int32_t newHeight)
 		{
-			CommandQueueManager::GetCommandQueue(QUEUETYPE::QUEUE_GRAPHICS).WaitForFence();
+			CommandQueueManager::GetCommandQueue(QUEUETYPE::QUEUE_GRAPHICS).Flush();
 
 			for (size_t i = 0; i < D3D12Core::Swapchain::backBufferCount; ++i)
 			{
@@ -154,7 +159,7 @@ namespace D3D12Core
 			D3D12Core::Swapchain::viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(newWidth), static_cast<float>(newHeight));
 			D3D12Core::Swapchain::surfaceSize = { 0, 0, static_cast<long>(newWidth), static_cast<long>(newHeight) };
 		
-			CommandQueueManager::GetCommandQueue(QUEUETYPE::QUEUE_GRAPHICS).WaitForFence();
+			CommandQueueManager::GetCommandQueue(QUEUETYPE::QUEUE_GRAPHICS).Flush();
 		}
 	}
 

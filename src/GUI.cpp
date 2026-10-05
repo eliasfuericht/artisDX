@@ -173,13 +173,11 @@ namespace GUI
 
 		uint32_t frameIndex = D3D12Core::Swapchain::swapchain->GetCurrentBackBufferIndex();
 		ID3D12Resource* backbuffer = D3D12Core::Swapchain::renderTargets[frameIndex].Get();
+		GUI::guiContext.DeclareResource(backbuffer, D3D12_RESOURCE_STATE_PRESENT,
+			D3D12_RESOURCE_STATE_PRESENT, "swapchain backbuffer");
+		GUI::guiContext.KeepAlive(MSWRL::ComPtr<IUnknown>(DescriptorAllocator::CBVSRVUAV::GetHeap()));
 
-		auto toRT = CD3DX12_RESOURCE_BARRIER::Transition(
-			backbuffer,
-			D3D12_RESOURCE_STATE_PRESENT,
-			D3D12_RESOURCE_STATE_RENDER_TARGET
-		);
-		GUI::guiContext.GetCommandList()->ResourceBarrier(1, &toRT);
+		GUI::guiContext.UseResource(backbuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		D3D12_CPU_DESCRIPTOR_HANDLE currentRTVHandle = D3D12Core::Swapchain::rtvCPUHandle[frameIndex];
 		GUI::guiContext.GetCommandList()->OMSetRenderTargets(1, &currentRTVHandle, FALSE, nullptr);
 		const float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
@@ -190,16 +188,9 @@ namespace GUI
 
 		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), GUI::guiContext.GetCommandList().Get());
 
-		auto toPresent = CD3DX12_RESOURCE_BARRIER::Transition(
-			backbuffer,
-			D3D12_RESOURCE_STATE_RENDER_TARGET,
-			D3D12_RESOURCE_STATE_PRESENT
-		);
-		GUI::guiContext.GetCommandList()->ResourceBarrier(1, &toPresent);
+		GUI::guiContext.UseResource(backbuffer, D3D12_RESOURCE_STATE_PRESENT);
 
-		ThrowIfFailed(GUI::guiContext.GetCommandList()->Close());
-		ID3D12CommandList* lists[] = { GUI::guiContext.GetCommandList().Get() };
-		CommandQueueManager::GetCommandQueue(QUEUETYPE::QUEUE_GRAPHICS)._commandQueue->ExecuteCommandLists(_countof(lists), lists);
+		GUI::guiContext.Finish(false);
 	}
 
 	void Shutdown()

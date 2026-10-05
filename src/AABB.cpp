@@ -142,13 +142,13 @@ void AABB::UploadBuffers()
 {
 	// Map vertex buffer and copy data
 	void* mappedData = nullptr;
-	_vertexBuffer->Map(0, nullptr, &mappedData);
+	ThrowIfFailed(_vertexBuffer->Map(0, nullptr, &mappedData), "Bounding box vertices: Map failed");
 	auto vertexBufferSize = _aabbVertices.size() * sizeof(Vertex);
 	memcpy(mappedData, _aabbVertices.data(), vertexBufferSize);
 	_vertexBuffer->Unmap(0, nullptr);
 
 	// Map index buffer and copy data
-	_indexBuffer->Map(0, nullptr, &mappedData);
+	ThrowIfFailed(_indexBuffer->Map(0, nullptr, &mappedData), "Bounding box indices: Map failed");
 	auto indexBufferSize = _aabbIndices.size() * sizeof(uint32_t);
 
 	memcpy(mappedData, _aabbIndices.data(), indexBufferSize);

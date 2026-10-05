@@ -4,6 +4,8 @@
 
 #include <array>
 #include <cstring>
+#include <thread>
+#include <type_traits>
 
 namespace Testing
 {
@@ -40,6 +42,13 @@ namespace
         if (hardware)
         {
             D3D12Core::GraphicsDevice::InitializeDevice();
+            DXGI_ADAPTER_DESC1 selected{};
+            ThrowIfFailed(D3D12Core::GraphicsDevice::adapter->GetDesc1(&selected));
+            const LUID actual = D3D12Core::GraphicsDevice::device->GetAdapterLuid();
+            Require(actual.HighPart == selected.AdapterLuid.HighPart && actual.LowPart == selected.AdapterLuid.LowPart,
+                "Hardware device must use the selected adapter");
+            std::cout << "Hardware adapter vendor=" << selected.VendorId << " device=" << selected.DeviceId
+                << " dedicated bytes=" << selected.DedicatedVideoMemory << " (device LUID matches selection)\n";
         }
         else
         {
@@ -55,10 +64,11 @@ namespace
         GUI::viewportWidth = GUI::viewportHeight = ViewportSize;
     }
 
-    void CheckGpuDiagnostics()
+    void CheckGpuDiagnostics(std::optional<D3D12_MESSAGE_ID> expectedError = std::nullopt)
     {
         ThrowIfFailed(D3D12Core::GraphicsDevice::device->GetDeviceRemovedReason(), "GPU device was removed");
         bool errors = false;
+        uint32_t expectedCount = 0;
         for (uint64_t i = 0; i < infoQueue->GetNumStoredMessages(); ++i)
         {
             SIZE_T size = 0;
@@ -66,11 +76,142 @@ namespace
             std::vector<uint8_t> storage(size);
             auto* message = reinterpret_cast<D3D12_MESSAGE*>(storage.data());
             ThrowIfFailed(infoQueue->GetMessage(i, message, &size));
+            const bool expected = expectedError && message->ID == *expectedError && message->Severity == D3D12_MESSAGE_SEVERITY_ERROR;
             if (message->Severity <= D3D12_MESSAGE_SEVERITY_WARNING)
-                std::cerr << "D3D12 [" << message->ID << "]: " << message->pDescription << '\n';
-            errors |= message->Severity <= D3D12_MESSAGE_SEVERITY_ERROR;
+                std::cerr << (expected ? "Expected D3D12 [" : "D3D12 [") << message->ID << "]: " << message->pDescription << '\n';
+            if (expected)
+                ++expectedCount;
+            else
+                errors |= message->Severity <= D3D12_MESSAGE_SEVERITY_ERROR;
         }
         Require(!errors, "D3D12 debug layer reported errors; see the messages above");
+        if (expectedError)
+            Require(expectedCount == 1, "Negative case must produce exactly its one expected D3D12 error");
+    }
+
+    void TestCommandFailures()
+    {
+        CommandQueueManager::InitializeCommandQueueManager();
+        for (const QUEUETYPE type : {QUEUE_GRAPHICS, QUEUE_UPLOAD})
+        {
+            CommandContext context;
+            context.InitializeCommandContext(type);
+            context.Finish(true);
+            context.Reset();
+            context.Finish(true);
+            const auto& queue = CommandQueueManager::GetCommandQueue(type);
+            Require(queue._fence->GetCompletedValue() >= queue._fenceValue, "Submitted work must finish before reuse");
+        }
+        for (const QUEUETYPE type : {QUEUE_INVALID, static_cast<QUEUETYPE>(3)})
+        {
+            ExpectFailure([&] { CommandQueueManager::GetCommandQueue(type); }, "Invalid command queue type");
+            CommandContext invalid;
+            ExpectFailure([&] { invalid.InitializeCommandContext(type); }, "Invalid command context queue type");
+            Require(!invalid.GetCommandList(), "Invalid queue type must not create a command list");
+        }
+
+        CommandContext closed;
+        closed.InitializeCommandContext(QUEUE_GRAPHICS);
+        ThrowIfFailed(closed.GetCommandList()->Close());
+        const uint64_t before = CommandQueueManager::GetCommandQueue(QUEUE_GRAPHICS)._fenceValue;
+        ExpectFailure([&] { closed.Finish(true); }, "Close command list");
+        Require(CommandQueueManager::GetCommandQueue(QUEUE_GRAPHICS)._fenceValue == before,
+            "Failed Close must stop before submission and its completion signal");
+    }
+
+    void TestRootSignatureFailures()
+    {
+        ShaderPass missing("missing-reflection-regression");
+        missing._shaders.emplace(SHADERTYPE::SHADER_VERTEX, Shader{});
+        ExpectFailure([&] { missing.GenerateGraphicsRootSignature(); }, "no compilation result for reflection");
+        Require(!missing._rootSignature, "Missing reflection must not create a root signature");
+
+        // A real serializer error, independently of the pending reflection layout repairs.
+        D3D12_DESCRIPTOR_RANGE1 range{};
+        range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+        range.NumDescriptors = 0; // Invalid: a range needs at least one descriptor.
+        D3D12_ROOT_PARAMETER1 parameter{};
+        parameter.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+        parameter.DescriptorTable = {1, &range};
+        D3D12_VERSIONED_ROOT_SIGNATURE_DESC description{};
+        description.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
+        description.Desc_1_1.NumParameters = 1;
+        description.Desc_1_1.pParameters = &parameter;
+        ShaderPass invalid("invalid-root-regression");
+        try
+        {
+            invalid.CreateRootSignature(description);
+            Require(false, "Zero-descriptor range must fail serialization");
+        }
+        catch (const std::runtime_error& error)
+        {
+            const std::string_view diagnostic(error.what());
+            Require(diagnostic.find("invalid-root-regression': root signature serialization failed") != std::string_view::npos &&
+                diagnostic.find("NumDescriptors cannot be 0") != std::string_view::npos,
+                "Serialization failure must include pass name and the descriptor diagnostic: " + std::string(diagnostic));
+            std::cout << "Expected serialization failure: " << error.what() << '\n';
+        }
+        Require(!invalid._rootSignature, "Failed serialization must stop before root signature creation");
+    }
+
+    void TestRootLayout(const std::filesystem::path& fixtures)
+    {
+        ShaderPass pass("layout-regression");
+        pass.AddShader(fixtures / "layout_array.hlsl", SHADER_PIXEL);
+        const auto blob = pass.GenerateGraphicsRootSignature();
+        MSWRL::ComPtr<ID3D12VersionedRootSignatureDeserializer> deserializer;
+        ThrowIfFailed(D3D12CreateVersionedRootSignatureDeserializer(blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&deserializer)));
+        const auto& desc = deserializer->GetUnconvertedRootSignatureDesc()->Desc_1_1;
+        Require(desc.NumParameters == 1 && desc.pParameters[0].DescriptorTable.NumDescriptorRanges == 1,
+            "Texture array must produce one table containing one range record");
+        const auto& range = desc.pParameters[0].DescriptorTable.pDescriptorRanges[0];
+        Require(range.NumDescriptors == 2 && range.BaseShaderRegister == 3 && range.RegisterSpace == 2,
+            "Array range must retain reflected descriptor count, register and space");
+        Require(pass.GetRootParameterIndex("arrayTextures") == 0, "Array name must address the actual table");
+        const auto originalBindings = pass._bindingMap;
+        const auto repeated = pass.GenerateGraphicsRootSignature();
+        Require(pass._bindingMap == originalBindings && repeated->GetBufferSize() == blob->GetBufferSize() &&
+            std::memcmp(repeated->GetBufferPointer(), blob->GetBufferPointer(), blob->GetBufferSize()) == 0,
+            "Regeneration must produce identical metadata and serialized layout");
+
+        for (const auto& fixture : {"layout_structured.hlsl", "layout_unbounded.hlsl"})
+        {
+            pass._shaders.at(SHADER_PIXEL) = Shader(fixtures / fixture, SHADER_PIXEL);
+            auto* previous = pass._rootSignature.Get();
+            ExpectFailure([&] { pass.GenerateGraphicsRootSignature(); }, fixture == std::string_view("layout_structured.hlsl") ? "unsupported binding kind" : "unbounded descriptor ranges");
+            Require(pass._rootSignature.Get() == previous && pass._bindingMap == originalBindings,
+                "Rejected layout must preserve the previous complete signature and bindings");
+        }
+        pass._shaders.clear();
+        pass._shaders.emplace(SHADER_COMPUTE, Shader{});
+        ExpectFailure([&] { pass.GenerateGraphicsRootSignature(); }, "unsupported graphics stage");
+        Require(pass._bindingMap == originalBindings, "Unsupported stage must not publish slots");
+        pass._shaders.clear();
+        pass.AddShader(fixtures / "layout_shared_frag.hlsl", SHADER_PIXEL);
+        pass.GenerateGraphicsRootSignature();
+        Require(!pass.GetRootParameterIndex("arrayTextures") && pass.GetRootParameterIndex("sharedBuffer") == 0,
+            "Changed layout must discard stale names");
+        pass.AddShader(fixtures / "layout_shared_vert.hlsl", SHADER_VERTEX);
+        auto* previous = pass._rootSignature.Get();
+        const auto validBindings = pass._bindingMap;
+        ExpectFailure([&] { pass.GenerateGraphicsRootSignature(); }, "duplicate binding name; first binding:");
+        Require(pass._rootSignature.Get() == previous && pass._bindingMap == validBindings,
+            "Ambiguous cross-stage names must preserve the last valid layout");
+
+        ShaderPass forward("forward-insertion"), reverse("reverse-insertion");
+        forward.AddShader("../shaders/bb_vert.hlsl", SHADER_VERTEX);
+        forward.AddShader(fixtures / "layout_array.hlsl", SHADER_PIXEL);
+        reverse.AddShader(fixtures / "layout_array.hlsl", SHADER_PIXEL);
+        reverse.AddShader("../shaders/bb_vert.hlsl", SHADER_VERTEX);
+        const auto first = forward.GenerateGraphicsRootSignature();
+        const auto second = reverse.GenerateGraphicsRootSignature();
+        Require(forward._bindingMap == reverse._bindingMap && first->GetBufferSize() == second->GetBufferSize() &&
+            std::memcmp(first->GetBufferPointer(), second->GetBufferPointer(), first->GetBufferSize()) == 0,
+            "Shader insertion order must not change root slots or serialized layout");
+        ShaderPass typed("supported-typed-uav");
+        typed.AddShader(fixtures / "layout_typed_uav.hlsl", SHADER_PIXEL);
+        typed.GenerateGraphicsRootSignature();
+        Require(typed.GetRootParameterIndex("outputTexture") == 0, "Existing typed UAV support must remain valid");
     }
 
     MSWRL::ComPtr<ID3D12Resource> ReadbackBuffer(uint64_t size)
@@ -81,6 +222,66 @@ namespace
         ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE,
             &description, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&buffer)));
         return buffer;
+    }
+
+    void TestCommandCompletion()
+    {
+        static_assert(!std::is_copy_constructible_v<CommandQueue>);
+        static_assert(!std::is_copy_constructible_v<CommandContext>);
+        static_assert(!std::is_constructible_v<CommandCompletion, MSWRL::ComPtr<ID3D12Fence>, uint64_t>);
+        CommandQueueManager::InitializeCommandQueueManager();
+        auto& graphics = CommandQueueManager::GetCommandQueue(QUEUE_GRAPHICS);
+        auto& copy = CommandQueueManager::GetCommandQueue(QUEUE_UPLOAD);
+        CommandContext context;
+        context.InitializeCommandContext(QUEUE_GRAPHICS);
+        ExpectFailure([&] { copy.Submit(context.GetCommandList().Get()); }, "does not match its submission queue");
+        ExpectFailure([&] { graphics.WaitGPU({}); }, "requires a submitted producer completion");
+        ExpectFailure([&] { context.Reset(); }, "recording command context");
+        MSWRL::ComPtr<ID3D12Fence> gate;
+        ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&gate)));
+        // Always unblock even if an assertion throws, so negative tests cannot hang teardown.
+        struct ReleaseGate { ID3D12Fence* fence; ~ReleaseGate() { fence->Signal(1); } } release{gate.Get()};
+        ThrowIfFailed(graphics._commandQueue->Wait(gate.Get(), 1));
+        const auto first = context.Finish(false);
+        Require(first.GetFence() == graphics._fence.Get() && first.GetValue() > 0 && !graphics.IsComplete(first),
+            "Nonblocking submission must signal its own identifiable, pending completion");
+        ExpectFailure([&] { copy.WaitCPU(first); }, "does not belong to this queue");
+        const auto signaled = graphics._fenceValue;
+        std::thread unblock([&] { std::this_thread::sleep_for(std::chrono::milliseconds(25)); gate->Signal(1); });
+        try { context.Reset(); }
+        catch (...) { unblock.join(); throw; }
+        unblock.join();
+        Require(graphics.IsComplete(first) && graphics._fenceValue == signaled,
+            "Reset must wait on its own submission without creating a fresh flush signal");
+        const auto second = context.Finish(true);
+        Require(second.GetValue() == first.GetValue() + 1 && graphics.IsComplete(second), "Repeated submissions need distinct completed values");
+
+        MSWRL::ComPtr<ID3D12Resource> upload, destination;
+        const auto buffer = CD3DX12_RESOURCE_DESC::Buffer(sizeof(uint32_t));
+        const CD3DX12_HEAP_PROPERTIES uploadHeap(D3D12_HEAP_TYPE_UPLOAD), defaultHeap(D3D12_HEAP_TYPE_DEFAULT);
+        auto* device = D3D12Core::GraphicsDevice::device.Get();
+        ThrowIfFailed(device->CreateCommittedResource(&uploadHeap, D3D12_HEAP_FLAG_NONE, &buffer,
+            D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&upload)));
+        ThrowIfFailed(device->CreateCommittedResource(&defaultHeap, D3D12_HEAP_FLAG_NONE, &buffer,
+            D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&destination)));
+        uint32_t* mapped = nullptr;
+        const D3D12_RANGE noRead{0, 0};
+        ThrowIfFailed(upload->Map(0, &noRead, reinterpret_cast<void**>(&mapped)));
+        *mapped = 0x12345678;
+        upload->Unmap(0, nullptr);
+        CommandContext producer;
+        producer.InitializeCommandContext(QUEUE_UPLOAD);
+        producer.GetCommandList()->CopyBufferRegion(destination.Get(), 0, upload.Get(), 0, sizeof(uint32_t));
+        const auto copied = producer.Finish(false);
+        graphics.WaitGPU(copied);
+        auto readback = ReadbackBuffer(sizeof(uint32_t));
+        context.Reset();
+        context.GetCommandList()->CopyBufferRegion(readback.Get(), 0, destination.Get(), 0, sizeof(uint32_t));
+        const auto consumed = context.Finish(true);
+        Require(consumed.GetFence() != copied.GetFence() && copy.IsComplete(copied), "Queue identity and copy-to-graphics dependency must be preserved");
+        ThrowIfFailed(readback->Map(0, nullptr, reinterpret_cast<void**>(&mapped)));
+        Require(*mapped == 0x12345678, "Consumer must read the producer's completed copy");
+        readback->Unmap(0, &noRead);
     }
 
     template<typename T>
@@ -354,8 +555,6 @@ namespace
     {
         Renderer renderer;
         renderer.InitializeRenderer();
-        // Isolate uploads from the known startup allocator-reset defect.
-        CommandQueueManager::GetCommandQueue(QUEUE_GRAPHICS).WaitForFence();
         renderer.InitializeResources(scene);
         CheckGpuDiagnostics();
         renderer.Render(0);
@@ -373,6 +572,138 @@ namespace
         const auto offset = (static_cast<size_t>(y) * ViewportSize + x) * 4;
         Require(pixels[offset] > pixels[offset + 1] + 10 && pixels[offset] > pixels[offset + 2] + 10,
             "The first graphics draw must sample the uploaded red albedo texture");
+        renderer.Shutdown();
+    }
+
+    void TestRetirement(const std::filesystem::path& scene)
+    {
+        Renderer renderer;
+        renderer.InitializeRenderer();
+        auto& graphics = CommandQueueManager::GetCommandQueue(QUEUE_GRAPHICS);
+        auto& copy = CommandQueueManager::GetCommandQueue(QUEUE_UPLOAD);
+        MSWRL::ComPtr<ID3D12Fence> gate;
+        auto* device = D3D12Core::GraphicsDevice::device.Get();
+        ThrowIfFailed(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&gate)));
+        struct ReleaseGate { ID3D12Fence* fence; ~ReleaseGate() { fence->Signal(1); } } release{gate.Get()};
+        MSWRL::ComPtr<ID3D12Resource> upload;
+        const CD3DX12_HEAP_PROPERTIES heap(D3D12_HEAP_TYPE_UPLOAD);
+        const auto desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(uint32_t));
+        ThrowIfFailed(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc,
+            D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&upload)));
+        uint32_t* mapped = nullptr;
+        ThrowIfFailed(upload->Map(0, nullptr, reinterpret_cast<void**>(&mapped)));
+        *mapped = 0xABCDEF42;
+        upload->Unmap(0, nullptr);
+        auto owner = std::make_shared<MSWRL::ComPtr<ID3D12Resource>>(upload);
+        std::weak_ptr<MSWRL::ComPtr<ID3D12Resource>> weak = owner;
+        auto readback = ReadbackBuffer(sizeof(uint32_t));
+        auto context = std::make_unique<CommandContext>();
+        context->InitializeCommandContext(QUEUE_GRAPHICS);
+        context->KeepAlive(owner);
+        context->KeepAlive(readback);
+        context->GetCommandList()->CopyBufferRegion(readback.Get(), 0, upload.Get(), 0, sizeof(uint32_t));
+        owner.reset();
+        upload.Reset();
+        Require(!weak.expired(), "Recorded-but-unsubmitted work must retain its source owner");
+        ThrowIfFailed(graphics._commandQueue->Wait(gate.Get(), 1));
+        const auto pending = context->Finish(false);
+        context.reset(); // Queue also retains the list and allocator; destruction need not wait.
+        graphics.CollectCompleted();
+        Require(!graphics.IsComplete(pending) && !weak.expired() && graphics.GetPendingSubmissionCount() > 0,
+            "Destroying the CPU context must preserve every pending object and owner");
+        ThrowIfFailed(gate->Signal(1));
+        graphics.WaitCPU(pending);
+        Require(weak.expired() && graphics.GetPendingSubmissionCount() == 0, "Completed ownership must be collected");
+        ThrowIfFailed(readback->Map(0, nullptr, reinterpret_cast<void**>(&mapped)));
+        Require(*mapped == 0xABCDEF42, "GPU copy must survive deletion of its CPU source owner and context");
+        const D3D12_RANGE noWrites{0, 0};
+        readback->Unmap(0, &noWrites);
+
+        MSWRL::ComPtr<ID3D12Fence> copyGate;
+        ThrowIfFailed(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&copyGate)));
+        ReleaseGate releaseCopy{copyGate.Get()};
+        ThrowIfFailed(copy._commandQueue->Wait(copyGate.Get(), 1));
+        auto shared = std::make_shared<int>(42);
+        std::weak_ptr<int> sharedWeak = shared;
+        CommandContext copyUse, graphicsUse;
+        copyUse.InitializeCommandContext(QUEUE_UPLOAD);
+        graphicsUse.InitializeCommandContext(QUEUE_GRAPHICS);
+        copyUse.KeepAlive(shared);
+        graphicsUse.KeepAlive(shared);
+        shared.reset();
+        const auto copyPending = copyUse.Finish(false);
+        graphicsUse.Finish(true);
+        Require(!sharedWeak.expired(), "Completing one queue must not release an owner still used by another");
+        ThrowIfFailed(copyGate->Signal(1));
+        copy.WaitCPU(copyPending);
+        Require(sharedWeak.expired(), "Owner must retire after all queue uses complete");
+
+        // Actual pass replacement while its old native objects are already recorded.
+        ShaderPass pass("retained-pass");
+        pass.AddShader("../shaders/bb_vert.hlsl", SHADER_VERTEX);
+        pass.AddShader("../shaders/bb_frag.hlsl", SHADER_PIXEL);
+        pass.GenerateGraphicsRootSignature();
+        pass.GeneratePipeLineStateObjectForwardPass(D3D12_FILL_MODE_SOLID, D3D12_CULL_MODE_BACK, false);
+        graphicsUse.Reset();
+        graphicsUse.SetPipelineState(pass._pipelineState);
+        graphicsUse.SetGraphicsRootSignature(pass._rootSignature);
+        pass.GenerateGraphicsRootSignature();
+        pass.GeneratePipeLineStateObjectForwardPass(D3D12_FILL_MODE_SOLID, D3D12_CULL_MODE_BACK, false);
+        graphicsUse.Finish(true);
+
+        renderer.InitializeResources(scene);
+        renderer.Render(0);
+        Require(DrawnPixels(CaptureTexture(renderer._viewportTexture.Get())) > 100, "Scene must draw before unload");
+        renderer._modelManager.ClearModels();
+        renderer.Render(0);
+        Require(DrawnPixels(CaptureTexture(renderer._viewportTexture.Get())) == 0, "Clearing model ownership must produce an empty scene safely");
+        renderer.Shutdown();
+    }
+
+    void TestResourceUses(const std::filesystem::path& scene)
+    {
+        Renderer renderer;
+        renderer.InitializeRenderer();
+        renderer.InitializeResources(scene);
+        auto& queue = CommandQueueManager::GetCommandQueue(QUEUE_GRAPHICS);
+        auto* viewport = renderer._viewportTexture.Get();
+        CommandContext context;
+        context.InitializeCommandContext(QUEUE_GRAPHICS);
+        ExpectFailure([&] { context.UseResource(viewport, D3D12_RESOURCE_STATE_COPY_SOURCE); }, "not declared");
+        context.DeclareResource(viewport, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, "test viewport");
+        ExpectFailure([&] { context.DeclareResource(viewport, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, "duplicate viewport"); }, "already declared");
+        Require(!context.UseResource(viewport, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE), "Unchanged use must emit no transition");
+        Require(context.UseResource(viewport, D3D12_RESOURCE_STATE_COPY_SOURCE) &&
+            !context.UseResource(viewport, D3D12_RESOURCE_STATE_COPY_SOURCE), "Only the first changed use needs a transition");
+        const auto before = queue._fenceValue;
+        ExpectFailure([&] { context.Finish(false); }, "did not reach declared final state: test viewport");
+        Require(queue._fenceValue == before, "Missing final use must reject before submission/signaling");
+        Require(context.UseResource(viewport, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE), "Caller must be able to finish the rejected recording");
+        context.Finish(true);
+        ExpectFailure([&] { context.UseResource(viewport, D3D12_RESOURCE_STATE_COPY_SOURCE); }, "requires a recording context");
+        context.Reset();
+        context.DeclareResource(viewport, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, "new recording");
+        context.Finish(true);
+        CommandContext upload;
+        upload.InitializeCommandContext(QUEUE_UPLOAD);
+        ExpectFailure([&] { upload.DeclareResource(viewport, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COMMON, "copy texture"); },
+            "requires a recording graphics context");
+        upload.Finish(true);
+
+        for (int cycle = 0; cycle < 2; ++cycle)
+        {
+            for (unsigned mask = 0; mask < 8; ++mask)
+            {
+                renderer._mainPass->_usePass = (mask & 1) != 0;
+                renderer._depthPass->_usePass = (mask & 2) != 0;
+                renderer._bbPass->_usePass = (mask & 4) != 0;
+                renderer.Render(0);
+                const auto pixels = CaptureTexture(viewport);
+                Require((DrawnPixels(pixels) > 0) == ((mask & 5) != 0), "Every pass combination must preserve its color target contract");
+                CaptureTexture(renderer._dLight->_directionalShadowMapBuffer.Get());
+            }
+        }
         renderer.Shutdown();
     }
 
@@ -422,13 +753,20 @@ namespace
             ComApartment apartment;
             InitializeGpu(hardware, test == "upload");
             if (test == "constants") TestConstants();
+            else if (test == "commands") TestCommandFailures();
+            else if (test == "completion") TestCommandCompletion();
+            else if (test == "root-failures") TestRootSignatureFailures();
+            else if (test == "root-layout") TestRootLayout(argument);
             else if (test == "bounds") TestBounds();
             else if (test == "rtv") TestRtvDescriptors();
             else if (test == "pipeline") TestPipeline(argument);
             else if (test == "upload") TestTextureUpload(argument);
             else if (test == "render") TestRender(argument);
+            else if (test == "retirement") TestRetirement(argument);
+            else if (test == "resource-uses") TestResourceUses(argument);
             else throw std::runtime_error("Unknown GPU test: " + std::string(test));
-            CheckGpuDiagnostics();
+            // Only the isolated negative case expects a deliberately closed-list error.
+            CheckGpuDiagnostics(test == "commands" ? std::optional{D3D12_MESSAGE_ID_COMMAND_LIST_CLOSED} : std::nullopt);
             return 0;
         }
         catch (const GpuUnavailable& error)

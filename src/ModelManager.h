@@ -12,6 +12,7 @@ class ModelManager
 public:
 	ModelManager() = default;
 
+	void ClearModels();
 	void LoadModel(const std::filesystem::path& path);
 	void DrawAll(const ShaderPass& shaderPass, CommandContext& commandContext);
 	void DrawAllBoundingBoxes(const ShaderPass& shaderPass, CommandContext& commandContext);

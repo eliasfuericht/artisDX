@@ -46,7 +46,10 @@ foreach(shader IN LISTS ARTISDX_SHADERS)
     endforeach()
 endforeach()
 
+artisDX_add_test(shader_failure_handling shaders shader-failures "${PROJECT_SOURCE_DIR}/tests/fixtures")
 artisDX_add_test(camera_constants_readback gpu constants)
+artisDX_add_test(command_failure_handling gpu commands)
+artisDX_add_test(root_signature_failure_handling gpu root-failures)
 artisDX_add_test(bounding_box_transforms gpu bounds)
 artisDX_add_test(rtv_descriptor_spacing gpu rtv)
 foreach(pass pbr dShadowMap bb basic normal)
@@ -54,5 +57,11 @@ foreach(pass pbr dShadowMap bb basic normal)
 endforeach()
 artisDX_add_test(texture_copy_upload gpu upload "${PROJECT_SOURCE_DIR}/tests/fixtures/regression.glb")
 artisDX_add_test(glb_render_smoke gpu render "${PROJECT_SOURCE_DIR}/tests/fixtures/regression.glb")
-# Keep known defects visible: this is a normal failing test, not WILL_FAIL or DISABLED.
-set_property(TEST glb_render_smoke PROPERTY LABELS "gpu;known_failure")
+
+artisDX_add_test(reflected_binding_layout gpu root-layout "${PROJECT_SOURCE_DIR}/tests/fixtures")
+
+artisDX_add_test(command_submission_completion gpu completion)
+
+artisDX_add_test(submission_resource_retirement gpu retirement "${PROJECT_SOURCE_DIR}/tests/fixtures/regression.glb")
+
+artisDX_add_test(fixed_pass_resource_uses gpu resource-uses "${PROJECT_SOURCE_DIR}/tests/fixtures/regression.glb")

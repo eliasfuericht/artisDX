@@ -98,16 +98,16 @@ void DirectionalLight::CreateCBV(unsigned long long size, D3D12_CPU_DESCRIPTOR_H
 	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
 	CD3DX12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
 
-	D3D12Core::GraphicsDevice::device->CreateCommittedResource(
+	ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateCommittedResource(
 		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
 		&bufferDesc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(&buffer));
+		IID_PPV_ARGS(&buffer)), "Directional light constants: buffer creation failed");
 
 	CD3DX12_RANGE readRange(0, 0);
-	buffer->Map(0, &readRange, reinterpret_cast<void**>(&mappedPtr));
+	ThrowIfFailed(buffer->Map(0, &readRange, reinterpret_cast<void**>(&mappedPtr)), "Directional light constants: Map failed");
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 	cbvDesc.BufferLocation = buffer->GetGPUVirtualAddress();

@@ -15,7 +15,7 @@ Texture::Texture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, Texture::
 			TEX_FILTER_DEFAULT,
 			0,
 			mipChain
-		));
+		), "Texture: mip generation failed");
 
 		_image = std::move(mipChain);
 	}
@@ -50,7 +50,7 @@ void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList
 		&textureDesc,
 		D3D12_RESOURCE_STATE_COMMON,
 		nullptr,
-		IID_PPV_ARGS(&_textureResource)));
+		IID_PPV_ARGS(&_textureResource)), "Texture: GPU resource creation failed");
 
 	const uint64_t uploadBufferSize = GetRequiredIntermediateSize(_textureResource.Get(), 0, _mipCount);
 
@@ -64,7 +64,7 @@ void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList
 		&uploadBufferDesc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(&_textureUploadHeap)));
+		IID_PPV_ARGS(&_textureUploadHeap)), "Texture: upload buffer creation failed");
 
 	std::vector<D3D12_SUBRESOURCE_DATA> subresources(_mipCount);
 
@@ -75,7 +75,8 @@ void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList
 		subresources[i].SlicePitch = img->slicePitch;
 	}
 
-	UpdateSubresources(commandList.Get(), _textureResource.Get(), _textureUploadHeap.Get(), 0, 0, _mipCount, subresources.data());
+	if (UpdateSubresources(commandList.Get(), _textureResource.Get(), _textureUploadHeap.Get(), 0, 0, _mipCount, subresources.data()) == 0)
+		ThrowException("Texture: upload preparation failed (UpdateSubresources)");
 
 	_srvCpuHandle = DescriptorAllocator::CBVSRVUAV::Allocate();
 

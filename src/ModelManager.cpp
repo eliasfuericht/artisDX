@@ -11,6 +11,7 @@ void ModelManager::LoadModel(const std::filesystem::path& path)
 
 	if (constructedModel)
 	{
+		uploadContext.KeepAlive(model);
 		model->RegisterWithGUI();
 
 		_models.push_back(std::move(model));
@@ -23,6 +24,7 @@ void ModelManager::DrawAll(const ShaderPass& shaderPass, CommandContext& command
 {
 	for (auto& model : _models)
 	{
+		commandContext.KeepAlive(model);
 		model->DrawModel(shaderPass, commandContext.GetCommandList());
 	}
 }
@@ -31,6 +33,12 @@ void ModelManager::DrawAllBoundingBoxes(const ShaderPass& shaderPass, CommandCon
 {
 	for (auto& model : _models)
 	{
+		commandContext.KeepAlive(model);
 		model->DrawModelBoundingBox(shaderPass, commandContext.GetCommandList());
 	}
+}
+void ModelManager::ClearModels()
+{
+	// Recorded/submitted contexts retain their own model owners until completion.
+	_models.clear();
 }

@@ -10,116 +10,108 @@ void ShaderPass::AddShader(const std::filesystem::path& path, SHADERTYPE shaderT
 	_shaders.try_emplace(shaderType, Shader(path, shaderType));
 }
 
-void ShaderPass::GenerateGraphicsRootSignature()
+MSWRL::ComPtr<ID3DBlob> ShaderPass::GenerateGraphicsRootSignature()
 {
 	std::vector<std::pair<SHADERTYPE, D3D12_DESCRIPTOR_RANGE1>> ranges;
 	std::vector<D3D12_ROOT_PARAMETER1> rootParams;
+	std::unordered_map<std::string, uint32_t> bindings;
+	std::unordered_map<std::string, std::string> bindingDescriptions;
 
-	uint32_t incrementor = 0;
+	// Fix stage order independently of unordered_map iteration and insertion order.
+	std::vector<SHADERTYPE> stages;
 	for (const auto& shader : _shaders)
+		stages.push_back(shader.first);
+	std::sort(stages.begin(), stages.end());
+	for (const SHADERTYPE stage : stages)
 	{
-		MSWRL::ComPtr<IDxcBlob> reflectionBlob{};
-		ThrowIfFailed(shader.second._compiledShaderBuffer->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(&reflectionBlob), nullptr), "Failed to retrieve Shader Reflection Data!");
-
-		DxcBuffer reflectionBuffer{};
-		reflectionBuffer.Ptr = reflectionBlob->GetBufferPointer();
-		reflectionBuffer.Size = reflectionBlob->GetBufferSize();
-		reflectionBuffer.Encoding = 0;
-
-		MSWRL::ComPtr<ID3D12ShaderReflection> shaderReflection{};
-		D3D12Core::ShaderCompiler::utils->CreateReflection(&reflectionBuffer, IID_PPV_ARGS(&shaderReflection));
+		const std::string context = "Shader pass '" + _name + "', stage " + std::to_string(stage);
+		if (stage != SHADER_VERTEX && stage != SHADER_PIXEL)
+			ThrowException(context + ": unsupported graphics stage");
+		const Shader& shader = _shaders.at(stage);
+		if (!shader._compiledShaderBuffer)
+			ThrowException(context + ": no compilation result for reflection");
+		MSWRL::ComPtr<IDxcBlob> reflectionBlob;
+		ThrowIfFailed(shader._compiledShaderBuffer->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(&reflectionBlob), nullptr), context + ": reflection output retrieval failed");
+		if (!reflectionBlob || reflectionBlob->GetBufferSize() == 0)
+			ThrowException(context + ": missing reflection output");
+		DxcBuffer reflectionBuffer{reflectionBlob->GetBufferPointer(), reflectionBlob->GetBufferSize(), 0};
+		MSWRL::ComPtr<ID3D12ShaderReflection> reflection;
+		ThrowIfFailed(D3D12Core::ShaderCompiler::utils->CreateReflection(&reflectionBuffer, IID_PPV_ARGS(&reflection)), context + ": CreateReflection failed");
 		D3D12_SHADER_DESC shaderDesc{};
-		shaderReflection->GetDesc(&shaderDesc);
-
-		for (size_t i = 0; i < shaderDesc.BoundResources; i++)
+		ThrowIfFailed(reflection->GetDesc(&shaderDesc), context + ": reflection GetDesc failed");
+		for (uint32_t i = 0; i < shaderDesc.BoundResources; ++i)
 		{
-			D3D12_SHADER_INPUT_BIND_DESC bindDesc{};
-			shaderReflection->GetResourceBindingDesc(static_cast<uint32_t>(i), &bindDesc);
-
-			_bindingMap.try_emplace(bindDesc.Name, incrementor++);
-
-			if (bindDesc.Type == D3D_SIT_CBUFFER)
+			D3D12_SHADER_INPUT_BIND_DESC binding{};
+			ThrowIfFailed(reflection->GetResourceBindingDesc(i, &binding), context + ": GetResourceBindingDesc failed at resource " + std::to_string(i));
+			const std::string description = context + ", resource '" + binding.Name + "', kind " + std::to_string(binding.Type) +
+				", register " + std::to_string(binding.BindPoint) + ", space " + std::to_string(binding.Space) + ", count " + std::to_string(binding.BindCount);
+			if (binding.BindCount == 0 || binding.BindCount == UINT32_MAX)
+				ThrowException(description + ": unbounded descriptor ranges are unsupported");
+			D3D12_DESCRIPTOR_RANGE1 range{};
+			switch (binding.Type)
 			{
-				D3D12_DESCRIPTOR_RANGE1 cbvRange{};
-				cbvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-				cbvRange.NumDescriptors = bindDesc.BindCount;
-				cbvRange.BaseShaderRegister = bindDesc.BindPoint;
-				cbvRange.RegisterSpace = bindDesc.Space;
-				cbvRange.OffsetInDescriptorsFromTableStart = 0;
-				ranges.emplace_back(shader.first, cbvRange);
+			case D3D_SIT_CBUFFER: range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV; break;
+			case D3D_SIT_TEXTURE: range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV; break;
+			case D3D_SIT_SAMPLER: range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER; break;
+			case D3D_SIT_UAV_RWTYPED: range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV; break;
+			default: ThrowException(description + ": unsupported binding kind");
 			}
-			else if (bindDesc.Type == D3D_SIT_TEXTURE)
-			{
-				D3D12_DESCRIPTOR_RANGE1 srvRange{};
-				srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-				srvRange.NumDescriptors = bindDesc.BindCount;
-				srvRange.BaseShaderRegister = bindDesc.BindPoint;
-				srvRange.RegisterSpace = bindDesc.Space;
-				srvRange.OffsetInDescriptorsFromTableStart = 0;
-				ranges.emplace_back(shader.first, srvRange);
-			}
-			else if (bindDesc.Type == D3D_SIT_SAMPLER)
-			{
-				D3D12_DESCRIPTOR_RANGE1 samplerRange{};
-				samplerRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
-				samplerRange.NumDescriptors = bindDesc.BindCount;
-				samplerRange.BaseShaderRegister = bindDesc.BindPoint;
-				samplerRange.RegisterSpace = bindDesc.Space;
-				samplerRange.OffsetInDescriptorsFromTableStart = 0;
-				ranges.emplace_back(shader.first, samplerRange);
-			}
-			else if (bindDesc.Type == D3D_SIT_UAV_RWTYPED)
-			{
-				D3D12_DESCRIPTOR_RANGE1 uavRange{};
-				uavRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-				uavRange.NumDescriptors = bindDesc.BindCount;
-				uavRange.BaseShaderRegister = bindDesc.BindPoint;
-				uavRange.RegisterSpace = bindDesc.Space;
-				uavRange.OffsetInDescriptorsFromTableStart = 0;
-				ranges.emplace_back(shader.first, uavRange);
-			}
+			if (auto previous = bindingDescriptions.find(binding.Name); previous != bindingDescriptions.end())
+				ThrowException(description + ": duplicate binding name; first binding: " + previous->second);
+			bindingDescriptions.emplace(binding.Name, description);
+			bindings.emplace(binding.Name, static_cast<uint32_t>(ranges.size()));
+			range.NumDescriptors = binding.BindCount;
+			range.BaseShaderRegister = binding.BindPoint;
+			range.RegisterSpace = binding.Space;
+			range.OffsetInDescriptorsFromTableStart = 0;
+			ranges.emplace_back(stage, range);
 		}
 	}
-
-	for (const std::pair<SHADERTYPE, D3D12_DESCRIPTOR_RANGE1>& range : ranges)
+	for (const auto& range : ranges)
 	{
 		D3D12_ROOT_PARAMETER1 param{};
 		param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-
-		switch (range.first)
-		{
-		case SHADERTYPE::SHADER_VERTEX:
-			param.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-			break;
-		case SHADERTYPE::SHADER_PIXEL:
-			param.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-			break;
-		default:
-			break;
-		}
-		param.DescriptorTable.NumDescriptorRanges = range.second.NumDescriptors;
-		param.DescriptorTable.pDescriptorRanges = &range.second;
+		param.ShaderVisibility = range.first == SHADER_VERTEX ? D3D12_SHADER_VISIBILITY_VERTEX : D3D12_SHADER_VISIBILITY_PIXEL;
+		// One range record, even when that range contains several descriptors.
+		param.DescriptorTable = {1, &range.second};
 		rootParams.push_back(param);
 	}
-
 	D3D12_VERSIONED_ROOT_SIGNATURE_DESC rootDesc{};
 	rootDesc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
 	rootDesc.Desc_1_1.NumParameters = static_cast<uint32_t>(rootParams.size());
 	rootDesc.Desc_1_1.pParameters = rootParams.data();
-	rootDesc.Desc_1_1.NumStaticSamplers = 0;
-	rootDesc.Desc_1_1.pStaticSamplers = nullptr;
 	rootDesc.Desc_1_1.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+	// Publish signature and matching metadata only after complete validation/creation.
+	auto serialized = CreateRootSignature(rootDesc);
+	_bindingMap.swap(bindings);
+	return serialized;
+}
 
+MSWRL::ComPtr<ID3DBlob> ShaderPass::CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& rootDesc)
+{
 	MSWRL::ComPtr<ID3DBlob> sigBlob;
 	MSWRL::ComPtr<ID3DBlob> errorBlob;
 
-	ThrowIfFailed(D3D12SerializeVersionedRootSignature(&rootDesc, &sigBlob, &errorBlob), "idk what this is tbh");
+	const HRESULT serializationResult = D3D12SerializeVersionedRootSignature(&rootDesc, &sigBlob, &errorBlob);
+	std::string diagnostics;
+	if (errorBlob && errorBlob->GetBufferSize() > 0)
+	{
+		diagnostics.assign(static_cast<const char*>(errorBlob->GetBufferPointer()), errorBlob->GetBufferSize());
+		if (diagnostics.back() == '\0')
+			diagnostics.pop_back();
+	}
+	ThrowIfFailed(serializationResult, "Shader pass '" + _name + "': root signature serialization failed\n" + diagnostics);
+	if (!sigBlob || sigBlob->GetBufferSize() == 0)
+		ThrowException("Shader pass '" + _name + "': serializer returned empty root signature");
 
+	MSWRL::ComPtr<ID3D12RootSignature> rootSignature;
 	ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateRootSignature(
 		0,
 		sigBlob->GetBufferPointer(),
 		sigBlob->GetBufferSize(),
-		IID_PPV_ARGS(&_rootSignature)), "RootSignature creation failed!");
+		IID_PPV_ARGS(&rootSignature)), "Shader pass '" + _name + "': RootSignature creation failed");
+	_rootSignature.Swap(rootSignature);
+	return sigBlob;
 }
 
 void ShaderPass::GeneratePipeLineStateObjectForwardPass(D3D12_FILL_MODE fillMode, D3D12_CULL_MODE cullMode, bool alphaBlending)

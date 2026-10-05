@@ -23,8 +23,13 @@ Shader::Shader(const std::filesystem::path& path, SHADERTYPE shaderType)
 		compilationArguments.push_back(L"cs_6_7");
 		break;
 	default:
-		break;
+		ThrowException("Invalid shader stage " + std::to_string(shaderType) + " for " + path.string());
 	}
+	std::string profile;
+	// The shader profiles above contain only ASCII characters.
+	for (const wchar_t character : std::wstring(compilationArguments.back()))
+		profile.push_back(static_cast<char>(character));
+	const std::string context = "Shader " + path.string() + " [" + profile + "]";
 
 #if defined(_DEBUG)
 	compilationArguments.push_back(DXC_ARG_DEBUG);
@@ -37,7 +42,7 @@ Shader::Shader(const std::filesystem::path& path, SHADERTYPE shaderType)
 
 	// Load the shader source file to a blob.
 	MSWRL::ComPtr<IDxcBlobEncoding> sourceBlob{};
-	ThrowIfFailed(D3D12Core::ShaderCompiler::utils->LoadFile(path.c_str(), nullptr, &sourceBlob), "Failed to load shader with path: " + path.string());
+	ThrowIfFailed(D3D12Core::ShaderCompiler::utils->LoadFile(path.c_str(), nullptr, &sourceBlob), context + ": source loading failed");
 
 	DxcBuffer sourceBuffer = {};
 	sourceBuffer.Ptr = sourceBlob->GetBufferPointer();
@@ -48,15 +53,21 @@ Shader::Shader(const std::filesystem::path& path, SHADERTYPE shaderType)
 		compilationArguments.data(),
 		static_cast<uint32_t>(compilationArguments.size()),
 		D3D12Core::ShaderCompiler::includeHandler.Get(),
-		IID_PPV_ARGS(&_compiledShaderBuffer)), "Failed to compile shader with path: " + path.string());
+		IID_PPV_ARGS(&_compiledShaderBuffer)), context + ": compiler invocation failed");
+	if (!_compiledShaderBuffer)
+		ThrowException(context + ": compiler returned no result");
+
+	HRESULT compilationStatus{};
+	ThrowIfFailed(_compiledShaderBuffer->GetStatus(&compilationStatus), context + ": GetStatus failed");
 
 	MSWRL::ComPtr<IDxcBlobUtf8> errors{};
-	ThrowIfFailed(_compiledShaderBuffer->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&errors), nullptr), "Failed to retrieve Shader Compilation Errors!");
-	if (errors && errors->GetStringLength() > 0)
-	{
-		const LPCSTR errorMessage = errors->GetStringPointer();
-		ThrowException(errorMessage);
-	}
+	ThrowIfFailed(_compiledShaderBuffer->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&errors), nullptr), context + ": diagnostic retrieval failed");
+	const std::string diagnostics = errors && errors->GetStringLength() > 0 ? errors->GetStringPointer() : "";
+	ThrowIfFailed(compilationStatus, context + ": compilation failed\n" + diagnostics);
+	if (!diagnostics.empty())
+		PRINT(context, ": ", diagnostics);
 
-	ThrowIfFailed(_compiledShaderBuffer->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&_shaderBlob), nullptr), "Failed to retrieve Shader Blob!");
+	ThrowIfFailed(_compiledShaderBuffer->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&_shaderBlob), nullptr), context + ": bytecode retrieval failed");
+	if (!_shaderBlob || _shaderBlob->GetBufferSize() == 0)
+		ThrowException(context + ": compiler returned empty bytecode");
 }

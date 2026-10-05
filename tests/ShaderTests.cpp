@@ -4,6 +4,28 @@
 
 namespace Testing
 {
+    void TestShaderFailures(const std::filesystem::path& fixtures)
+    {
+        Shader valid(fixtures / "../../shaders/pbr_vert.hlsl", SHADERTYPE::SHADER_VERTEX);
+        Require(valid._shaderBlob && valid._shaderBlob->GetBufferSize() > 0, "Production Shader must provide valid bytecode");
+        ExpectFailure([&] { Shader missing(fixtures / "missing_regression_shader.hlsl", SHADERTYPE::SHADER_PIXEL); },
+            "missing_regression_shader.hlsl [ps_6_7]: source loading failed");
+        try
+        {
+            Shader invalid(fixtures / "invalid_pixel.hlsl", SHADERTYPE::SHADER_PIXEL);
+            Require(false, "Invalid production shader must fail compilation");
+        }
+        catch (const std::runtime_error& error)
+        {
+            const std::string_view diagnostic(error.what());
+            Require(diagnostic.find("invalid_pixel.hlsl [ps_6_7]: compilation failed") != std::string_view::npos &&
+                diagnostic.find("missing_regression_symbol") != std::string_view::npos,
+                "Production shader failure must include source, profile, and compiler diagnostic");
+        }
+        ExpectFailure([&] { Shader invalid(fixtures / "invalid_pixel.hlsl", static_cast<SHADERTYPE>(-1)); },
+            "Invalid shader stage");
+    }
+
     void TestShader(const std::filesystem::path& path, bool optimized)
     {
         // Use the engine compiler/DLL and both configurations regardless of the C++ build configuration.

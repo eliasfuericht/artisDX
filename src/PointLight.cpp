@@ -15,16 +15,16 @@ void PointLight::CreateCBV()
 	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
 	CD3DX12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
 
-	D3D12Core::GraphicsDevice::device->CreateCommittedResource(
+	ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateCommittedResource(
 		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
 		&bufferDesc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(&_pLightBufferResource));
+		IID_PPV_ARGS(&_pLightBufferResource)), "Point light constants: buffer creation failed");
 
 	CD3DX12_RANGE readRange(0, 0);
-	_pLightBufferResource->Map(0, &readRange, reinterpret_cast<void**>(&_mappedCBVpLightPtr));
+	ThrowIfFailed(_pLightBufferResource->Map(0, &readRange, reinterpret_cast<void**>(&_mappedCBVpLightPtr)), "Point light constants: Map failed");
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 	cbvDesc.BufferLocation = _pLightBufferResource->GetGPUVirtualAddress();

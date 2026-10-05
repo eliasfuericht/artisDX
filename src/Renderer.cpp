@@ -5,7 +5,7 @@ void Renderer::InitializeRenderer()
 	CommandQueueManager::InitializeCommandQueueManager();
 
 	_mainLoopGraphicsContext.InitializeCommandContext(QUEUETYPE::QUEUE_GRAPHICS);
-	_mainLoopGraphicsContext.Finish(false);
+	_mainLoopGraphicsContext.Finish(true);
 
 	DescriptorAllocator::CBVSRVUAV::InitializeDescriptorAllocator(NUM_MAX_RESOURCE_DESCRIPTORS);
 	DescriptorAllocator::RTV::InitializeDescriptorAllocator(NUM_MAX_RTV_DESCRIPTORS);
@@ -303,6 +303,19 @@ void Renderer::UpdateBuffers(float dt)
 void Renderer::SetCommandlist()
 {
 	_mainLoopGraphicsContext.Reset();
+	// Fixed pass-use contract: both sampled textures end ready for GUI/next frame.
+	_mainLoopGraphicsContext.DeclareResource(_viewportTexture.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, "viewport");
+	_mainLoopGraphicsContext.DeclareResource(_dLight->_directionalShadowMapBuffer.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, "shadow map");
+	_mainLoopGraphicsContext.DeclareResource(_depthStencilBuffer.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE,
+		D3D12_RESOURCE_STATE_DEPTH_WRITE, "scene depth");
+	_mainLoopGraphicsContext.KeepAlive(_VPBufferResource);
+	_mainLoopGraphicsContext.KeepAlive(_camPosBufferResource);
+	_mainLoopGraphicsContext.KeepAlive(_pLight);
+	_mainLoopGraphicsContext.KeepAlive(_dLight);
+	_mainLoopGraphicsContext.KeepAlive(MSWRL::ComPtr<IUnknown>(DescriptorAllocator::CBVSRVUAV::GetHeap()));
+	_mainLoopGraphicsContext.KeepAlive(MSWRL::ComPtr<IUnknown>(DescriptorAllocator::Sampler::GetHeap()));
 
 	ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::CBVSRVUAV::GetHeap(), DescriptorAllocator::Sampler::GetHeap() };
 	_mainLoopGraphicsContext.GetCommandList()->SetDescriptorHeaps(_countof(heaps), heaps);
@@ -310,17 +323,11 @@ void Renderer::SetCommandlist()
 	if (_depthPass->_usePass)
 	{
 		_mainLoopGraphicsContext.SetPipelineState(_depthPass->_pipelineState);
-		_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootSignature(_depthPass->_rootSignature.Get());
+		_mainLoopGraphicsContext.SetGraphicsRootSignature(_depthPass->_rootSignature);
 		_mainLoopGraphicsContext.GetCommandList()->RSSetViewports(1, &_dLight->_vp);
 		_mainLoopGraphicsContext.GetCommandList()->RSSetScissorRects(1, &_dLight->_scissor);
 
-		D3D12_RESOURCE_BARRIER depthmapbarrier = CD3DX12_RESOURCE_BARRIER::Transition(
-			_dLight->_directionalShadowMapBuffer.Get(),
-			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-			D3D12_RESOURCE_STATE_DEPTH_WRITE,
-			D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-
-		_mainLoopGraphicsContext.GetCommandList()->ResourceBarrier(1, &depthmapbarrier);
+		_mainLoopGraphicsContext.UseResource(_dLight->_directionalShadowMapBuffer.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
 		_mainLoopGraphicsContext.GetCommandList()->OMSetRenderTargets(0, nullptr, false, &_dLight->_directionalShadowMapDSVCPUHandle);
 		_mainLoopGraphicsContext.GetCommandList()->ClearDepthStencilView(_dLight->_directionalShadowMapDSVCPUHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, '\0', 0, nullptr);
@@ -330,22 +337,12 @@ void Renderer::SetCommandlist()
 
 		_modelManager.DrawAll(*_depthPass, _mainLoopGraphicsContext);
 
-		D3D12_RESOURCE_BARRIER depthmapbarrierpresent = CD3DX12_RESOURCE_BARRIER::Transition(
-			_dLight->_directionalShadowMapBuffer.Get(),
-			D3D12_RESOURCE_STATE_DEPTH_WRITE,
-			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-			D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-
-		_mainLoopGraphicsContext.GetCommandList()->ResourceBarrier(1, &depthmapbarrierpresent);
+		_mainLoopGraphicsContext.UseResource(_dLight->_directionalShadowMapBuffer.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
 
-	D3D12_RESOURCE_BARRIER renderTargetBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
-		_viewportTexture.Get(),
-		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-		D3D12_RESOURCE_STATE_RENDER_TARGET,
-		D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+	_mainLoopGraphicsContext.UseResource(_viewportTexture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+	_mainLoopGraphicsContext.UseResource(_depthStencilBuffer.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
-	_mainLoopGraphicsContext.GetCommandList()->ResourceBarrier(1, &renderTargetBarrier);
 	_mainLoopGraphicsContext.GetCommandList()->OMSetRenderTargets(1, &_viewportRTV, false, &_dsvCPUHandle);
 
 	// Clear the render target.
@@ -356,7 +353,7 @@ void Renderer::SetCommandlist()
 	if (_mainPass->_usePass)
 	{
 		_mainLoopGraphicsContext.SetPipelineState(_mainPass->_pipelineState);
-		_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootSignature(_mainPass->_rootSignature.Get());
+		_mainLoopGraphicsContext.SetGraphicsRootSignature(_mainPass->_rootSignature);
 		_mainLoopGraphicsContext.GetCommandList()->RSSetViewports(1, &_vp);
 		_mainLoopGraphicsContext.GetCommandList()->RSSetScissorRects(1, &_scissor);
 
@@ -388,12 +385,12 @@ void Renderer::SetCommandlist()
 	if (_bbPass->_usePass)
 	{
 		_mainLoopGraphicsContext.SetPipelineState(_bbPass->_pipelineState);
-		_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootSignature(_bbPass->_rootSignature.Get());
+		_mainLoopGraphicsContext.SetGraphicsRootSignature(_bbPass->_rootSignature);
 		_mainLoopGraphicsContext.GetCommandList()->RSSetViewports(1, &_vp);
 		_mainLoopGraphicsContext.GetCommandList()->RSSetScissorRects(1, &_scissor);
 
 		_mainLoopGraphicsContext.SetPipelineState(_bbPass->_pipelineState);
-		_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootSignature(_bbPass->_rootSignature.Get());
+		_mainLoopGraphicsContext.SetGraphicsRootSignature(_bbPass->_rootSignature);
 
 		if (auto slot = _bbPass->GetRootParameterIndex("viewProjMatrixBuffer"))
 			_mainLoopGraphicsContext.GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_VPBufferDescriptor));
@@ -401,18 +398,12 @@ void Renderer::SetCommandlist()
 		_modelManager.DrawAllBoundingBoxes(*_bbPass, _mainLoopGraphicsContext);
 	}
 
-	D3D12_RESOURCE_BARRIER srvBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
-		_viewportTexture.Get(),
-		D3D12_RESOURCE_STATE_RENDER_TARGET,
-		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-		D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-
-	_mainLoopGraphicsContext.GetCommandList()->ResourceBarrier(1, &srvBarrier);
+	_mainLoopGraphicsContext.UseResource(_viewportTexture.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
 	_mainLoopGraphicsContext.Finish(true);
 }
 
 void Renderer::Shutdown()
 {
-	CommandQueueManager::GetCommandQueue(QUEUETYPE::QUEUE_GRAPHICS).WaitForFence();
+	CommandQueueManager::GetCommandQueue(QUEUETYPE::QUEUE_GRAPHICS).Flush();
 }

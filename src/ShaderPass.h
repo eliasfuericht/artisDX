@@ -16,7 +16,8 @@ public:
 
 	void AddShader(const std::filesystem::path& path, SHADERTYPE shaderType);
 
-	void GenerateGraphicsRootSignature();
+	MSWRL::ComPtr<ID3DBlob> GenerateGraphicsRootSignature();
+	MSWRL::ComPtr<ID3DBlob> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& rootDesc);
 	void GeneratePipeLineStateObjectForwardPass(D3D12_FILL_MODE fillMode, D3D12_CULL_MODE cullMode, bool alphaBlending);
 
 	std::optional<uint32_t> GetRootParameterIndex(const std::string& name) const;
