@@ -74,11 +74,11 @@ if (MSVC)
     target_compile_options(${APPLICATION_NAME} PRIVATE
         /std:c++20
         /Zc:__cplusplus
-        /MP						# parallel build
+        /MP                    # parallel build
         /external:W0            # external headers → warning level 0
         /external:anglebrackets # treat <…> as external
-        /W4						# warning level 4  (use /Wall for **all** warnings)
-        /WX						# treat warnings as errors
+        /W4                    # warning level 4  (use /Wall for **all** warnings)
+        /WX                    # treat warnings as errors
     )
 endif()
 
@@ -101,10 +101,10 @@ include(extern/directxtex.cmake)
 message(STATUS "External libraries configured successfully.")
 
 # Add include directories
-target_include_directories(${APPLICATION_NAME} PRIVATE include)
+target_include_directories(${APPLICATION_NAME} PRIVATE src include)
 
 target_link_libraries(
-  ${APPLICATION_NAME}    
+  ${APPLICATION_NAME} PRIVATE
   d3d12    
   dxgi        
   dxguid      
@@ -133,7 +133,7 @@ source_group(TREE "${CMAKE_SOURCE_DIR}/src" PREFIX "include" FILES ${ARTISDX_HEA
 # hidding pch filters
 source_group("precompiled" FILES
   ${CMAKE_BINARY_DIR}/CMakeFiles/${APPLICATION_NAME}.dir/Debug/cmake_pch.hxx
-  ${CMAKE_BINARY_DIR}/CMakeFiles/${APPLICATION_NAME}.dir/Release/cmake_pch.hxx 
+  ${CMAKE_BINARY_DIR}/CMakeFiles/${APPLICATION_NAME}.dir/Release/cmake_pch.hxx
   ${CMAKE_BINARY_DIR}/CMakeFiles/${APPLICATION_NAME}.dir/MinSizeRel/cmake_pch.hxx
   ${CMAKE_BINARY_DIR}/CMakeFiles/${APPLICATION_NAME}.dir/RelWithDebInfo/cmake_pch.hxx
   ${CMAKE_BINARY_DIR}/CMakeFiles/${APPLICATION_NAME}.dir/cmake_pch.cxx
@@ -141,3 +141,6 @@ source_group("precompiled" FILES
 
 # Set artisDX as the startup project - only works for Visual Studio
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT artisDX)
+
+include(CTest)
+include(tests/Tests.cmake)

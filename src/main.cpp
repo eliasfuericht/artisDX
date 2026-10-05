@@ -1,9 +1,6 @@
-#pragma once
-
 #include "Application.h"
 
-int main()
+int main(int argc, char** argv)
 {
-	Application artisDX("artisDX", 1920, 1080, false);
-	artisDX.Run();
+	return Application::Start(argc, argv, "artisDX", 1920, 1080, false);
 }

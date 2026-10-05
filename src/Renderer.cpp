@@ -13,7 +13,7 @@ void Renderer::InitializeRenderer()
 	DescriptorAllocator::Sampler::InitializeDescriptorAllocator(NUM_MAX_SAMPLER_DESCRIPTORS);
 }
 
-void Renderer::InitializeResources()
+void Renderer::InitializeResources(const std::filesystem::path& modelPath)
 {
 	CreateRenderTarget();
 	CreateDepthBuffer();
@@ -45,7 +45,7 @@ void Renderer::InitializeResources()
 
 	//_modelManager.LoadModel("../assets/helmet.glb");
 	//_modelManager.LoadModel("../assets/helmets.glb");
-	_modelManager.LoadModel("../assets/sponza.glb");
+	_modelManager.LoadModel(modelPath);
 	//_modelManager.LoadModel("../assets/brick_wall.glb");
 	//_modelManager.LoadModel("../assets/DamagedHelmet.glb"); 
 	//_modelManager.LoadModel("../assets/apollo.glb");
@@ -237,13 +237,11 @@ void Renderer::CreateConstantBuffers()
 	D3D12_RANGE readRange = { 0, 0 };
 	ThrowIfFailed(_VPBufferResource->Map(0, &readRange, reinterpret_cast<void**>(&_mappedVPBuffer)));
 	memcpy(_mappedVPBuffer, &_viewProjectionMatrix, sizeof(XMFLOAT4X4));
-	_VPBufferResource->Unmap(0, nullptr);
 
 	XMFLOAT3 camPos;
 	XMStoreFloat3(&camPos, _camera->_position);
 	ThrowIfFailed(_camPosBufferResource->Map(0, &readRange, reinterpret_cast<void**>(&_mappedCamPosBuffer)));
 	memcpy(_mappedCamPosBuffer, &camPos, sizeof(XMFLOAT3));
-	_camPosBufferResource->Unmap(0, nullptr);
 
 	_pLight = std::make_shared<PointLight>(1.0f, 1.0f, 1.0f);
 	//_pLight->RegisterWithGUI();

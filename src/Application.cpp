@@ -19,6 +19,16 @@ Application::Application(const char* name, int32_t w, int32_t h, bool fullscreen
 	InitializeApplication();
 }
 
+int Application::Start(int argc, char** argv, const char* name, int32_t w, int32_t h, bool fullscreen)
+{
+	if (auto exitCode = Testing::HandleCommandLine(argc, argv))
+		return *exitCode;
+
+	Application application(name, w, h, fullscreen);
+	application.Run();
+	return 0;
+}
+
 void Application::InitializeApplication()
 {
 	Window::InitializeWindow(_name.c_str(), _width, _height, _fullscreen);
@@ -41,7 +51,7 @@ void Application::InitializeApplication()
 
 	D3D12Core::Swapchain::InitializeSwapchain();
 
-	_renderer.InitializeResources();
+	_renderer.InitializeResources("../assets/sponza.glb");
 
 	GUI::InitializeGUI();
 

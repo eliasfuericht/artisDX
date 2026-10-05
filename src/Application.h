@@ -14,10 +14,12 @@
 #include "Camera.h"
 #include "DirectionalLight.h"
 #include "PointLight.h"
+#include "TestLauncher.h"
 
 class Application
 {
 public:
+	static int Start(int argc, char** argv, const char* name, int32_t w, int32_t h, bool fullscreen);
 	Application(const char* name, int32_t w, int32_t h, bool fullscreen);
 	void Run();
 	~Application();

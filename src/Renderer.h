@@ -17,7 +17,7 @@ class Renderer
 public:
 	Renderer() = default;
 	void InitializeRenderer();
-	void InitializeResources();
+	void InitializeResources(const std::filesystem::path& modelPath);
 	void CreateRenderTarget();
 	void CreateDepthBuffer();
 	void CreateConstantBuffers();
