@@ -40,7 +40,8 @@ def generate():
     asset = {
         "asset": {"version": "2.0", "generator": "artisDX regression fixture"},
         "scene": 0, "scenes": [{"nodes": [0]}],
-        "nodes": [{"name": "Parent", "children": [1, 2]},
+        "nodes": [{"name": "Parent", "children": [1, 2],
+                   "translation": [0.3, 0.25, 0], "scale": [0.8, 1.1, 1]},
                   {"name": "Textured", "mesh": 0, "translation": [-0.9, 0, 0]},
                   # This raised quad casts a visible shadow onto the textured quad.
                   {"name": "FallbackBlend", "mesh": 1, "translation": [0, 0.8, 1], "scale": [0.4, 0.4, 1]}],

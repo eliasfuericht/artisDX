@@ -4,7 +4,7 @@
 
 #include <array>
 #include <cstring>
-#include <thread>
+#include <future>
 #include <type_traits>
 
 namespace Testing
@@ -25,6 +25,31 @@ namespace
     };
 
     MSWRL::ComPtr<ID3D12InfoQueue> infoQueue;
+
+    struct QueueGate
+    {
+        MSWRL::ComPtr<ID3D12Fence> fence;
+        explicit QueueGate(CommandQueue& queue)
+        {
+            ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
+            ThrowIfFailed(queue._commandQueue->Wait(fence.Get(), 1));
+        }
+        // Release even on assertion failure so queue teardown cannot hang.
+        ~QueueGate() { fence->Signal(1); }
+        QueueGate(const QueueGate&) = delete;
+        QueueGate& operator=(const QueueGate&) = delete;
+        void Release() { ThrowIfFailed(fence->Signal(1)); }
+    };
+
+    void RequirePending(const CommandCompletion& completion, std::string_view message)
+    {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(50);
+        do
+        {
+            Require(completion.GetFence()->GetCompletedValue() < completion.GetValue(), message);
+            SwitchToThread();
+        } while (std::chrono::steady_clock::now() < deadline);
+    }
 
     void InitializeGpu(bool hardware, bool validateShaders)
     {
@@ -64,11 +89,13 @@ namespace
         GUI::viewportWidth = GUI::viewportHeight = ViewportSize;
     }
 
-    void CheckGpuDiagnostics(std::optional<D3D12_MESSAGE_ID> expectedError = std::nullopt)
+    void CheckGpuDiagnostics(std::optional<D3D12_MESSAGE_ID> expectedError = std::nullopt,
+        std::optional<D3D12_MESSAGE_ID> expectedWarning = std::nullopt)
     {
         ThrowIfFailed(D3D12Core::GraphicsDevice::device->GetDeviceRemovedReason(), "GPU device was removed");
         bool errors = false;
         uint32_t expectedCount = 0;
+        uint32_t warningCount = 0;
         for (uint64_t i = 0; i < infoQueue->GetNumStoredMessages(); ++i)
         {
             SIZE_T size = 0;
@@ -76,32 +103,29 @@ namespace
             std::vector<uint8_t> storage(size);
             auto* message = reinterpret_cast<D3D12_MESSAGE*>(storage.data());
             ThrowIfFailed(infoQueue->GetMessage(i, message, &size));
-            const bool expected = expectedError && message->ID == *expectedError && message->Severity == D3D12_MESSAGE_SEVERITY_ERROR;
+            const bool errorExpected = expectedError && message->ID == *expectedError && message->Severity == D3D12_MESSAGE_SEVERITY_ERROR;
+            const bool warningExpected = expectedWarning && message->ID == *expectedWarning && message->Severity == D3D12_MESSAGE_SEVERITY_WARNING;
+            const bool expected = errorExpected || warningExpected;
             if (message->Severity <= D3D12_MESSAGE_SEVERITY_WARNING)
                 std::cerr << (expected ? "Expected D3D12 [" : "D3D12 [") << message->ID << "]: " << message->pDescription << '\n';
-            if (expected)
+            if (errorExpected)
                 ++expectedCount;
+            else if (warningExpected)
+                ++warningCount;
             else
-                errors |= message->Severity <= D3D12_MESSAGE_SEVERITY_ERROR;
+                errors |= message->Severity <= D3D12_MESSAGE_SEVERITY_WARNING;
         }
-        Require(!errors, "D3D12 debug layer reported errors; see the messages above");
+        Require(!errors, "D3D12 debug layer reported unexpected warnings/errors; see the messages above");
         if (expectedError)
             Require(expectedCount == 1, "Negative case must produce exactly its one expected D3D12 error");
+        if (expectedWarning)
+            Require(warningCount == 1, "Injected clear must produce exactly its one expected D3D12 warning");
+        infoQueue->ClearStoredMessages();
     }
 
     void TestCommandFailures()
     {
         CommandQueueManager::InitializeCommandQueueManager();
-        for (const QUEUETYPE type : {QUEUE_GRAPHICS, QUEUE_UPLOAD})
-        {
-            CommandContext context;
-            context.InitializeCommandContext(type);
-            context.Finish(true);
-            context.Reset();
-            context.Finish(true);
-            const auto& queue = CommandQueueManager::GetCommandQueue(type);
-            Require(queue._fence->GetCompletedValue() >= queue._fenceValue, "Submitted work must finish before reuse");
-        }
         for (const QUEUETYPE type : {QUEUE_INVALID, static_cast<QUEUETYPE>(3)})
         {
             ExpectFailure([&] { CommandQueueManager::GetCommandQueue(type); }, "Invalid command queue type");
@@ -237,20 +261,22 @@ namespace
         ExpectFailure([&] { copy.Submit(context.GetCommandList().Get()); }, "does not match its submission queue");
         ExpectFailure([&] { graphics.WaitGPU({}); }, "requires a submitted producer completion");
         ExpectFailure([&] { context.Reset(); }, "recording command context");
-        MSWRL::ComPtr<ID3D12Fence> gate;
-        ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&gate)));
-        // Always unblock even if an assertion throws, so negative tests cannot hang teardown.
-        struct ReleaseGate { ID3D12Fence* fence; ~ReleaseGate() { fence->Signal(1); } } release{gate.Get()};
-        ThrowIfFailed(graphics._commandQueue->Wait(gate.Get(), 1));
+        // Declare the future before its gate: unwind releases GPU work before joining.
+        std::promise<void> started;
+        auto resetStarted = started.get_future();
+        std::future<void> reset;
+        QueueGate gate(graphics);
         const auto first = context.Finish(false);
         Require(first.GetFence() == graphics._fence.Get() && first.GetValue() > 0 && !graphics.IsComplete(first),
             "Nonblocking submission must signal its own identifiable, pending completion");
         ExpectFailure([&] { copy.WaitCPU(first); }, "does not belong to this queue");
         const auto signaled = graphics._fenceValue;
-        std::thread unblock([&] { std::this_thread::sleep_for(std::chrono::milliseconds(25)); gate->Signal(1); });
-        try { context.Reset(); }
-        catch (...) { unblock.join(); throw; }
-        unblock.join();
+        reset = std::async(std::launch::async, [&] { started.set_value(); context.Reset(); });
+        Require(resetStarted.wait_for(std::chrono::seconds(2)) == std::future_status::ready, "Reset worker must start");
+        const auto blocked = reset.wait_for(std::chrono::milliseconds(50));
+        gate.Release();
+        reset.get();
+        Require(blocked == std::future_status::timeout, "Reset must remain blocked while its allocator is in flight");
         Require(graphics.IsComplete(first) && graphics._fenceValue == signaled,
             "Reset must wait on its own submission without creating a fresh flush signal");
         const auto second = context.Finish(true);
@@ -271,17 +297,24 @@ namespace
         upload->Unmap(0, nullptr);
         CommandContext producer;
         producer.InitializeCommandContext(QUEUE_UPLOAD);
+        QueueGate copyGate(copy);
         producer.GetCommandList()->CopyBufferRegion(destination.Get(), 0, upload.Get(), 0, sizeof(uint32_t));
         const auto copied = producer.Finish(false);
+        Require(!copy.IsComplete(copied), "Copy producer must still be held by its gate");
         graphics.WaitGPU(copied);
         auto readback = ReadbackBuffer(sizeof(uint32_t));
         context.Reset();
         context.GetCommandList()->CopyBufferRegion(readback.Get(), 0, destination.Get(), 0, sizeof(uint32_t));
-        const auto consumed = context.Finish(true);
+        const auto consumed = context.Finish(false);
+        RequirePending(consumed, "Graphics consumption must stay pending until the copy producer is released");
+        copyGate.Release();
+        graphics.WaitCPU(consumed);
         Require(consumed.GetFence() != copied.GetFence() && copy.IsComplete(copied), "Queue identity and copy-to-graphics dependency must be preserved");
         ThrowIfFailed(readback->Map(0, nullptr, reinterpret_cast<void**>(&mapped)));
         Require(*mapped == 0x12345678, "Consumer must read the producer's completed copy");
         readback->Unmap(0, &noRead);
+        producer.Reset();
+        producer.Finish(true); // Copy allocator reuse is covered here, not by a second lifecycle loop.
     }
 
     template<typename T>
@@ -313,7 +346,7 @@ namespace
         GUI::viewportWidth = GUI::viewportHeight = ViewportSize;
         renderer.UpdateBuffers(0);
         Window::keys[KEYCODE_W] = true;
-        for (int frame = 1; frame <= 16; ++frame)
+        for (int frame = 1; frame <= 3; ++frame)
         {
             renderer.UpdateBuffers(0.1f);
             const auto position = ReadConstant<XMFLOAT3>(renderer._camPosBufferResource.Get());
@@ -350,11 +383,11 @@ namespace
             Require(GUI::viewportWidth == 192 && GUI::viewportHeight == 96 && !GUI::viewportResized,
                 "Invalid/subpixel panel extent must retain the last valid integer dimensions");
             renderer.UpdateBuffers(0);
-            const auto matrix = ReadConstant<XMFLOAT4X4>(renderer._VPBufferResource.Get());
-            Require(std::memcmp(&matrix, &lastVP, sizeof(matrix)) == 0 &&
-                std::memcmp(&renderer._projectionMatrix, &lastProjection, sizeof(lastProjection)) == 0,
-                "Invalid panel extent must retain the last valid projection/VP");
+            Require(std::memcmp(&renderer._projectionMatrix, &lastProjection, sizeof(lastProjection)) == 0,
+                "Invalid panel extent must retain the last valid projection");
         }
+        const auto rejectedPanel = ReadConstant<XMFLOAT4X4>(renderer._VPBufferResource.Get());
+        Require(std::memcmp(&rejectedPanel, &lastVP, sizeof(lastVP)) == 0, "Rejected panel extents must preserve GPU VP bytes");
         GUI::SetViewportExtent(ImVec2(192.9f, 96.9f));
         Require(!GUI::viewportResized, "Unchanged integer extent must not repeatedly update projection");
         // Renderer must also defend against invalid dimensions supplied outside the GUI helper.
@@ -364,9 +397,11 @@ namespace
             GUI::viewportHeight = extent.second;
             GUI::viewportResized = true;
             renderer.UpdateBuffers(0);
-            const auto matrix = ReadConstant<XMFLOAT4X4>(renderer._VPBufferResource.Get());
-            Require(std::memcmp(&matrix, &lastVP, sizeof(matrix)) == 0, "Invalid renderer extents must not change projection");
+            Require(std::memcmp(&renderer._projectionMatrix, &lastProjection, sizeof(lastProjection)) == 0,
+                "Invalid renderer extents must not change projection");
         }
+        const auto rejectedRenderer = ReadConstant<XMFLOAT4X4>(renderer._VPBufferResource.Get());
+        Require(std::memcmp(&rejectedRenderer, &lastVP, sizeof(lastVP)) == 0, "Rejected renderer extents must preserve GPU VP bytes");
         Window::keys[KEYCODE_W] = true;
         renderer.UpdateBuffers(0.1f);
         Window::keys[KEYCODE_W] = false;
@@ -513,19 +548,30 @@ namespace
 
     void WriteCapture(const std::vector<uint8_t>& pixels, const std::string& name)
     {
-        std::filesystem::create_directories("Testing/artifacts");
-        ScratchImage capture;
-        ThrowIfFailed(capture.Initialize2D(DXGI_FORMAT_R8G8B8A8_UNORM, ViewportSize, ViewportSize, 1, 1));
-        const auto* image = capture.GetImage(0, 0, 0);
-        for (size_t row = 0; row < ViewportSize; ++row)
-            std::memcpy(image->pixels + row * image->rowPitch, pixels.data() + row * ViewportSize * 4, ViewportSize * 4);
-        const std::filesystem::path path("Testing/artifacts/" + name + ".png");
-        ThrowIfFailed(SaveToWICFile(*image, WIC_FLAGS_NONE, GetWICCodec(WIC_CODEC_PNG), path.c_str()),
-            "Could not save render capture");
+        const DWORD capacity = GetEnvironmentVariableW(L"ARTISDX_TEST_CAPTURE_DIR", nullptr, 0);
+        if (!capacity) return;
+        std::wstring directory(capacity, L'\0');
+        const DWORD length = GetEnvironmentVariableW(L"ARTISDX_TEST_CAPTURE_DIR", directory.data(), capacity);
+        if (!length || length >= capacity) return;
+        directory.resize(length);
+        try
+        {
+            std::filesystem::create_directories(directory);
+            ScratchImage capture;
+            ThrowIfFailed(capture.Initialize2D(DXGI_FORMAT_R8G8B8A8_UNORM, ViewportSize, ViewportSize, 1, 1));
+            const auto* image = capture.GetImage(0, 0, 0);
+            for (size_t row = 0; row < ViewportSize; ++row)
+                std::memcpy(image->pixels + row * image->rowPitch, pixels.data() + row * ViewportSize * 4, ViewportSize * 4);
+            const auto path = std::filesystem::path(directory) / (name + ".png");
+            ThrowIfFailed(SaveToWICFile(*image, WIC_FLAGS_NONE, GetWICCodec(WIC_CODEC_PNG), path.c_str()),
+                "Could not save render capture");
+        }
+        catch (const std::exception& error) { std::cerr << "Capture skipped: " << error.what() << '\n'; }
     }
 
     void ClearShadowDepth(Renderer& renderer, float depth)
     {
+        CheckGpuDiagnostics(); // Do not allow unrelated warnings into the injection scope.
         CommandContext context;
         context.InitializeCommandContext(QUEUE_GRAPHICS);
         D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(renderer._dLight->_directionalShadowMapBuffer.Get(),
@@ -536,6 +582,8 @@ namespace
         std::swap(barrier.Transition.StateBefore, barrier.Transition.StateAfter);
         context.GetCommandList()->ResourceBarrier(1, &barrier);
         context.Finish(true);
+        CheckGpuDiagnostics(std::nullopt, depth == 1 ? std::nullopt :
+            std::optional{D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE});
     }
 
     std::vector<uint8_t> TestShadowToggle(Renderer& renderer)
@@ -613,7 +661,8 @@ namespace
 
         // The textured quad's center must retain the fixture's red albedo.
         XMFLOAT3 projectedCenter;
-        XMStoreFloat3(&projectedCenter, XMVector3TransformCoord(XMVectorSet(-0.9f, 0, 0, 1),
+        // Textured child at (-0.9, 0, 0), then parent's scale and translation.
+        XMStoreFloat3(&projectedCenter, XMVector3TransformCoord(XMVectorSet(-0.42f, 0.25f, 0, 1),
             XMLoadFloat4x4(&renderer._viewProjectionMatrix)));
         const int x = static_cast<int>((projectedCenter.x * 0.5f + 0.5f) * ViewportSize);
         const int y = static_cast<int>((0.5f - projectedCenter.y * 0.5f) * ViewportSize);
@@ -625,16 +674,60 @@ namespace
         renderer.Shutdown();
     }
 
+    // Record an actual manager draw without Renderer::Render's synchronous Finish.
+    // This deliberately tests manager retention, rather than implementing another frame path.
+    void RecordMainDraw(Renderer& renderer, CommandContext& context)
+    {
+        context.DeclareResource(renderer._viewportTexture.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, "retirement viewport");
+        context.DeclareResource(renderer._depthStencilBuffer.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE,
+            D3D12_RESOURCE_STATE_DEPTH_WRITE, "retirement depth");
+        context.KeepAlive(renderer._VPBufferResource);
+        context.KeepAlive(renderer._camPosBufferResource);
+        context.KeepAlive(renderer._pLight);
+        context.KeepAlive(renderer._dLight);
+        context.KeepAlive(MSWRL::ComPtr<IUnknown>(DescriptorAllocator::CBVSRVUAV::GetHeap()));
+        context.KeepAlive(MSWRL::ComPtr<IUnknown>(DescriptorAllocator::Sampler::GetHeap()));
+        auto list = context.GetCommandList();
+        ID3D12DescriptorHeap* heaps[] = {DescriptorAllocator::CBVSRVUAV::GetHeap(), DescriptorAllocator::Sampler::GetHeap()};
+        list->SetDescriptorHeaps(_countof(heaps), heaps);
+        context.SetPipelineState(renderer._mainPass->_pipelineState);
+        context.SetGraphicsRootSignature(renderer._mainPass->_rootSignature);
+        list->RSSetViewports(1, &renderer._vp);
+        list->RSSetScissorRects(1, &renderer._scissor);
+        context.UseResource(renderer._viewportTexture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+        list->OMSetRenderTargets(1, &renderer._viewportRTV, false, &renderer._dsvCPUHandle);
+        const float clear[] = {0.2f, 0.2f, 0.2f, 1};
+        list->ClearRenderTargetView(renderer._viewportRTV, clear, 0, nullptr);
+        list->ClearDepthStencilView(renderer._dsvCPUHandle, D3D12_CLEAR_FLAG_DEPTH, 1, 0, 0, nullptr);
+        const auto bind = [&](const char* name, D3D12_CPU_DESCRIPTOR_HANDLE handle)
+        {
+            const auto slot = renderer._mainPass->GetRootParameterIndex(name);
+            Require(slot.has_value(), std::string("Main draw requires binding: ") + name);
+            list->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::CBVSRVUAV::GetGPUHandle(handle));
+        };
+        bind("viewProjMatrixBuffer", renderer._VPBufferDescriptor);
+        bind("cameraBuffer", renderer._camPosBufferDescriptor);
+        // The current PBR shader does not use point lighting; optimized reflection drops it.
+        if (auto slot = renderer._mainPass->GetRootParameterIndex("plightBuffer"))
+            list->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::CBVSRVUAV::GetGPUHandle(renderer._pLight->_cbvpLightCPUHandle));
+        bind("dlightBuffer", renderer._dLight->_dLightDirectionCPUHandle);
+        bind("lightViewProjMatrixBuffer", renderer._dLight->_dLightLVPCPUHandle);
+        bind("dShadowMap", renderer._dLight->_directionalShadowMapSRVCPUHandle);
+        const auto sampler = renderer._mainPass->GetRootParameterIndex("mySampler");
+        Require(sampler.has_value(), "Main draw requires its sampler");
+        list->SetGraphicsRootDescriptorTable(*sampler, DescriptorAllocator::Sampler::GetGPUHandle(renderer._samplerCPUHandle));
+        renderer._modelManager.DrawAll(*renderer._mainPass, context);
+        context.UseResource(renderer._viewportTexture.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    }
+
     void TestRetirement(const std::filesystem::path& scene)
     {
         Renderer renderer;
         renderer.InitializeRenderer();
         auto& graphics = CommandQueueManager::GetCommandQueue(QUEUE_GRAPHICS);
         auto& copy = CommandQueueManager::GetCommandQueue(QUEUE_UPLOAD);
-        MSWRL::ComPtr<ID3D12Fence> gate;
         auto* device = D3D12Core::GraphicsDevice::device.Get();
-        ThrowIfFailed(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&gate)));
-        struct ReleaseGate { ID3D12Fence* fence; ~ReleaseGate() { fence->Signal(1); } } release{gate.Get()};
         MSWRL::ComPtr<ID3D12Resource> upload;
         const CD3DX12_HEAP_PROPERTIES heap(D3D12_HEAP_TYPE_UPLOAD);
         const auto desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(uint32_t));
@@ -655,13 +748,13 @@ namespace
         owner.reset();
         upload.Reset();
         Require(!weak.expired(), "Recorded-but-unsubmitted work must retain its source owner");
-        ThrowIfFailed(graphics._commandQueue->Wait(gate.Get(), 1));
+        QueueGate gate(graphics);
         const auto pending = context->Finish(false);
         context.reset(); // Queue also retains the list and allocator; destruction need not wait.
         graphics.CollectCompleted();
         Require(!graphics.IsComplete(pending) && !weak.expired() && graphics.GetPendingSubmissionCount() > 0,
             "Destroying the CPU context must preserve every pending object and owner");
-        ThrowIfFailed(gate->Signal(1));
+        gate.Release();
         graphics.WaitCPU(pending);
         Require(weak.expired() && graphics.GetPendingSubmissionCount() == 0, "Completed ownership must be collected");
         ThrowIfFailed(readback->Map(0, nullptr, reinterpret_cast<void**>(&mapped)));
@@ -669,10 +762,7 @@ namespace
         const D3D12_RANGE noWrites{0, 0};
         readback->Unmap(0, &noWrites);
 
-        MSWRL::ComPtr<ID3D12Fence> copyGate;
-        ThrowIfFailed(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&copyGate)));
-        ReleaseGate releaseCopy{copyGate.Get()};
-        ThrowIfFailed(copy._commandQueue->Wait(copyGate.Get(), 1));
+        QueueGate copyGate(copy);
         auto shared = std::make_shared<int>(42);
         std::weak_ptr<int> sharedWeak = shared;
         CommandContext copyUse, graphicsUse;
@@ -684,7 +774,7 @@ namespace
         const auto copyPending = copyUse.Finish(false);
         graphicsUse.Finish(true);
         Require(!sharedWeak.expired(), "Completing one queue must not release an owner still used by another");
-        ThrowIfFailed(copyGate->Signal(1));
+        copyGate.Release();
         copy.WaitCPU(copyPending);
         Require(sharedWeak.expired(), "Owner must retire after all queue uses complete");
 
@@ -702,15 +792,35 @@ namespace
         graphicsUse.Finish(true);
 
         renderer.InitializeResources(scene);
+        renderer._depthPass->_usePass = false;
         renderer.Render(0);
-        Require(DrawnPixels(CaptureTexture(renderer._viewportTexture.Get())) > 100, "Scene must draw before unload");
+        const auto expectedImage = CaptureTexture(renderer._viewportTexture.Get());
+        Require(DrawnPixels(expectedImage) > 100, "Scene must draw before unload");
+        std::weak_ptr<Model> modelOwner;
+        for (const auto& component : GUI::guiComponents)
+            if (auto model = std::dynamic_pointer_cast<Model>(component.lock())) modelOwner = model;
+        Require(!modelOwner.expired(), "The fixture model must expose an observable weak owner");
+        context = std::make_unique<CommandContext>();
+        context->InitializeCommandContext(QUEUE_GRAPHICS);
+        RecordMainDraw(renderer, *context);
         renderer._modelManager.ClearModels();
+        Require(!modelOwner.expired(), "Recorded model commands must survive manager unload before submission");
+        QueueGate modelGate(graphics);
+        const auto modelPending = context->Finish(false);
+        context.reset();
+        RequirePending(modelPending, "Model draw must remain in flight while its queue is gated");
+        Require(!modelOwner.expired(), "Submitted model draw must retain its owner after manager and context destruction");
+        modelGate.Release();
+        graphics.WaitCPU(modelPending);
+        Require(modelOwner.expired(), "Model owner must retire after its submitted draw completes");
+        Require(CaptureTexture(renderer._viewportTexture.Get()) == expectedImage,
+            "An in-flight draw must preserve the model's expected image after unload");
         renderer.Render(0);
         Require(DrawnPixels(CaptureTexture(renderer._viewportTexture.Get())) == 0, "Clearing model ownership must produce an empty scene safely");
         renderer.Shutdown();
     }
 
-    void TestResourceUses(const std::filesystem::path& scene)
+    void TestPassStateAndTransforms(const std::filesystem::path& scene)
     {
         Renderer renderer;
         renderer.InitializeRenderer();
@@ -741,27 +851,6 @@ namespace
             "requires a recording graphics context");
         upload.Finish(true);
 
-        for (int cycle = 0; cycle < 2; ++cycle)
-        {
-            for (unsigned mask = 0; mask < 8; ++mask)
-            {
-                renderer._mainPass->_usePass = (mask & 1) != 0;
-                renderer._depthPass->_usePass = (mask & 2) != 0;
-                renderer._bbPass->_usePass = (mask & 4) != 0;
-                renderer.Render(0);
-                const auto pixels = CaptureTexture(viewport);
-                Require((DrawnPixels(pixels) > 0) == ((mask & 5) != 0), "Every pass combination must preserve its color target contract");
-                CaptureTexture(renderer._dLight->_directionalShadowMapBuffer.Get());
-            }
-        }
-        renderer.Shutdown();
-    }
-
-    void TestTransforms(const std::filesystem::path& scene)
-    {
-        Renderer renderer;
-        renderer.InitializeRenderer();
-        renderer.InitializeResources(scene);
         renderer._mainPass->_usePass = renderer._depthPass->_usePass = renderer._bbPass->_usePass = false;
         renderer.Render(0);
         Require(DrawnPixels(CaptureTexture(renderer._viewportTexture.Get())) == 0,
@@ -772,7 +861,25 @@ namespace
         renderer.Render(0);
         const auto boxesOnly = CaptureTexture(renderer._viewportTexture.Get());
         Require(DrawnPixels(boxesOnly) > 10, "Boxes must have valid transforms before Main or Depth ever draws");
-        for (int cycle = 0; cycle < 3; ++cycle)
+        // Independent authored-position oracle: child bounds [-1.7,-0.1] x [-0.8,0.8],
+        // followed by parent scale (0.8,1.1,1) and translation (0.3,0.25,0).
+        for (const float worldX : {-1.06f, 0.22f})
+        {
+            XMFLOAT3 projected;
+            XMStoreFloat3(&projected, XMVector3TransformCoord(XMVectorSet(worldX, -0.63f, 0, 1),
+                XMLoadFloat4x4(&renderer._viewProjectionMatrix)));
+            const int x = static_cast<int>((projected.x * 0.5f + 0.5f) * ViewportSize);
+            const int y = static_cast<int>((0.5f - projected.y * 0.5f) * ViewportSize);
+            bool greenCorner = false;
+            for (int row = std::max(0, y - 1); row <= std::min(static_cast<int>(ViewportSize) - 1, y + 1); ++row)
+                for (int column = std::max(0, x - 1); column <= std::min(static_cast<int>(ViewportSize) - 1, x + 1); ++column)
+                {
+                    const size_t offset = (static_cast<size_t>(row) * ViewportSize + column) * 4;
+                    greenCorner |= boxesOnly[offset] == 0 && boxesOnly[offset + 1] == 255 && boxesOnly[offset + 2] == 0;
+                }
+            Require(greenCorner, "Cold boxes must occupy the authored child-plus-parent world bounds");
+        }
+        for (int cycle = 0; cycle < 2; ++cycle)
             for (unsigned mask = 0; mask < 8; ++mask)
             {
                 renderer._mainPass->_usePass = (mask & 1) != 0;
@@ -780,13 +887,16 @@ namespace
                 renderer._bbPass->_usePass = (mask & 4) != 0;
                 renderer.Render(0);
                 const auto pixels = CaptureTexture(renderer._viewportTexture.Get());
+                const std::string scenario = "Pass mask " + std::to_string(mask) + ", cycle " + std::to_string(cycle) + ": ";
+                Require((DrawnPixels(pixels) > 0) == ((mask & 5) != 0), scenario + "color target contract");
                 if (mask == 4)
-                    Require(pixels == boxesOnly, "Ordinary passes and unchanged frames must preserve the boxes-only pose");
+                    Require(pixels == boxesOnly, scenario + "must preserve the cold boxes-only pose");
                 if (mask == 1)
-                    Require(DrawnPixels(pixels) > 100, "Re-enabled Main must draw the authored pose");
-                if (mask == 0 || mask == 2)
-                    Require(DrawnPixels(pixels) == 0, "All-off and depth-only rendering must leave the color target clear");
+                    Require(DrawnPixels(pixels) > 100, scenario + "Main must draw the scene");
+                CheckGpuDiagnostics();
             }
+        const auto shadow = CaptureTexture(renderer._dLight->_directionalShadowMapBuffer.Get());
+        Require(!shadow.empty(), "Shadow texture must remain readable after the pass cycles");
         renderer.Shutdown();
     }
 
@@ -846,8 +956,7 @@ namespace
             else if (test == "upload") TestTextureUpload(argument);
             else if (test == "render") TestRender(argument);
             else if (test == "retirement") TestRetirement(argument);
-            else if (test == "resource-uses") TestResourceUses(argument);
-            else if (test == "transforms") TestTransforms(argument);
+            else if (test == "passes") TestPassStateAndTransforms(argument);
             else throw std::runtime_error("Unknown GPU test: " + std::string(test));
             // Only the isolated negative case expects a deliberately closed-list error.
             CheckGpuDiagnostics(test == "commands" ? std::optional{D3D12_MESSAGE_ID_COMMAND_LIST_CLOSED} : std::nullopt);

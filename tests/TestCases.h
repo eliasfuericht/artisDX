@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace Testing
 {
@@ -13,6 +14,7 @@ namespace Testing
     void TestCamera();
     void TestTangents();
     void TestShader(const std::filesystem::path& path, bool optimized);
+    void TestShaders(const std::vector<std::filesystem::path>& paths, bool optimized);
     void TestShaderFailures(const std::filesystem::path& fixtures);
     int RunGpuTest(std::string_view test, const std::string& argument, bool hardware);
 }

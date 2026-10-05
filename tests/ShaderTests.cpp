@@ -6,8 +6,6 @@ namespace Testing
 {
     void TestShaderFailures(const std::filesystem::path& fixtures)
     {
-        Shader valid(fixtures / "../../shaders/pbr_vert.hlsl", SHADERTYPE::SHADER_VERTEX);
-        Require(valid._shaderBlob && valid._shaderBlob->GetBufferSize() > 0, "Production Shader must provide valid bytecode");
         ExpectFailure([&] { Shader missing(fixtures / "missing_regression_shader.hlsl", SHADERTYPE::SHADER_PIXEL); },
             "missing_regression_shader.hlsl [ps_6_7]: source loading failed");
         try
@@ -29,7 +27,8 @@ namespace Testing
     void TestShader(const std::filesystem::path& path, bool optimized)
     {
         // Use the engine compiler/DLL and both configurations regardless of the C++ build configuration.
-        D3D12Core::ShaderCompiler::InitializeShaderCompiler();
+        if (!D3D12Core::ShaderCompiler::compiler)
+            D3D12Core::ShaderCompiler::InitializeShaderCompiler();
         MSWRL::ComPtr<IDxcBlobEncoding> source;
         ThrowIfFailed(D3D12Core::ShaderCompiler::utils->LoadFile(path.c_str(), nullptr, &source));
         DxcBuffer buffer{source->GetBufferPointer(), source->GetBufferSize(), 0};
@@ -52,5 +51,25 @@ namespace Testing
         MSWRL::ComPtr<IDxcBlob> object;
         ThrowIfFailed(result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&object), nullptr));
         Require(object && object->GetBufferSize() > 0, "Shader compiler must produce bytecode");
+    }
+
+    void TestShaders(const std::vector<std::filesystem::path>& paths, bool optimized)
+    {
+        size_t failures = 0;
+        for (const auto& path : paths)
+        {
+            const std::string context = path.string() + (optimized ? " [optimized]" : " [debug]");
+            try
+            {
+                TestShader(path, optimized);
+                std::cout << "PASS: " << context << '\n';
+            }
+            catch (const std::exception& error)
+            {
+                ++failures;
+                std::cerr << "FAIL: " << context << ": " << error.what() << '\n';
+            }
+        }
+        Require(failures == 0, std::to_string(failures) + " shader compilation(s) failed; see file diagnostics above");
     }
 }

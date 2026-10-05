@@ -5,7 +5,7 @@ int Testing::RunTestCase(int argc, char** argv)
 {
     try
     {
-        Require(argc >= 2, "Usage: artisDX.exe -test-case camera|tangents|shader|shader-failures|root-failures|root-layout|constants|commands|completion|bounds|rtv|pipeline|upload|render|retirement|resource-uses|transforms [arguments] [--hardware]");
+        Require(argc >= 2, "Usage: artisDX.exe -test-case camera|tangents|shader|shaders|shader-failures|root-failures|root-layout|constants|commands|completion|bounds|rtv|pipeline|upload|render|retirement|passes [arguments] [--hardware]");
         const std::string_view test(argv[1]);
         if (test == "camera" || test == "tangents")
         {
@@ -25,9 +25,18 @@ int Testing::RunTestCase(int argc, char** argv)
             Require(mode == "debug" || mode == "optimized", "Unknown shader mode");
             TestShader(argv[2], mode == "optimized");
         }
+        else if (test == "shaders")
+        {
+            Require(argc >= 4, "shaders requires debug|optimized followed by shader paths");
+            const std::string_view mode(argv[2]);
+            Require(mode == "debug" || mode == "optimized", "Unknown shader mode");
+            std::vector<std::filesystem::path> paths;
+            for (int i = 3; i < argc; ++i) paths.emplace_back(argv[i]);
+            TestShaders(paths, mode == "optimized");
+        }
         else
         {
-            const bool needsArgument = test == "pipeline" || test == "upload" || test == "render" || test == "root-layout" || test == "retirement" || test == "resource-uses" || test == "transforms";
+            const bool needsArgument = test == "pipeline" || test == "upload" || test == "render" || test == "root-layout" || test == "retirement" || test == "passes";
             Require(needsArgument || test == "constants" || test == "bounds" || test == "rtv" || test == "commands" || test == "completion" || test == "root-failures", "Unknown test: " + std::string(test));
             const bool hardware = std::string_view(argv[argc - 1]) == "--hardware";
             Require(argc == 2 + static_cast<int>(needsArgument) + static_cast<int>(hardware),
