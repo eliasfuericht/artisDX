@@ -1,6 +1,6 @@
 #include "Application.h"
 
-Application::Application(const char* name, int32_t w, int32_t h, bool fullscreen)
+Application::Application(const char* name, int32_t w, int32_t h, uint32_t buffering, bool fullscreen)
 {
 	if (fullscreen)
 	{
@@ -14,19 +14,37 @@ Application::Application(const char* name, int32_t w, int32_t h, bool fullscreen
 	}	
 
 	_name = name;
+	_buffering = buffering;
 	_fullscreen = fullscreen;
-
-	InitializeApplication();
+	
+	try { 
+		InitializeApplication(); 
+	}
+	catch (...)
+	{
+		ShutdownGraphics();
+		Window::Shutdown();
+		if (_comInitialized) CoUninitialize();
+		throw;
+	}
 }
 
-int Application::Start(int argc, char** argv, const char* name, int32_t w, int32_t h, bool fullscreen)
+int Application::Start(int argc, char** argv, const char* name, uint32_t w, uint32_t h, uint32_t buffering, bool fullscreen)
 {
 	if (auto exitCode = Testing::HandleCommandLine(argc, argv))
 		return *exitCode;
 
-	Application application(name, w, h, fullscreen);
-	application.Run();
-	return 0;
+	try
+	{
+		Application application(name, w, h, buffering, fullscreen);
+		application.Run();
+		return 0;
+	}
+	catch (const std::exception& error)
+	{
+		std::cerr << "Application failed: " << error.what() << '\n';
+		return 1;
+	}
 }
 
 void Application::InitializeApplication()
@@ -34,6 +52,7 @@ void Application::InitializeApplication()
 	Window::InitializeWindow(_name.c_str(), _width, _height, _fullscreen);
 
 	ThrowIfFailed(CoInitializeEx(nullptr, COINIT_MULTITHREADED));
+	_comInitialized = true;
 
 #if defined(_DEBUG)
 	D3D12Core::GraphicsDevice::InitializeDebugController();
@@ -51,10 +70,10 @@ void Application::InitializeApplication()
 
 	D3D12Core::Swapchain::InitializeSwapchain();
 
-	_renderer.InitializeResources("../assets/sponza.glb");
+	_renderer.InitializeResources();
 
 	GUI::InitializeGUI();
-
+	_frameCoordinator.Initialize(_buffering);
 }
 
 void Application::Run()
@@ -86,17 +105,23 @@ void Application::Run()
 		_tLastTime = now;
 		float deltaTime = dt.count();
 
-		Update(deltaTime);
-		_renderer.Render(deltaTime);
-		GUI::Draw();
-		D3D12Core::Swapchain::swapchain->Present(0, 0);
+		UpdateWindowFPS(deltaTime);
+		_frameCoordinator.RenderFrame(_renderer, deltaTime);
 	}
 
-	_renderer.Shutdown();
+	_frameCoordinator.Shutdown();
 	GUI::Shutdown();
 }
 
-void Application::Update(float dt)
+void Application::ShutdownGraphics() noexcept
+{
+	try { _frameCoordinator.Shutdown(); }
+	catch (const std::exception& error) { PRINT("Frame cleanup: ", error.what()); }
+	try { GUI::Shutdown(); }
+	catch (const std::exception& error) { PRINT("GUI cleanup: ", error.what()); }
+}
+
+void Application::UpdateWindowFPS(float dt)
 {
 	_elapsedTime += dt;
 	_frameCount++;
@@ -114,7 +139,8 @@ void Application::Update(float dt)
 
 Application::~Application()
 {
-	CoUninitialize();
+	ShutdownGraphics();
+	if (_comInitialized) CoUninitialize();
 	Window::Shutdown();
 
 	// Cleanup GUI

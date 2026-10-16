@@ -4,32 +4,38 @@
 
 #include "D3D12Core.h"
 #include "DescriptorAllocator.h"
-#include "CommandQueue.h"
-#include "CommandContext.h"
 #include "Window.h"
 #include "IGUIComponent.h"
 
+class CommandContext;
+
 namespace GUI
 {
+	struct RenderTarget
+	{
+		ID3D12Resource* resource;
+		D3D12_CPU_DESCRIPTOR_HANDLE rtv;
+	};
+	// Borrowed draw data is valid until the next ImGui frame. Owners cover image widgets.
+	struct FrameData
+	{
+		ImDrawData* drawData;
+		std::vector<std::shared_ptr<IGUIComponent>> components;
+		MSWRL::ComPtr<ID3D12Resource> viewportTexture;
+	};
 	void InitializeGUI();
-	void Draw();
-	void Render();
+	FrameData BuildFrame();
+	void RecordDrawData(std::shared_ptr<CommandContext> commandContext, ImDrawData* drawData, const RenderTarget& target);
 	void Shutdown();
 
 	void BeginDockspace();
 	void RegisterComponent(std::weak_ptr<IGUIComponent> component);
-	void SetViewportTextureHandle(D3D12_GPU_DESCRIPTOR_HANDLE viewportTextureHandle);
-	void SetGUIComponentData();
+	void SetViewportTextureHandle(D3D12_GPU_DESCRIPTOR_HANDLE viewportTextureHandle, MSWRL::ComPtr<ID3D12Resource> owner);
+	std::vector<std::shared_ptr<IGUIComponent>> SetGUIComponentData();
 	void SetViewportComponentData();
 	void SetViewportExtent(const ImVec2& available);
 
-	void End();
-
 	extern ImGuiIO* imguiIO;
-	
-	extern CommandContext guiContext;
-
-	extern D3D12_GPU_DESCRIPTOR_HANDLE viewportTexture;
 	extern int32_t viewportWidth;
 	extern int32_t viewportHeight;
 

@@ -47,7 +47,6 @@ public:
 	void Flush();
 	void CollectCompleted();
 	size_t GetPendingSubmissionCount() const { return _pendingSubmissions.size(); }
-	// Compatibility: this signals and flushes, rather than waiting on an old submission.
 	void WaitForFence() { Flush(); }
 
 	MSWRL::ComPtr<ID3D12CommandQueue> _commandQueue;
@@ -66,6 +65,8 @@ private:
 	bool _submissionFailed = false;
 	CommandCompletion Signal();
 	void ValidateCompletion(const CommandCompletion& completion) const;
+	uint64_t ReadCompletedValue() const;
+	void CollectCompleted(uint64_t completedValue);
 };
 
 namespace CommandQueueManager

@@ -32,6 +32,7 @@ namespace D3D12Core
 	namespace Swapchain
 	{
 		void InitializeSwapchain();
+		// Caller must drain graphics work before releasing the old backbuffers.
 		void Resize(int32_t newWidth, int32_t newHeight);
 
 		extern uint32_t width;

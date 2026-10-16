@@ -17,15 +17,14 @@ class Renderer
 public:
 	Renderer() = default;
 	void InitializeRenderer();
-	void InitializeResources(const std::filesystem::path& modelPath);
+	void InitializeResources(const std::filesystem::path& modelPath = "../assets/sponza.glb");
 	void CreateRenderTarget();
 	void CreateDepthBuffer();
 	void CreateConstantBuffers();
-	void Shutdown();
-
-	void Render(float dt);
+	// Call after frame acquisition; preparation writes the shared GPU constants.
+	void PrepareFrame(float dt);
 	void UpdateBuffers(float dt);
-	void SetCommandlist();
+	void RecordScene(std::shared_ptr<CommandContext> commandContext);
 
 	//viewport stuff
 	MSWRL::ComPtr<ID3D12Resource> _viewportTexture;
@@ -38,7 +37,6 @@ public:
 	MSWRL::ComPtr<ID3D12Resource> _depthStencilBuffer;
 	CD3DX12_CPU_DESCRIPTOR_HANDLE _dsvCPUHandle;
 
-	CommandContext _mainLoopGraphicsContext;
 	std::shared_ptr<ShaderPass> _depthPass;
 	std::shared_ptr<ShaderPass> _mainPass;
 	std::shared_ptr<ShaderPass> _bbPass;

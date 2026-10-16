@@ -20,26 +20,25 @@ public:
 
 	void SetPipelineState(MSWRL::ComPtr<ID3D12PipelineState> pipelineState);
 	void SetGraphicsRootSignature(MSWRL::ComPtr<ID3D12RootSignature> rootSignature);
-	// Pin every owner/object whose commands outlive its CPU reference.
 	void KeepAlive(MSWRL::ComPtr<IUnknown> object);
 	void KeepAlive(std::shared_ptr<void> owner);
-	// Whole-resource states for the existing sequential graphics pass cycle.
-	void DeclareResource(ID3D12Resource* resource, D3D12_RESOURCE_STATES initialState,
-		D3D12_RESOURCE_STATES finalState, const std::string& name);
+	void DeclareResource(ID3D12Resource* resource, D3D12_RESOURCE_STATES initialState, D3D12_RESOURCE_STATES finalState, const std::string& name);
 	bool UseResource(ID3D12Resource* resource, D3D12_RESOURCE_STATES state);
 
 	MSWRL::ComPtr<ID3D12GraphicsCommandList> GetCommandList() { return _commandList.Get(); }
 
 	CommandCompletion Finish(bool waitForExecution);
 	const CommandCompletion& GetLastSubmission() const { return _lastSubmission; }
+	
+	bool _recording = false;
 
 private:
+	void RetainObject(MSWRL::ComPtr<IUnknown> object);
 	QUEUETYPE _queueType = QUEUE_INVALID;
 
 	MSWRL::ComPtr<ID3D12CommandAllocator> _allocator;
 	MSWRL::ComPtr<ID3D12GraphicsCommandList> _commandList;
 	CommandCompletion _lastSubmission;
-	bool _recording = false;
 	bool _submissionFailed = false;
 	SubmissionResources _recordedResources;
 	struct ResourceUse

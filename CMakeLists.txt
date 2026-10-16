@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 project(artisDX)
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 
 message(STATUS "Configuring sources...")
 
@@ -34,6 +34,7 @@ set(ARTISDX_HEADERS
     src/CommandContext.h
     src/ShadowMap.h
     src/Renderer.h
+    src/FrameCoordinator.h
 )
 
 set(ARTISDX_SOURCES 
@@ -62,6 +63,7 @@ set(ARTISDX_SOURCES
     src/CommandContext.cpp
     src/ShadowMap.cpp
     src/Renderer.cpp
+    src/FrameCoordinator.cpp
 )
 
 add_executable(${APPLICATION_NAME} ${ARTISDX_SOURCES} ${ARTISDX_HEADERS})
@@ -142,5 +144,7 @@ source_group("precompiled" FILES
 # Set artisDX as the startup project - only works for Visual Studio
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT artisDX)
 
+# Tests are opt-in so changing engine APIs does not block normal editor builds.
+option(BUILD_TESTING "Build the artisDX regression tests" OFF)
 include(CTest)
 include(tests/Tests.cmake)

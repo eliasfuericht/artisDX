@@ -3,10 +3,14 @@
 #include "pch.h"
 
 #include <hidusage.h>
+#include <optional>
 #include "D3D12Core.h"
 
 namespace Window
 {
+	struct ResizeRequest { int32_t width; int32_t height; };
+	void RequestResize(uint32_t newWidth, uint32_t newHeight);
+	std::optional<ResizeRequest> ConsumePendingResize();
 	void InitializeWindow(const char* title, uint32_t w, uint32_t h, bool fullscreen);
 	void Create();
 	void Show();

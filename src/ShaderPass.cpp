@@ -72,7 +72,6 @@ MSWRL::ComPtr<ID3DBlob> ShaderPass::GenerateGraphicsRootSignature()
 		D3D12_ROOT_PARAMETER1 param{};
 		param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 		param.ShaderVisibility = range.first == SHADER_VERTEX ? D3D12_SHADER_VISIBILITY_VERTEX : D3D12_SHADER_VISIBILITY_PIXEL;
-		// One range record, even when that range contains several descriptors.
 		param.DescriptorTable = {1, &range.second};
 		rootParams.push_back(param);
 	}
@@ -81,7 +80,6 @@ MSWRL::ComPtr<ID3DBlob> ShaderPass::GenerateGraphicsRootSignature()
 	rootDesc.Desc_1_1.NumParameters = static_cast<uint32_t>(rootParams.size());
 	rootDesc.Desc_1_1.pParameters = rootParams.data();
 	rootDesc.Desc_1_1.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-	// Publish signature and matching metadata only after complete validation/creation.
 	auto serialized = CreateRootSignature(rootDesc);
 	_bindingMap.swap(bindings);
 	return serialized;

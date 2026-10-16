@@ -26,21 +26,21 @@ void ModelManager::ComputeGlobalTransforms()
 		model->ComputeGlobalTransforms();
 }
 
-void ModelManager::DrawAll(const ShaderPass& shaderPass, CommandContext& commandContext)
+void ModelManager::DrawAll(const ShaderPass& shaderPass, std::shared_ptr<CommandContext> commandContext)
 {
 	for (auto& model : _models)
 	{
-		commandContext.KeepAlive(model);
-		model->DrawModel(shaderPass, commandContext.GetCommandList());
+		commandContext->KeepAlive(model);
+		model->DrawModel(shaderPass, commandContext->GetCommandList());
 	}
 }
 
-void ModelManager::DrawAllBoundingBoxes(const ShaderPass& shaderPass, CommandContext& commandContext)
+void ModelManager::DrawAllBoundingBoxes(const ShaderPass& shaderPass, std::shared_ptr<CommandContext> commandContext)
 {
 	for (auto& model : _models)
 	{
-		commandContext.KeepAlive(model);
-		model->DrawModelBoundingBox(shaderPass, commandContext.GetCommandList());
+		commandContext->KeepAlive(model);
+		model->DrawModelBoundingBox(shaderPass, commandContext->GetCommandList());
 	}
 }
 void ModelManager::ClearModels()

@@ -1,6 +1,7 @@
 #include "TestCases.h"
 #include "TestSupport.h"
 #include "Renderer.h"
+#include "FrameCoordinator.h"
 
 #include <array>
 #include <cstring>
@@ -25,6 +26,22 @@ namespace
     };
 
     MSWRL::ComPtr<ID3D12InfoQueue> infoQueue;
+
+    struct SceneFrames
+    {
+        FrameCoordinator coordinator;
+        SceneFrames() { coordinator.Initialize(2); }
+        void Render(Renderer& renderer, float dt)
+        {
+            std::shared_ptr<CommandContext> graphics = coordinator.BeginFrame(0);
+            renderer.PrepareFrame(dt);
+            renderer.RecordScene(graphics);
+            coordinator.SubmitFrame(0);
+            coordinator.Drain();
+        }
+        void Shutdown() { coordinator.Shutdown(); }
+    };
+
 
     struct QueueGate
     {
@@ -90,7 +107,7 @@ namespace
     }
 
     void CheckGpuDiagnostics(std::optional<D3D12_MESSAGE_ID> expectedError = std::nullopt,
-        std::optional<D3D12_MESSAGE_ID> expectedWarning = std::nullopt)
+        std::optional<D3D12_MESSAGE_ID> expectedWarning = std::nullopt, uint32_t expectedWarnings = 1)
     {
         ThrowIfFailed(D3D12Core::GraphicsDevice::device->GetDeviceRemovedReason(), "GPU device was removed");
         bool errors = false;
@@ -119,7 +136,7 @@ namespace
         if (expectedError)
             Require(expectedCount == 1, "Negative case must produce exactly its one expected D3D12 error");
         if (expectedWarning)
-            Require(warningCount == 1, "Injected clear must produce exactly its one expected D3D12 warning");
+            Require(warningCount == expectedWarnings, "GPU diagnostics must contain exactly the expected warning count");
         infoQueue->ClearStoredMessages();
     }
 
@@ -141,6 +158,24 @@ namespace
         ExpectFailure([&] { closed.Finish(true); }, "Close command list");
         Require(CommandQueueManager::GetCommandQueue(QUEUE_GRAPHICS)._fenceValue == before,
             "Failed Close must stop before submission and its completion signal");
+
+        auto& queue = CommandQueueManager::GetCommandQueue(QUEUE_GRAPHICS);
+        {
+            struct RestoreFenceValue
+            {
+                CommandQueue& queue;
+                uint64_t value;
+                ~RestoreFenceValue() { queue._fenceValue = value; }
+            } restore{queue, queue._fenceValue};
+            const auto pending = queue.GetPendingSubmissionCount();
+            queue._fenceValue = UINT64_MAX - 1;
+            // Both public signal paths must reject exhaustion before executing work
+            // or changing retained submissions; Signal() itself assumes this check.
+            ExpectFailure([&] { queue.Submit(closed.GetCommandList().Get()); }, "Fence values exhausted before submission");
+            ExpectFailure([&] { queue.Flush(); }, "Fence values exhausted before flush");
+            Require(queue.GetPendingSubmissionCount() == pending && queue._fenceValue == UINT64_MAX - 1,
+                "Exhausted fence must leave submission ownership and signal value unchanged");
+        }
     }
 
     void TestRootSignatureFailures()
@@ -317,6 +352,57 @@ namespace
         producer.Finish(true); // Copy allocator reuse is covered here, not by a second lifecycle loop.
     }
 
+    void TestFrameLifecycle()
+    {
+        CommandQueueManager::InitializeCommandQueueManager();
+        auto& queue = CommandQueueManager::GetCommandQueue(QUEUE_GRAPHICS);
+        const UINT index = D3D12Core::Swapchain::swapchain->GetCurrentBackBufferIndex();
+        FrameCoordinator frames;
+        ExpectFailure([&] { frames.BeginFrame(0); }, "not running");
+        frames.Initialize(2);
+        Require(queue._fenceValue == 0, "Frame initialization must not submit an empty list");
+        ExpectFailure([&] { frames.Initialize(2); }, "already initialized");
+        ExpectFailure([&] { frames.SubmitFrame(index); }, "active frame");
+        std::shared_ptr<CommandContext> graphics = frames.BeginFrame(0);
+        ExpectFailure([&] { frames.BeginFrame(0); }, "overlapping frame");
+        auto owner = std::make_shared<int>(42);
+        const std::weak_ptr<int> retained = owner;
+        graphics->KeepAlive(owner);
+        owner.reset();
+        std::promise<void> started;
+        const auto beginning = started.get_future();
+        std::future<void> nextFrame;
+        QueueGate gate(queue); // Unwind releases the GPU before joining the worker.
+        const auto completion = frames.SubmitFrame(index);
+        const auto signaled = queue._fenceValue;
+        Require(!queue.IsComplete(completion) && !retained.expired(), "Submission must return with pending GPU work and retained owners");
+        nextFrame = std::async(std::launch::async, [&]
+        {
+            started.set_value();
+            frames.BeginFrame(0);
+        });
+        Require(beginning.wait_for(std::chrono::seconds(2)) == std::future_status::ready, "Frame acquire worker must start");
+        const auto blocked = nextFrame.wait_for(std::chrono::milliseconds(50));
+        gate.Release();
+        nextFrame.get();
+        Require(blocked == std::future_status::timeout, "Frame acquisition must wait before allowing data preparation");
+        Require(queue._fenceValue == signaled && retained.expired(), "Acquisition must use the prior completion and retire its owners without a flush");
+        frames.SubmitFrame(index);
+        frames.Shutdown();
+        frames.Shutdown();
+        ExpectFailure([&] { frames.BeginFrame(0); }, "not running");
+
+        FrameCoordinator failed;
+        failed.Initialize(2);
+        std::shared_ptr<CommandContext> unfinished = failed.BeginFrame(0);
+        const auto buffer = ReadbackBuffer(4);
+        unfinished->DeclareResource(buffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COPY_SOURCE, "unfinished frame");
+        ExpectFailure([&] { failed.SubmitFrame(index); }, "did not reach declared final state");
+        ExpectFailure([&] { failed.BeginFrame(0); }, "after a frame failure");
+        ExpectFailure([&] { failed.SubmitFrame(index); }, "after a frame failure");
+        failed.Shutdown();
+    }
+
     template<typename T>
     T ReadConstant(ID3D12Resource* source)
     {
@@ -339,6 +425,7 @@ namespace
     {
         Renderer renderer;
         renderer.InitializeRenderer();
+        SceneFrames frames;
         GUI::viewportWidth = GUI::viewportHeight = 0;
         renderer.CreateConstantBuffers();
         Require(std::isfinite(renderer._projectionMatrix._11) && renderer._projectionMatrix._11 > 0 &&
@@ -421,7 +508,7 @@ namespace
                 for (int col = 0; col < 4; ++col)
                     Near(matrix.m[row][col], expectedVP.m[row][col], "Restored panel must upload the correct wide/tall VP");
         }
-        renderer.Shutdown();
+        frames.Shutdown();
     }
 
     void TestBounds()
@@ -457,7 +544,8 @@ namespace
         Require(!pass.GetRootParameterIndex("nonexistentBinding").has_value(), "Missing bindings must return no index");
     }
 
-    std::vector<uint8_t> CaptureTexture(ID3D12Resource* texture)
+    std::vector<uint8_t> CaptureTexture(ID3D12Resource* texture,
+        D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
     {
         const auto description = texture->GetDesc();
         D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint{};
@@ -467,7 +555,7 @@ namespace
         CommandContext context;
         context.InitializeCommandContext(QUEUE_GRAPHICS);
         D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(texture,
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE);
+            initialState, D3D12_RESOURCE_STATE_COPY_SOURCE);
         context.GetCommandList()->ResourceBarrier(1, &barrier);
         const CD3DX12_TEXTURE_COPY_LOCATION destination(readback.Get(), footprint);
         const CD3DX12_TEXTURE_COPY_LOCATION source(texture, 0);
@@ -546,6 +634,218 @@ namespace
         return drawn;
     }
 
+    struct GuiFrameFixture
+    {
+        Renderer renderer;
+        FrameCoordinator frames;
+        ~GuiFrameFixture()
+        {
+            try { frames.Shutdown(); }
+            catch (const std::exception& error) { std::cerr << "Frame fixture cleanup: " << error.what() << '\n'; }
+            if (ImGui::GetCurrentContext()) GUI::Shutdown();
+            for (auto& target : D3D12Core::Swapchain::renderTargets) target.Reset();
+            D3D12Core::Swapchain::swapchain.Reset();
+            Window::Shutdown();
+        }
+        void Initialize(const std::filesystem::path& scene)
+        {
+            renderer.InitializeRenderer();
+            frames.Initialize(2);
+            Window::InitializeWindow("artisDX hidden frame test", 256, 256, false);
+            Require(Window::hWindow != nullptr, "Frame integration needs a hidden window");
+            ReleaseCapture();
+            ShowCursor(true); // Balance the editor window's startup capture without showing it.
+            Window::captureMouse = false;
+            D3D12Core::Swapchain::InitializeSwapchain();
+            renderer.InitializeResources(scene);
+            GUI::InitializeGUI();
+            GUI::imguiIO->IniFilename = nullptr;
+            GUI::imguiIO->ConfigFlags &= ~ImGuiConfigFlags_ViewportsEnable;
+        }
+    };
+
+    struct SceneImageOverlay : IGUIComponent
+    {
+        Renderer& renderer;
+        MSWRL::ComPtr<ID3D12Resource> readback;
+        D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint{};
+        ID3D12Resource* captureTarget = nullptr;
+        uint32_t width = 0;
+        uint32_t height = 0;
+        bool detached = false;
+        ImGuiID detachedViewport = 0;
+        explicit SceneImageOverlay(Renderer& scene) : renderer(scene) {}
+        void DrawGUI() override
+        {
+            const auto index = D3D12Core::Swapchain::swapchain->GetCurrentBackBufferIndex();
+            captureTarget = D3D12Core::Swapchain::renderTargets[index].Get();
+            const auto description = captureTarget->GetDesc();
+            width = static_cast<uint32_t>(description.Width);
+            height = description.Height;
+            uint64_t bytes = 0;
+            D3D12Core::GraphicsDevice::device->GetCopyableFootprints(&description, 0, 1, 0,
+                &footprint, nullptr, nullptr, &bytes);
+            if (!readback || readback->GetDesc().Width != bytes) readback = ReadbackBuffer(bytes);
+            const ImVec2 origin = ImGui::GetMainViewport()->Pos + ImVec2(13, 17);
+            auto* foreground = ImGui::GetForegroundDrawList(ImGui::GetMainViewport());
+            foreground->AddImage(static_cast<ImTextureID>(renderer._viewportSRV_GPU.ptr),
+                origin, origin + ImVec2(ViewportSize, ViewportSize));
+            // Capture in the submitted list before flip-discard Present can discard contents.
+            foreground->AddCallback([](const ImDrawList*, const ImDrawCmd* command)
+            {
+                auto& image = *static_cast<SceneImageOverlay*>(command->UserCallbackData);
+                const auto* state = static_cast<ImGui_ImplDX12_RenderState*>(ImGui::GetPlatformIO().Renderer_RenderState);
+                D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(image.captureTarget,
+                    D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_SOURCE);
+                state->CommandList->ResourceBarrier(1, &barrier);
+                const CD3DX12_TEXTURE_COPY_LOCATION destination(image.readback.Get(), image.footprint);
+                const CD3DX12_TEXTURE_COPY_LOCATION source(image.captureTarget, 0);
+                state->CommandList->CopyTextureRegion(&destination, 0, 0, 0, &source, nullptr);
+                std::swap(barrier.Transition.StateBefore, barrier.Transition.StateAfter);
+                state->CommandList->ResourceBarrier(1, &barrier);
+            }, this);
+            foreground->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
+            if (detached)
+            {
+                ImGui::SetNextWindowPos(ImGui::GetMainViewport()->Pos + ImVec2(500, 50), ImGuiCond_Always);
+                ImGui::SetNextWindowSize(ImVec2(240, 280), ImGuiCond_Always);
+                ImGui::Begin("Hidden detached scene and shadow");
+                detachedViewport = ImGui::GetWindowViewport()->ID;
+                ImGui::Image(static_cast<ImTextureID>(renderer._viewportSRV_GPU.ptr), ImVec2(96, 96));
+                ImGui::Image(static_cast<ImTextureID>(DescriptorAllocator::CBVSRVUAV::GetGPUHandle(
+                    renderer._dLight->_directionalShadowMapSRVCPUHandle).ptr), ImVec2(96, 96));
+                ImGui::End();
+            }
+        }
+        std::vector<uint8_t> ReadPixels()
+        {
+            const D3D12_RANGE range{ 0, static_cast<SIZE_T>(readback->GetDesc().Width) };
+            void* mapped = nullptr;
+            ThrowIfFailed(readback->Map(0, &range, &mapped));
+            std::vector<uint8_t> pixels(static_cast<size_t>(width) * height * 4);
+            for (uint32_t y = 0; y < height; ++y)
+                std::memcpy(pixels.data() + y * width * 4,
+                    static_cast<const uint8_t*>(mapped) + footprint.Offset + y * footprint.Footprint.RowPitch, width * 4);
+            const D3D12_RANGE noWrites{ 0, 0 };
+            readback->Unmap(0, &noWrites);
+            return pixels;
+        }
+    };
+
+    void TestFrameGui(const std::filesystem::path& scene)
+    {
+        GuiFrameFixture runtime;
+        runtime.Initialize(scene);
+        auto overlay = std::make_shared<SceneImageOverlay>(runtime.renderer);
+        overlay->RegisterWithGUI();
+        auto& queue = CommandQueueManager::GetCommandQueue(QUEUE_GRAPHICS);
+        const auto before = queue._fenceValue;
+        runtime.frames.RenderFrame(runtime.renderer, 0);
+        Require(queue._fenceValue == before + 1, "Scene and main-window GUI must use exactly one submission");
+        const auto viewport = CaptureTexture(runtime.renderer._viewportTexture.Get());
+        Require(DrawnPixels(viewport) > 100, "GUI composition must exercise a rendered scene");
+        const auto backbuffer = overlay->ReadPixels(); // Scene readback waited for the combined submission.
+        const auto rowWidth = overlay->width;
+        for (uint32_t y = 2; y < ViewportSize - 2; ++y)
+            for (uint32_t x = 2; x < ViewportSize - 2; ++x)
+                for (uint32_t channel = 0; channel < 3; ++channel)
+                {
+                    const auto source = (y * ViewportSize + x) * 4;
+                    const float alpha = viewport[source + 3] / 255.0f;
+                    const auto expected = static_cast<int>(std::lround(viewport[source + channel] * alpha + 51 * (1 - alpha)));
+                    const auto actual = backbuffer[((y + 17) * rowWidth + x + 13) * 4 + channel];
+                    Require(std::abs(static_cast<int>(actual) - expected) <= 2,
+                        "GUI sample mismatch x=" + std::to_string(x) + " y=" + std::to_string(y) +
+                        " channel=" + std::to_string(channel) + " actual=" + std::to_string(actual) +
+                        " expected=" + std::to_string(expected));
+                }
+
+        const auto rtv0 = D3D12Core::Swapchain::rtvCPUHandle[0].ptr;
+        const auto rtv1 = D3D12Core::Swapchain::rtvCPUHandle[1].ptr;
+        // Change presentation parity so resize also exercises a nonzero backbuffer index.
+        runtime.frames.RenderFrame(runtime.renderer, 0);
+        runtime.frames.Drain();
+        QueueGate gate(queue);
+        runtime.frames.RenderFrame(runtime.renderer, 0);
+        const auto submitted = queue._fenceValue;
+        SendMessage(Window::hWindow, WM_SIZE, SIZE_RESTORED, MAKELPARAM(200, 160));
+        SendMessage(Window::hWindow, WM_SIZE, SIZE_RESTORED, MAKELPARAM(224, 176));
+        SendMessage(Window::hWindow, WM_SIZE, SIZE_MINIMIZED, 0);
+        SendMessage(Window::hWindow, WM_SIZE, SIZE_RESTORED, 0);
+        Require(queue._fenceValue == submitted && queue._fence->GetCompletedValue() < submitted,
+            "Window resize messages must return without waiting for pending rendering or signaling a flush");
+        Require(D3D12Core::Swapchain::width == 256 && D3D12Core::Swapchain::height == 256,
+            "Backbuffers must remain intact until the next frame boundary");
+        gate.Release();
+        runtime.frames.RenderFrame(runtime.renderer, 0);
+        Require(D3D12Core::Swapchain::width == 224 && D3D12Core::Swapchain::height == 176,
+            "Frame boundary must consume the latest valid resize and ignore minimized/zero extents");
+        Require(D3D12Core::Swapchain::renderTargets[0]->GetDesc().Width == 224 &&
+            D3D12Core::Swapchain::renderTargets[1]->GetDesc().Height == 176 &&
+            D3D12Core::Swapchain::rtvCPUHandle[0].ptr == rtv0 && D3D12Core::Swapchain::rtvCPUHandle[1].ptr == rtv1,
+            "Resizing must reacquire both backbuffers without allocating new RTV slots");
+        runtime.frames.Drain();
+        const auto drained = queue._fenceValue;
+        runtime.frames.RenderFrame(runtime.renderer, 0);
+        Require(queue._fenceValue == drained + 1, "Consumed resize must not repeat on subsequent frames");
+
+        // Exercise the pinned secondary-window queues without opening visible test windows.
+        runtime.frames.Drain();
+        CheckGpuDiagnostics(); // Keep the backend's known Wait(0) outside main-frame checks.
+        GUI::imguiIO->ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+        auto& platform = ImGui::GetPlatformIO();
+        Require(platform.Renderer_CreateWindow && platform.Renderer_RenderWindow && platform.Renderer_SwapBuffers,
+            "Detached coverage requires the DX12 backend callbacks, not only native windows");
+        struct BackendWindows
+        {
+            decltype(platform.Renderer_CreateWindow) create;
+            uint32_t count = 0;
+        } backendWindows{ platform.Renderer_CreateWindow };
+        const auto userData = GUI::imguiIO->UserData;
+        GUI::imguiIO->UserData = &backendWindows;
+        platform.Renderer_CreateWindow = [](ImGuiViewport* viewport)
+        {
+            auto& windows = *static_cast<BackendWindows*>(ImGui::GetIO().UserData);
+            windows.create(viewport);
+            ++windows.count;
+        };
+        const auto showWindow = platform.Platform_ShowWindow;
+        platform.Platform_ShowWindow = [](ImGuiViewport* viewport)
+        {
+            ShowWindow(static_cast<HWND>(viewport->PlatformHandle), SW_HIDE);
+        };
+        // Finish the previously disabled platform phase before toggling into a new frame.
+        ImGui::UpdatePlatformWindows();
+        overlay->detached = true;
+        for (int frame = 0; frame < 3; ++frame)
+            runtime.frames.RenderFrame(runtime.renderer, 0);
+        Require(overlay->detachedViewport != ImGui::GetMainViewport()->ID,
+            "A panel outside the main viewport must create a secondary OS window");
+        Require(queue._fence->GetCompletedValue() >= queue._fenceValue,
+            "The detached-window stage must wait for this frame's texture producer");
+        runtime.renderer._dLight->_position = { -1, 2, 1 };
+        runtime.frames.RenderFrame(runtime.renderer, 0);
+        overlay->detached = false;
+        for (int frame = 0; frame < 4; ++frame)
+            runtime.frames.RenderFrame(runtime.renderer, 0);
+        Require(std::none_of(platform.Viewports.begin(), platform.Viewports.end(),
+            [&](const auto* viewport) { return viewport->ID == overlay->detachedViewport; }),
+            "Closing a detached panel must release its secondary window");
+        overlay->detached = true;
+        for (int frame = 0; frame < 2; ++frame)
+            runtime.frames.RenderFrame(runtime.renderer, 0);
+        Require(platform.Viewports.Size > 1, "Shutdown coverage needs a live detached window");
+        runtime.frames.Shutdown();
+        // Each new backend queue first waits on its zero-valued fence. The SDK warns
+        // about this no-op; accept only this ID and exactly one per created queue.
+        Require(backendWindows.count > 0, "Detached coverage must create renderer-owned queues");
+        CheckGpuDiagnostics(std::nullopt, D3D12_MESSAGE_ID_FENCE_ZERO_WAIT, backendWindows.count);
+        platform.Renderer_CreateWindow = backendWindows.create;
+        GUI::imguiIO->UserData = userData;
+        platform.Platform_ShowWindow = showWindow;
+        GUI::Shutdown();
+    }
+
     void WriteCapture(const std::vector<uint8_t>& pixels, const std::string& name)
     {
         const DWORD capacity = GetEnvironmentVariableW(L"ARTISDX_TEST_CAPTURE_DIR", nullptr, 0);
@@ -586,34 +886,34 @@ namespace
             std::optional{D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE});
     }
 
-    std::vector<uint8_t> TestShadowToggle(Renderer& renderer)
+    std::vector<uint8_t> TestShadowToggle(Renderer& renderer, SceneFrames& frames)
     {
         renderer._depthPass->_usePass = false;
-        renderer.Render(0);
+        frames.Render(renderer, 0);
         const auto disabled = CaptureTexture(renderer._viewportTexture.Get());
         WriteCapture(disabled, "shadows_off");
         Require(DrawnPixels(disabled) > 100, "Main must render before the first shadow frame, with DepthPass off");
 
         // Force stale depth to fully occluding and fully visible values.
         ClearShadowDepth(renderer, 0);
-        renderer.Render(0);
+        frames.Render(renderer, 0);
         Require(CaptureTexture(renderer._viewportTexture.Get()) == disabled,
             "Shadows off must ignore fully occluding stale depth");
 
         renderer._dLight->_position = {-1, 0.7f, 1};
-        renderer.Render(0);
+        frames.Render(renderer, 0);
         const auto movedLight = CaptureTexture(renderer._viewportTexture.Get());
         Require(DrawnPixels(movedLight) > 100 && movedLight != disabled,
             "Moving the light with shadows off must still update directional lighting");
         ClearShadowDepth(renderer, 1);
-        renderer.Render(0);
+        frames.Render(renderer, 0);
         Require(CaptureTexture(renderer._viewportTexture.Get()) == movedLight,
             "Shadows off must ignore stale depth after moving the light");
 
         const auto lightMatrix = renderer._dLight->_lightViewProjMatrix;
         renderer._dLight->_orthoWidth = 10;
         renderer._dLight->_sceneCenter = {0.4f, 0.2f, 0};
-        renderer.Render(0);
+        frames.Render(renderer, 0);
         Require(std::memcmp(&lightMatrix, &renderer._dLight->_lightViewProjMatrix, sizeof(lightMatrix)) != 0,
             "The test must change the shadow projection");
         Require(CaptureTexture(renderer._viewportTexture.Get()) == movedLight,
@@ -622,12 +922,12 @@ namespace
         renderer._dLight->_position = {1, 1, 1};
         renderer._dLight->_orthoWidth = 7.5f;
         renderer._dLight->_sceneCenter = {0, 0, 0};
-        renderer.Render(0);
+        frames.Render(renderer, 0);
         Require(CaptureTexture(renderer._viewportTexture.Get()) == disabled,
             "Restoring the light with shadows off must restore full visibility");
 
         renderer._depthPass->_usePass = true;
-        renderer.Render(0);
+        frames.Render(renderer, 0);
         const auto enabled = CaptureTexture(renderer._viewportTexture.Get());
         size_t shadowedPixels = 0;
         for (size_t i = 0; i < enabled.size(); i += 4)
@@ -638,11 +938,11 @@ namespace
         }
         Require(shadowedPixels > 5, "Enabling DepthPass must produce visible shadows on the receiver quad");
         renderer._depthPass->_usePass = false;
-        renderer.Render(0);
+        frames.Render(renderer, 0);
         Require(CaptureTexture(renderer._viewportTexture.Get()) == disabled,
             "Disabling an already rendered shadow map must restore full visibility");
         renderer._depthPass->_usePass = true;
-        renderer.Render(0);
+        frames.Render(renderer, 0);
         Require(CaptureTexture(renderer._viewportTexture.Get()) == enabled,
             "Re-enabling DepthPass must regenerate the same shadows at the unchanged pose");
         std::cout << "PASS: shadow toggle checks (first frame, stale depth, moving light, off/on)\n";
@@ -653,9 +953,10 @@ namespace
     {
         Renderer renderer;
         renderer.InitializeRenderer();
+        SceneFrames frames;
         renderer.InitializeResources(scene);
         CheckGpuDiagnostics();
-        renderer.Render(0);
+        frames.Render(renderer, 0);
         const auto pixels = CaptureTexture(renderer._viewportTexture.Get());
         Require(DrawnPixels(pixels) > 100, "Copy-queue uploads must be usable by the first graphics draw");
 
@@ -671,13 +972,14 @@ namespace
         const auto offset = (static_cast<size_t>(y) * ViewportSize + x) * 4;
         Require(pixels[offset] > pixels[offset + 1] + 10 && pixels[offset] > pixels[offset + 2] + 10,
             "The first graphics draw must sample the uploaded red albedo texture");
-        renderer.Shutdown();
+        frames.Shutdown();
     }
 
-    // Record an actual manager draw without Renderer::Render's synchronous Finish.
+    // Record an actual manager draw without the synchronous scene-test helper.
     // This deliberately tests manager retention, rather than implementing another frame path.
-    void RecordMainDraw(Renderer& renderer, CommandContext& context)
+    void RecordMainDraw(Renderer& renderer, const std::shared_ptr<CommandContext>& contextOwner)
     {
+        auto& context = *contextOwner;
         context.DeclareResource(renderer._viewportTexture.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, "retirement viewport");
         context.DeclareResource(renderer._depthStencilBuffer.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE,
@@ -717,7 +1019,7 @@ namespace
         const auto sampler = renderer._mainPass->GetRootParameterIndex("mySampler");
         Require(sampler.has_value(), "Main draw requires its sampler");
         list->SetGraphicsRootDescriptorTable(*sampler, DescriptorAllocator::Sampler::GetGPUHandle(renderer._samplerCPUHandle));
-        renderer._modelManager.DrawAll(*renderer._mainPass, context);
+        renderer._modelManager.DrawAll(*renderer._mainPass, contextOwner);
         context.UseResource(renderer._viewportTexture.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     }
 
@@ -725,6 +1027,7 @@ namespace
     {
         Renderer renderer;
         renderer.InitializeRenderer();
+        SceneFrames frames;
         auto& graphics = CommandQueueManager::GetCommandQueue(QUEUE_GRAPHICS);
         auto& copy = CommandQueueManager::GetCommandQueue(QUEUE_UPLOAD);
         auto* device = D3D12Core::GraphicsDevice::device.Get();
@@ -740,7 +1043,7 @@ namespace
         auto owner = std::make_shared<MSWRL::ComPtr<ID3D12Resource>>(upload);
         std::weak_ptr<MSWRL::ComPtr<ID3D12Resource>> weak = owner;
         auto readback = ReadbackBuffer(sizeof(uint32_t));
-        auto context = std::make_unique<CommandContext>();
+        auto context = std::make_shared<CommandContext>();
         context->InitializeCommandContext(QUEUE_GRAPHICS);
         context->KeepAlive(owner);
         context->KeepAlive(readback);
@@ -793,16 +1096,16 @@ namespace
 
         renderer.InitializeResources(scene);
         renderer._depthPass->_usePass = false;
-        renderer.Render(0);
+        frames.Render(renderer, 0);
         const auto expectedImage = CaptureTexture(renderer._viewportTexture.Get());
         Require(DrawnPixels(expectedImage) > 100, "Scene must draw before unload");
         std::weak_ptr<Model> modelOwner;
         for (const auto& component : GUI::guiComponents)
             if (auto model = std::dynamic_pointer_cast<Model>(component.lock())) modelOwner = model;
         Require(!modelOwner.expired(), "The fixture model must expose an observable weak owner");
-        context = std::make_unique<CommandContext>();
+        context = std::make_shared<CommandContext>();
         context->InitializeCommandContext(QUEUE_GRAPHICS);
-        RecordMainDraw(renderer, *context);
+        RecordMainDraw(renderer, context);
         renderer._modelManager.ClearModels();
         Require(!modelOwner.expired(), "Recorded model commands must survive manager unload before submission");
         QueueGate modelGate(graphics);
@@ -815,15 +1118,16 @@ namespace
         Require(modelOwner.expired(), "Model owner must retire after its submitted draw completes");
         Require(CaptureTexture(renderer._viewportTexture.Get()) == expectedImage,
             "An in-flight draw must preserve the model's expected image after unload");
-        renderer.Render(0);
+        frames.Render(renderer, 0);
         Require(DrawnPixels(CaptureTexture(renderer._viewportTexture.Get())) == 0, "Clearing model ownership must produce an empty scene safely");
-        renderer.Shutdown();
+        frames.Shutdown();
     }
 
     void TestPassStateAndTransforms(const std::filesystem::path& scene)
     {
         Renderer renderer;
         renderer.InitializeRenderer();
+        SceneFrames frames;
         renderer.InitializeResources(scene);
         auto& queue = CommandQueueManager::GetCommandQueue(QUEUE_GRAPHICS);
         auto* viewport = renderer._viewportTexture.Get();
@@ -852,13 +1156,13 @@ namespace
         upload.Finish(true);
 
         renderer._mainPass->_usePass = renderer._depthPass->_usePass = renderer._bbPass->_usePass = false;
-        renderer.Render(0);
+        frames.Render(renderer, 0);
         Require(DrawnPixels(CaptureTexture(renderer._viewportTexture.Get())) == 0,
             "All disabled passes must leave the color target clear");
 
         // No ordinary drawing pass has run: boxes must already have the authored hierarchy pose.
         renderer._bbPass->_usePass = true;
-        renderer.Render(0);
+        frames.Render(renderer, 0);
         const auto boxesOnly = CaptureTexture(renderer._viewportTexture.Get());
         Require(DrawnPixels(boxesOnly) > 10, "Boxes must have valid transforms before Main or Depth ever draws");
         // Independent authored-position oracle: child bounds [-1.7,-0.1] x [-0.8,0.8],
@@ -885,7 +1189,7 @@ namespace
                 renderer._mainPass->_usePass = (mask & 1) != 0;
                 renderer._depthPass->_usePass = (mask & 2) != 0;
                 renderer._bbPass->_usePass = (mask & 4) != 0;
-                renderer.Render(0);
+                frames.Render(renderer, 0);
                 const auto pixels = CaptureTexture(renderer._viewportTexture.Get());
                 const std::string scenario = "Pass mask " + std::to_string(mask) + ", cycle " + std::to_string(cycle) + ": ";
                 Require((DrawnPixels(pixels) > 0) == ((mask & 5) != 0), scenario + "color target contract");
@@ -897,15 +1201,16 @@ namespace
             }
         const auto shadow = CaptureTexture(renderer._dLight->_directionalShadowMapBuffer.Get());
         Require(!shadow.empty(), "Shadow texture must remain readable after the pass cycles");
-        renderer.Shutdown();
+        frames.Shutdown();
     }
 
     void TestRender(const std::filesystem::path& scene)
     {
         Renderer renderer;
         renderer.InitializeRenderer();
+        SceneFrames frames;
         renderer.InitializeResources(scene);
-        const auto mainPixels = TestShadowToggle(renderer);
+        const auto mainPixels = TestShadowToggle(renderer, frames);
         WriteCapture(mainPixels, "pbr");
         Require(DrawnPixels(mainPixels) > 100, "GLB geometry/materials must produce visible PBR pixels");
         const auto depth = CaptureTexture(renderer._dLight->_directionalShadowMapBuffer.Get());
@@ -921,21 +1226,21 @@ namespace
 
         renderer._mainPass->_usePass = false;
         renderer._bbPass->_usePass = true;
-        renderer.Render(0);
+        frames.Render(renderer, 0);
         const auto boxes = CaptureTexture(renderer._viewportTexture.Get());
         WriteCapture(boxes, "bounding_boxes");
         Require(DrawnPixels(boxes) > 10, "The bounding-box pass must draw visible geometry");
 
         renderer._bbPass->_usePass = false;
-        renderer.Render(0);
+        frames.Render(renderer, 0);
         const auto empty = CaptureTexture(renderer._viewportTexture.Get());
         Require(DrawnPixels(empty) == 0, "Depth-only rendering must leave the color target at its clear color");
 
         renderer._mainPass->_usePass = true;
-        renderer.Render(0);
+        frames.Render(renderer, 0);
         Require(CaptureTexture(renderer._viewportTexture.Get()) == mainPixels,
             "Restoring the main pass at the same pose must restore the same image");
-        renderer.Shutdown();
+        frames.Shutdown();
     }
 }
 
@@ -948,6 +1253,8 @@ namespace
             if (test == "constants") TestConstants();
             else if (test == "commands") TestCommandFailures();
             else if (test == "completion") TestCommandCompletion();
+            else if (test == "frames") TestFrameLifecycle();
+            else if (test == "frame-gui") TestFrameGui(argument);
             else if (test == "root-failures") TestRootSignatureFailures();
             else if (test == "root-layout") TestRootLayout(argument);
             else if (test == "bounds") TestBounds();

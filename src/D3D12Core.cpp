@@ -138,7 +138,7 @@ namespace D3D12Core
 
 		void D3D12Core::Swapchain::Resize(int32_t newWidth, int32_t newHeight)
 		{
-			CommandQueueManager::GetCommandQueue(QUEUETYPE::QUEUE_GRAPHICS).Flush();
+			if (newWidth <= 0 || newHeight <= 0) ThrowException("Swapchain resize requires positive dimensions");
 
 			for (size_t i = 0; i < D3D12Core::Swapchain::backBufferCount; ++i)
 			{
@@ -146,7 +146,7 @@ namespace D3D12Core
 			}
 
 			DXGI_SWAP_CHAIN_DESC desc = {};
-			D3D12Core::Swapchain::swapchain->GetDesc(&desc);
+			ThrowIfFailed(D3D12Core::Swapchain::swapchain->GetDesc(&desc), "Reading swapchain description failed");
 
 			ThrowIfFailed(D3D12Core::Swapchain::swapchain->ResizeBuffers(D3D12Core::Swapchain::backBufferCount, newWidth, newHeight,desc.BufferDesc.Format, desc.Flags), "Resizing Swapchain failed!");
 
@@ -159,7 +159,8 @@ namespace D3D12Core
 			D3D12Core::Swapchain::viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(newWidth), static_cast<float>(newHeight));
 			D3D12Core::Swapchain::surfaceSize = { 0, 0, static_cast<long>(newWidth), static_cast<long>(newHeight) };
 		
-			CommandQueueManager::GetCommandQueue(QUEUETYPE::QUEUE_GRAPHICS).Flush();
+			D3D12Core::Swapchain::width = static_cast<uint32_t>(newWidth);
+			D3D12Core::Swapchain::height = static_cast<uint32_t>(newHeight);
 		}
 	}
 

@@ -5,7 +5,7 @@ int Testing::RunTestCase(int argc, char** argv)
 {
     try
     {
-        Require(argc >= 2, "Usage: artisDX.exe -test-case camera|tangents|shader|shaders|shader-failures|root-failures|root-layout|constants|commands|completion|bounds|rtv|pipeline|upload|render|retirement|passes [arguments] [--hardware]");
+        Require(argc >= 2, "Usage: artisDX.exe -test-case camera|tangents|shader|shaders|shader-failures|root-failures|root-layout|constants|commands|completion|frames|frame-gui|bounds|rtv|pipeline|upload|render|retirement|passes [arguments] [--hardware]");
         const std::string_view test(argv[1]);
         if (test == "camera" || test == "tangents")
         {
@@ -36,8 +36,8 @@ int Testing::RunTestCase(int argc, char** argv)
         }
         else
         {
-            const bool needsArgument = test == "pipeline" || test == "upload" || test == "render" || test == "root-layout" || test == "retirement" || test == "passes";
-            Require(needsArgument || test == "constants" || test == "bounds" || test == "rtv" || test == "commands" || test == "completion" || test == "root-failures", "Unknown test: " + std::string(test));
+            const bool needsArgument = test == "pipeline" || test == "upload" || test == "render" || test == "root-layout" || test == "retirement" || test == "passes" || test == "frame-gui";
+            Require(needsArgument || test == "constants" || test == "bounds" || test == "rtv" || test == "commands" || test == "completion" || test == "frames" || test == "root-failures", "Unknown test: " + std::string(test));
             const bool hardware = std::string_view(argv[argc - 1]) == "--hardware";
             Require(argc == 2 + static_cast<int>(needsArgument) + static_cast<int>(hardware),
                 "GPU tests take a pass/scene argument where required, followed by optional --hardware");

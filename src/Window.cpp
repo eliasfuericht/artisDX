@@ -13,9 +13,7 @@ LRESULT CALLBACK WindowProcess(HWND hwnd, uint32_t msg, WPARAM wParam, LPARAM lP
 
 			if (Window::initialized && wParam != SIZE_MINIMIZED)
 			{
-				D3D12Core::Swapchain::Resize(newWidth, newHeight);
-				Window::width = newWidth;
-				Window::height = newHeight;
+				Window::RequestResize(newWidth, newHeight);
 			}
 			return 0;
 		}
@@ -66,6 +64,22 @@ LRESULT CALLBACK WindowProcess(HWND hwnd, uint32_t msg, WPARAM wParam, LPARAM lP
 
 namespace Window
 {
+	static std::optional<ResizeRequest> pendingResize;
+
+	void RequestResize(uint32_t newWidth, uint32_t newHeight)
+	{
+		if (newWidth == 0 || newHeight == 0 || newWidth > INT32_MAX || newHeight > INT32_MAX) return;
+		width = newWidth;
+		height = newHeight;
+		pendingResize = ResizeRequest{ static_cast<int32_t>(newWidth), static_cast<int32_t>(newHeight) };
+	}
+
+	std::optional<ResizeRequest> ConsumePendingResize()
+	{
+		const auto request = pendingResize;
+		pendingResize.reset();
+		return request;
+	}
 	WNDCLASSEX windowClassEx;
 	const char* windowTitle;
 	ULONG windowMode;
@@ -199,6 +213,8 @@ namespace Window
 
 	void Shutdown()
 	{
+		initialized = false;
+		pendingResize.reset();
 		if (Window::hWindow)
 		{
 			DestroyWindow(Window::hWindow);

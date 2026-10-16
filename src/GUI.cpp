@@ -1,18 +1,20 @@
 #include "GUI.h"
+#include "CommandContext.h"
 #include <cmath>
 
 namespace GUI
 {
 	ImGuiIO* imguiIO = nullptr;
-	CommandContext guiContext;
 	std::vector<std::weak_ptr<IGUIComponent>> guiComponents;
 	D3D12_GPU_DESCRIPTOR_HANDLE _viewportTexture;
+	MSWRL::ComPtr<ID3D12Resource> _viewportTextureOwner;
 	int32_t viewportWidth = 1920;
 	int32_t viewportHeight = 1080;
 	bool viewportResized = false;
 
 	void InitializeGUI()
 	{
+		if (ImGui::GetCurrentContext()) ThrowException("GUI already initialized");
 		// init imgui
 		IMGUI_CHECKVERSION();
 		ImGui::CreateContext();
@@ -36,12 +38,16 @@ namespace GUI
 			style.Colors[ImGuiCol_WindowBg].w = 1.0f;
 		}
 
-		ImGui_ImplWin32_Init(Window::hWindow);
-		auto handle = DescriptorAllocator::CBVSRVUAV::Allocate();
-		ImGui_ImplDX12_Init(D3D12Core::GraphicsDevice::device.Get(), D3D12Core::Swapchain::backBufferCount, DXGI_FORMAT_R8G8B8A8_UNORM, DescriptorAllocator::CBVSRVUAV::GetHeap(), handle, DescriptorAllocator::CBVSRVUAV::GetGPUHandle(handle));
+		if (!ImGui_ImplWin32_Init(Window::hWindow)) ThrowException("Failed to initialize ImGui Win32 backend");
+
+		const auto handle = DescriptorAllocator::CBVSRVUAV::Allocate();
+
+		if (!ImGui_ImplDX12_Init(	D3D12Core::GraphicsDevice::device.Get(), D3D12Core::Swapchain::backBufferCount,
+															DXGI_FORMAT_R8G8B8A8_UNORM, DescriptorAllocator::CBVSRVUAV::GetHeap(), handle,
+															DescriptorAllocator::CBVSRVUAV::GetGPUHandle(handle)))
+			ThrowException("Failed to initialize ImGui DX12 backend");
 		
-		GUI::guiContext.InitializeCommandContext(QUEUETYPE::QUEUE_GRAPHICS);
-		GUI::guiContext.Finish(false);
+		if (!ImGui_ImplDX12_CreateDeviceObjects()) ThrowException("Failed to create ImGui DX12 device objects");
 	}
 
 	void RegisterComponent(std::weak_ptr<IGUIComponent> component)
@@ -59,9 +65,10 @@ namespace GUI
 		return viewportHeight;
 	}
 
-	void SetViewportTextureHandle(D3D12_GPU_DESCRIPTOR_HANDLE viewportTextureHandle)
+	void SetViewportTextureHandle(D3D12_GPU_DESCRIPTOR_HANDLE viewportTextureHandle, MSWRL::ComPtr<ID3D12Resource> owner)
 	{
 		_viewportTexture = viewportTextureHandle;
+		_viewportTextureOwner = std::move(owner);
 	}
 
 	void SetViewportComponentData()
@@ -119,7 +126,7 @@ namespace GUI
 		}
 	}
 
-	void SetGUIComponentData()
+	std::vector<std::shared_ptr<IGUIComponent>> SetGUIComponentData()
 	{
 		std::vector<std::shared_ptr<IGUIComponent>> components;
 		components.reserve(GUI::guiComponents.size());
@@ -133,6 +140,7 @@ namespace GUI
 		{
 			component->DrawGUI();
 		}
+		return components;
 	}
 
 	void BeginDockspace()
@@ -165,52 +173,47 @@ namespace GUI
 		ImGui::End();
 	}
 
-	void Draw()
+	FrameData BuildFrame()
 	{
+		if (!ImGui::GetCurrentContext() || !ImGui::GetIO().BackendRendererUserData)
+			ThrowException("GUI is not initialized");
 		ImGui_ImplDX12_NewFrame();
 		ImGui_ImplWin32_NewFrame();
 		ImGui::NewFrame();
-
 		BeginDockspace();
-		SetGUIComponentData();
+		auto components = SetGUIComponentData();
 		SetViewportComponentData();
-
 		ImGui::Render();
+		return { ImGui::GetDrawData(), std::move(components), _viewportTextureOwner };
+	}
 
-		if (GUI::imguiIO->ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-			ImGui::UpdatePlatformWindows();
-			ImGui::RenderPlatformWindowsDefault(nullptr, (void*)GUI::guiContext.GetCommandList().Get());
-		}
-
-		GUI::guiContext.Reset();
-
-		uint32_t frameIndex = D3D12Core::Swapchain::swapchain->GetCurrentBackBufferIndex();
-		ID3D12Resource* backbuffer = D3D12Core::Swapchain::renderTargets[frameIndex].Get();
-		GUI::guiContext.DeclareResource(backbuffer, D3D12_RESOURCE_STATE_PRESENT,
-			D3D12_RESOURCE_STATE_PRESENT, "swapchain backbuffer");
-		GUI::guiContext.KeepAlive(MSWRL::ComPtr<IUnknown>(DescriptorAllocator::CBVSRVUAV::GetHeap()));
-
-		GUI::guiContext.UseResource(backbuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
-		D3D12_CPU_DESCRIPTOR_HANDLE currentRTVHandle = D3D12Core::Swapchain::rtvCPUHandle[frameIndex];
-		GUI::guiContext.GetCommandList()->OMSetRenderTargets(1, &currentRTVHandle, FALSE, nullptr);
+	void RecordDrawData(std::shared_ptr<CommandContext> commandContext, ImDrawData* drawData, const RenderTarget& target)
+	{
+		if (!ImGui::GetCurrentContext() || !ImGui::GetIO().BackendRendererUserData ||
+			!drawData || !target.resource || !target.rtv.ptr)
+			ThrowException("GUI recording requires an initialized backend, draw data, and a render target");
+		commandContext->DeclareResource(target.resource, D3D12_RESOURCE_STATE_PRESENT,
+			D3D12_RESOURCE_STATE_PRESENT, "GUI backbuffer");
+		commandContext->KeepAlive(MSWRL::ComPtr<IUnknown>(DescriptorAllocator::CBVSRVUAV::GetHeap()));
+		commandContext->UseResource(target.resource, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		const auto list = commandContext->GetCommandList();
+		list->OMSetRenderTargets(1, &target.rtv, FALSE, nullptr);
 		const float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
-		GUI::guiContext.GetCommandList()->ClearRenderTargetView(currentRTVHandle, clearColor, 0, nullptr);
-
+		list->ClearRenderTargetView(target.rtv, clearColor, 0, nullptr);
 		ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::CBVSRVUAV::GetHeap() };
-		GUI::guiContext.GetCommandList()->SetDescriptorHeaps(_countof(heaps), heaps);
-
-		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), GUI::guiContext.GetCommandList().Get());
-
-		GUI::guiContext.UseResource(backbuffer, D3D12_RESOURCE_STATE_PRESENT);
-
-		GUI::guiContext.Finish(false);
+		list->SetDescriptorHeaps(_countof(heaps), heaps);
+		ImGui_ImplDX12_RenderDrawData(drawData, list.Get());
+		commandContext->UseResource(target.resource, D3D12_RESOURCE_STATE_PRESENT);
 	}
 
 	void Shutdown()
 	{
+		if (!ImGui::GetCurrentContext()) return;
+		if (ImGui::GetIO().BackendRendererUserData) ImGui_ImplDX12_Shutdown();
 		GUI::imguiIO = nullptr;
-		ImGui_ImplDX12_Shutdown();
-		ImGui_ImplWin32_Shutdown();
+		if (ImGui::GetIO().BackendPlatformUserData) ImGui_ImplWin32_Shutdown();
 		ImGui::DestroyContext();
+		_viewportTextureOwner.Reset();
+		_viewportTexture = {};
 	}
 }

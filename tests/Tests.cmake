@@ -66,3 +66,6 @@ artisDX_add_test(command_submission_completion gpu completion)
 artisDX_add_test(submission_resource_retirement gpu retirement "${PROJECT_SOURCE_DIR}/tests/fixtures/regression.glb")
 
 artisDX_add_test(pass_state_and_transforms gpu passes "${PROJECT_SOURCE_DIR}/tests/fixtures/regression.glb")
+
+artisDX_add_test(frame_coordinator_lifecycle gpu frames)
+artisDX_add_test(frame_gui_composition_and_resize gpu frame-gui "${PROJECT_SOURCE_DIR}/tests/fixtures/regression.glb")
