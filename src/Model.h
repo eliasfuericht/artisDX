@@ -18,9 +18,20 @@ public:
 	Model() = default;
 	Model(int32_t id, std::string name, std::vector<Mesh> meshes, std::vector<Texture> textures, std::vector<Material> materials, std::vector<ModelNode> modelNodes);
 
+	struct DrawItem
+	{
+		std::weak_ptr<Model> model;
+		size_t nodeIndex;
+		size_t primitiveIndex;
+		fastgltf::AlphaMode alphaMode = fastgltf::AlphaMode::Opaque;
+		float viewDepth = 0;
+	};
+
 	void ComputeGlobalTransforms();
-	void DrawModel(const ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
-	void DrawModelBoundingBox(const ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
+	void AppendDrawItems(std::vector<Model::DrawItem>& drawItems);
+	void UpdateDrawItem(Model::DrawItem& item, const XMFLOAT4X4& viewMatrix) const;
+	void DrawPrimitive(const Model::DrawItem& item, std::shared_ptr<ShaderPass> shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
+	void DrawModelBoundingBox(std::shared_ptr<ShaderPass> shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 
 	void DrawGUI();
 	int32_t GetID();

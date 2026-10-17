@@ -29,6 +29,8 @@ cbuffer pbrFactors : register(b5)
     float4 c_baseColorFactor;
     float c_metallicFactor;
     float c_roughnessFactor;
+    float c_alphaCutoff;
+    uint c_alphaMode; // fastgltf::AlphaMode: Opaque=0, Mask=1, Blend=2.
 };
 
 struct StageInput
@@ -117,8 +119,19 @@ StageOutput main(StageInput stageInput)
 {
     StageOutput stageOutput;
     
-    float4 albedoalpha = pow(albedoTexture.Sample(mySampler, stageInput.inUV), 2.2);
+    float4 albedoalpha = albedoTexture.Sample(mySampler, stageInput.inUV);
+    albedoalpha.rgb = pow(albedoalpha.rgb, 2.2);
     albedoalpha *= c_baseColorFactor;
+    if (c_alphaMode == 1)
+    {
+        clip(albedoalpha.a - c_alphaCutoff);
+    }
+    
+    if (c_alphaMode != 2)
+    {
+        albedoalpha.a = 1.0;
+    }
+    
     float3 albedo = albedoalpha.rgb;
 
     float4 mr = metallicRoughnessTexture.Sample(mySampler, stageInput.inUV);

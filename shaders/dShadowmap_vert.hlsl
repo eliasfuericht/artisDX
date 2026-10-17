@@ -20,6 +20,7 @@ struct StageInput
 struct StageOutput
 {
     float4 position : SV_Position;
+    float2 uv : TEXCOORD;
 };
 
 StageOutput main(StageInput stageInput)
@@ -28,6 +29,7 @@ StageOutput main(StageInput stageInput)
 
     float4 worldPos = mul(float4(stageInput.inPos, 1.0f), c_modelMatrix);
     stageOutput.position = mul(worldPos, c_lightViewProjectionMatrix);
+    stageOutput.uv = stageInput.inUV;
     
     return stageOutput;
 }

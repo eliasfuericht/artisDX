@@ -27,7 +27,7 @@ public:
 	uint8_t* _mappedCBVModelMatrixPtr = nullptr;
 	D3D12_GPU_DESCRIPTOR_HANDLE _cbvModelMatrixGpuHandle = {};
 
-	void BindModelMatrixData(const ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
+	void BindModelMatrixData(std::shared_ptr<ShaderPass> shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 private:
 	void CreateCBV();
 

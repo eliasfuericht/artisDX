@@ -2,6 +2,7 @@
 #include "TestSupport.h"
 #include "Renderer.h"
 #include "FrameCoordinator.h"
+#include "Model.h"
 
 #include <array>
 #include <cstring>
@@ -356,7 +357,7 @@ namespace
     {
         CommandQueueManager::InitializeCommandQueueManager();
         auto& queue = CommandQueueManager::GetCommandQueue(QUEUE_GRAPHICS);
-        const UINT index = D3D12Core::Swapchain::swapchain->GetCurrentBackBufferIndex();
+        constexpr UINT index = 0; // This isolated lifecycle test has no swapchain.
         FrameCoordinator frames;
         ExpectFailure([&] { frames.BeginFrame(0); }, "not running");
         frames.Initialize(2);
@@ -1019,7 +1020,7 @@ namespace
         const auto sampler = renderer._mainPass->GetRootParameterIndex("mySampler");
         Require(sampler.has_value(), "Main draw requires its sampler");
         list->SetGraphicsRootDescriptorTable(*sampler, DescriptorAllocator::Sampler::GetGPUHandle(renderer._samplerCPUHandle));
-        renderer._modelManager.DrawAll(*renderer._mainPass, contextOwner);
+        renderer._modelManager.DrawAll(renderer._mainPass, contextOwner, renderer._viewMatrix);
         context.UseResource(renderer._viewportTexture.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     }
 
@@ -1103,6 +1104,12 @@ namespace
         for (const auto& component : GUI::guiComponents)
             if (auto model = std::dynamic_pointer_cast<Model>(component.lock())) modelOwner = model;
         Require(!modelOwner.expired(), "The fixture model must expose an observable weak owner");
+        std::vector<DrawItem> borrowedDrawItems;
+        {
+            const std::shared_ptr<Model> model = modelOwner.lock();
+            model->AppendDrawItems(borrowedDrawItems);
+        }
+        Require(!borrowedDrawItems.empty(), "Loaded geometry must produce borrowed draw items");
         context = std::make_shared<CommandContext>();
         context->InitializeCommandContext(QUEUE_GRAPHICS);
         RecordMainDraw(renderer, context);
@@ -1116,6 +1123,8 @@ namespace
         modelGate.Release();
         graphics.WaitCPU(modelPending);
         Require(modelOwner.expired(), "Model owner must retire after its submitted draw completes");
+        for (const DrawItem& item : borrowedDrawItems)
+            Require(!item.model.lock(), "Surviving draw items must expire without retaining or accessing the unloaded model");
         Require(CaptureTexture(renderer._viewportTexture.Get()) == expectedImage,
             "An in-flight draw must preserve the model's expected image after unload");
         frames.Render(renderer, 0);
@@ -1204,6 +1213,127 @@ namespace
         frames.Shutdown();
     }
 
+    void TestTransparency(Renderer& renderer, SceneFrames& frames)
+    {
+        struct Fixture
+        {
+            std::filesystem::path path = std::filesystem::temp_directory_path() /
+                ("artisDX-transparency-" + std::to_string(GetCurrentProcessId()) + ".gltf");
+            ~Fixture() { std::error_code error; std::filesystem::remove(path, error); }
+        } fixture;
+        // A quad plus an RGBA PNG with alpha=128, embedded to avoid new fixture files.
+        const auto load = [&](const char* mode, const char* color, float z, float cutoff = 0.5f, bool textured = false)
+        {
+            std::ofstream output;
+            output.exceptions(std::ios::failbit | std::ios::badbit);
+            output.open(fixture.path);
+            output << R"({"asset":{"version":"2.0"},"scene":0,"scenes":[{"nodes":[0]}],
+"nodes":[{"translation":[0,0,)" << z << R"(],"children":[1]},{"mesh":0}],
+"meshes":[{"primitives":[{"attributes":{"POSITION":0,"NORMAL":1,"TEXCOORD_0":2},"indices":3,"material":0}]}],
+"materials":[{"alphaMode":")" << mode << R"(","alphaCutoff":)" << cutoff << R"(,"pbrMetallicRoughness":{
+"baseColorFactor":)" << color << R"(,"metallicFactor":0,"roughnessFactor":1)";
+            if (textured) output << R"(,"baseColorTexture":{"index":0})";
+            output << R"(}}],"textures":[{"source":0}],"images":[{"bufferView":4,"mimeType":"image/png"}],
+"accessors":[{"bufferView":0,"componentType":5126,"count":4,"type":"VEC3","min":[-0.8,-0.8,0],"max":[0.8,0.8,0]},
+{"bufferView":1,"componentType":5126,"count":4,"type":"VEC3"},
+{"bufferView":2,"componentType":5126,"count":4,"type":"VEC2"},
+{"bufferView":3,"componentType":5123,"count":6,"type":"SCALAR"}],
+"bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":48},{"buffer":0,"byteOffset":48,"byteLength":48},
+{"buffer":0,"byteOffset":96,"byteLength":32},{"buffer":0,"byteOffset":128,"byteLength":12},
+{"buffer":0,"byteOffset":140,"byteLength":76}],"buffers":[{"byteLength":216,"uri":
+"data:application/octet-stream;base64,zcxMv83MTL8AAAAAzcxMP83MTL8AAAAAzcxMP83MTD8AAAAAzcxMv83MTD8AAAAAAAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAgD8AAIA/AAAAAAAAgD8AAAEAAgAAAAIAAwCJUE5HDQoaCgAAAA1JSERSAAAACAAAAAgIBgAAAMQPvosAAAATSURBVHicY/j//38DPswwMhQAAFRl30EREFkEAAAAAElFTkSuQmCC"}]})";
+            output.close();
+            renderer._modelManager.LoadModel(fixture.path);
+        };
+        const auto pixel = [&]
+        {
+            frames.Render(renderer, 0);
+            const auto pixels = CaptureTexture(renderer._viewportTexture.Get());
+            std::array<uint8_t, 4> result;
+            std::memcpy(result.data(), pixels.data() + (ViewportSize / 2 * ViewportSize + ViewportSize / 2) * 4, 4);
+            return result;
+        };
+        const auto depthAtCenter = [&]
+        {
+            const auto bytes = CaptureTexture(renderer._depthStencilBuffer.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+            float depth;
+            std::memcpy(&depth, bytes.data() + (ViewportSize / 2 * ViewportSize + ViewportSize / 2) * 4, 4);
+            return depth;
+        };
+        const auto shadowWritten = [&]
+        {
+            const auto bytes = CaptureTexture(renderer._dLight->_directionalShadowMapBuffer.Get());
+            for (size_t i = 0; i < bytes.size(); i += sizeof(float))
+            {
+                float depth;
+                std::memcpy(&depth, bytes.data() + i, sizeof(depth));
+                if (depth < 1) return true;
+            }
+            return false;
+        };
+
+        renderer._modelManager.ClearModels();
+        renderer._depthPass->_usePass = false;
+        load("OPAQUE", "[1,0,0,1]", 1);
+        const auto red = pixel();
+        renderer._modelManager.ClearModels();
+        load("OPAQUE", "[0,0,1,1]", 0);
+        const auto blue = pixel();
+        Require(red[0] > red[2] + 30 && blue[2] > blue[0] + 30, "Transparency reference quads must cover the test pixel");
+
+        renderer._modelManager.ClearModels();
+        load("BLEND", "[1,0,0,0.5]", 1, 0.5f, true); // Deliberately load near first.
+        load("BLEND", "[0,0,1,0.5]", 0);
+        const auto blended = pixel();
+        const float nearAlpha = 0.5f * 128.0f / 255.0f;
+        for (size_t channel = 0; channel < 3; ++channel)
+        {
+            const float expected = red[channel] * nearAlpha +
+                (blue[channel] * 0.5f + 51 * 0.5f) * (1 - nearAlpha);
+            Require(std::abs(blended[channel] - expected) <= 2, "Global back-to-front blending, channel " + std::to_string(channel) +
+                ": expected " + std::to_string(expected) + ", got " + std::to_string(blended[channel]));
+        }
+        Require(blended[3] == 255 && depthAtCenter() == 1, "Blending must preserve viewport alpha and leave scene depth untouched");
+        renderer._modelManager.ClearModels();
+        load("BLEND", "[0,0,1,0.5]", 0);
+        load("BLEND", "[1,0,0,0.5]", 1, 0.5f, true);
+        Require(pixel() == blended, "Blended output must be independent of model insertion order");
+
+        renderer._modelManager.ClearModels();
+        load("BLEND", "[1,0,0,0.5]", 1, 0.5f, true);
+        load("OPAQUE", "[0,0,1,1]", 0); // Solid geometry loaded after the transparent model.
+        const auto overOpaque = pixel();
+        for (size_t channel = 0; channel < 3; ++channel)
+            Require(std::abs(overOpaque[channel] - (red[channel] * nearAlpha + blue[channel] * (1 - nearAlpha))) <= 2,
+                "Every model's solid surfaces must draw before any blended surfaces");
+
+        renderer._modelManager.ClearModels();
+        load("OPAQUE", "[1,0,0,0]", 1);
+        Require(pixel() == red && depthAtCenter() < 1, "OPAQUE must ignore alpha and write depth");
+        load("BLEND", "[0,0,1,0.5]", 0);
+        Require(pixel() == red, "Opaque foreground depth must occlude a blended surface behind it");
+
+        renderer._depthPass->_usePass = true;
+        for (const float cutoff : {0.3f, 0.2f})
+        {
+            renderer._modelManager.ClearModels();
+            load("MASK", "[1,0,0,0.5]", 1, cutoff, true);
+            const auto masked = pixel();
+            const bool survives = cutoff == 0.2f;
+            Require(survives ? DrawnPixels(CaptureTexture(renderer._viewportTexture.Get())) > 100 :
+                masked == std::array<uint8_t, 4>{51, 51, 51, 255}, "MASK must apply the imported cutoff to texture alpha times factor alpha");
+            Require((depthAtCenter() < 1) == survives && shadowWritten() == survives,
+                "Cutout discard must match in scene depth and shadow depth");
+            Require(masked[3] == 255, "Surviving cutouts must be opaque in the viewport");
+        }
+        renderer._modelManager.ClearModels();
+        load("BLEND", "[1,0,0,0.5]", 1);
+        pixel();
+        Require(!shadowWritten(), "Blended surfaces must not cast solid opaque shadows");
+        CheckGpuDiagnostics();
+        std::cout << "PASS: transparency (global sorting, linear alpha, opaque depth, cutout color/depth/shadows)\n";
+    }
+
     void TestRender(const std::filesystem::path& scene)
     {
         Renderer renderer;
@@ -1240,6 +1370,7 @@ namespace
         frames.Render(renderer, 0);
         Require(CaptureTexture(renderer._viewportTexture.Get()) == mainPixels,
             "Restoring the main pass at the same pose must restore the same image");
+        TestTransparency(renderer, frames);
         frames.Shutdown();
     }
 }
@@ -1249,7 +1380,7 @@ namespace
         try
         {
             ComApartment apartment;
-            InitializeGpu(hardware, test == "upload");
+            InitializeGpu(hardware, test == "upload" || test == "render");
             if (test == "constants") TestConstants();
             else if (test == "commands") TestCommandFailures();
             else if (test == "completion") TestCommandCompletion();

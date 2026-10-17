@@ -141,28 +141,7 @@ void ShaderPass::GeneratePipeLineStateObjectForwardPass(D3D12_FILL_MODE fillMode
 	psoDesc.RasterizerState.FillMode = fillMode;
 	psoDesc.RasterizerState.CullMode = cullMode;
 	
-	if (alphaBlending)
-	{
-		D3D12_BLEND_DESC blendDesc = {};
-		blendDesc.AlphaToCoverageEnable = false;
-		blendDesc.IndependentBlendEnable = false;
-		blendDesc.RenderTarget[0].BlendEnable = true;
-		blendDesc.RenderTarget[0].LogicOpEnable = false;
-		blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
-		blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
-		blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
-		blendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
-		blendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
-		blendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
-		blendDesc.RenderTarget[0].LogicOp = D3D12_LOGIC_OP_NOOP;
-		blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-
-		psoDesc.BlendState = blendDesc;
-	}
-	else
-	{
-		psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-	}
+	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 
 	psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
@@ -173,6 +152,22 @@ void ShaderPass::GeneratePipeLineStateObjectForwardPass(D3D12_FILL_MODE fillMode
 	psoDesc.SampleDesc.Count = 1;
 
 	ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&_pipelineState)), "PipelineStateObject creation failed!");
+	const std::wstring name(_name.begin(), _name.end());
+	ThrowIfFailed(_pipelineState->SetName((name + L" opaque").c_str()));
+
+	_transparentPipelineState.Reset();
+	if (alphaBlending)
+	{
+		auto& blend = psoDesc.BlendState.RenderTarget[0];
+		blend.BlendEnable = true;
+		blend.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+		blend.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+		blend.SrcBlendAlpha = D3D12_BLEND_ONE;
+		blend.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+		psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+		ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&_transparentPipelineState)), "Transparent PipelineStateObject creation failed!");
+		ThrowIfFailed(_transparentPipelineState->SetName((name + L" transparent").c_str()));
+	}
 }
 
 std::optional<uint32_t> ShaderPass::GetRootParameterIndex(const std::string& name) const {

@@ -34,10 +34,11 @@ void Material::CreateCBV()
 	_cbvMaterialFactorsGpuHandle = DescriptorAllocator::CBVSRVUAV::GetGPUHandle(cbvCpuHandle);
 }
 
-void Material::BindMaterialFactorsData(const ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
+void Material::BindMaterialFactorsData(std::shared_ptr<ShaderPass> shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
+	_pbrFactors.alphaMode = static_cast<uint32_t>(_alphaMode);
 	memcpy(_mappedMaterialFactorsPtr, &_pbrFactors, sizeof(PBRFactors));
 
-	if (auto slot = shaderPass.GetRootParameterIndex("pbrFactors"))
+	if (auto slot = shaderPass->GetRootParameterIndex("pbrFactors"))
 		commandList->SetGraphicsRootDescriptorTable(slot.value(), _cbvMaterialFactorsGpuHandle);
 }

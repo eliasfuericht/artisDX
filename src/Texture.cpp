@@ -90,29 +90,29 @@ void Texture::CreateBuffers(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList
 	D3D12Core::GraphicsDevice::device->CreateShaderResourceView(_textureResource.Get(), &srvDesc, _srvCpuHandle);
 }
 
-void Texture::BindTexture(const ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
+void Texture::BindTexture(std::shared_ptr<ShaderPass> shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
 	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_srvCpuHandle);
 	switch (_textureType)
 	{
 	case TEXTURE_ALBEDO:
-		if (auto slot = shaderPass.GetRootParameterIndex("albedoTexture"))
+		if (auto slot = shaderPass->GetRootParameterIndex("albedoTexture"))
 			commandList->SetGraphicsRootDescriptorTable(slot.value(), gpuHandle);
 		break;
 	case TEXTURE_METALLICROUGHNESS:
-		if (auto slot = shaderPass.GetRootParameterIndex("metallicRoughnessTexture"))
+		if (auto slot = shaderPass->GetRootParameterIndex("metallicRoughnessTexture"))
 			commandList->SetGraphicsRootDescriptorTable(slot.value(), gpuHandle);
 		break;
 	case TEXTURE_NORMAL:
-		if (auto slot = shaderPass.GetRootParameterIndex("normalTexture"))
+		if (auto slot = shaderPass->GetRootParameterIndex("normalTexture"))
 			commandList->SetGraphicsRootDescriptorTable(slot.value(), gpuHandle);
 		break;
 	case TEXTURE_EMISSIVE:
-		if (auto slot = shaderPass.GetRootParameterIndex("emissiveTexture"))
+		if (auto slot = shaderPass->GetRootParameterIndex("emissiveTexture"))
 			commandList->SetGraphicsRootDescriptorTable(slot.value(), gpuHandle);
 		break;
 	case TEXTURE_OCCLUSION:
-		if (auto slot = shaderPass.GetRootParameterIndex("occlusionTexture"))
+		if (auto slot = shaderPass->GetRootParameterIndex("occlusionTexture"))
 			commandList->SetGraphicsRootDescriptorTable(slot.value(), gpuHandle);
 		break;
 	default:

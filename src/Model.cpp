@@ -11,53 +11,48 @@ Model::Model(int32_t id, std::string name, std::vector<Mesh> meshes, std::vector
 	XMStoreFloat4x4(&_globalMatrix, XMMatrixIdentity()) ;
 }
 
-void Model::DrawModel(const ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
+void Model::AppendDrawItems(std::vector<Model::DrawItem>& drawItems)
 {
-	for (ModelNode& node : _modelNodes)
+	const std::weak_ptr<Model> model = std::static_pointer_cast<Model>(shared_from_this());
+	for (size_t nodeIndex = 0; nodeIndex < _modelNodes.size(); ++nodeIndex)
 	{
-		if (node._meshIndex == -1)
-			continue;
-
-		Mesh& mesh = _meshes[node._meshIndex];
-
-		node.BindModelMatrixData(shaderPass, commandList);
-
-		std::vector<Primitive> transparentPrimitives;
-
-		for (Primitive& primitive : mesh._primitives)
+		const ModelNode& node = _modelNodes[nodeIndex];
+		if (node._meshIndex == NOTOK) continue;
+		for (size_t primitiveIndex = 0; primitiveIndex < _meshes[node._meshIndex]._primitives.size(); ++primitiveIndex)
 		{
-			Material& material = _materials[primitive._materialIndex];
-			if (material._alphaMode == fastgltf::AlphaMode::Blend || material._alphaMode == fastgltf::AlphaMode::Mask)
-			{
-				transparentPrimitives.push_back(primitive);
-				continue;
-			}
-
-			material._baseColorTextureIndex != NOTOK ? _textures[material._baseColorTextureIndex].BindTexture(shaderPass, commandList) : PRINT("baseColorTextureIndex NOTOK");
-			material._metallicRoughnessTextureIndex != NOTOK ? _textures[material._metallicRoughnessTextureIndex].BindTexture(shaderPass, commandList) : PRINT("metallicRoughnessTextureIndex NOTOK");
-			material._normalTextureIndex != NOTOK ? _textures[material._normalTextureIndex].BindTexture(shaderPass, commandList) : PRINT("normalTextureIndex NOTOK");
-			material._emissiveTextureIndex != NOTOK ? _textures[material._emissiveTextureIndex].BindTexture(shaderPass, commandList) : PRINT("emissiveTextureIndex NOTOK");
-			material._occlusionTextureIndex != NOTOK ? _textures[material._occlusionTextureIndex].BindTexture(shaderPass, commandList) : PRINT("occlusionTextureIndex NOTOK");
-			material.BindMaterialFactorsData(shaderPass, commandList);
-			primitive.BindPrimitiveData(commandList);
-		}
-
-		for (Primitive& primitive : transparentPrimitives)
-		{
-			Material& material = _materials[primitive._materialIndex];
-
-			material._baseColorTextureIndex != NOTOK ? _textures[material._baseColorTextureIndex].BindTexture(shaderPass, commandList) : PRINT("baseColorTextureIndex NOTOK");
-			material._metallicRoughnessTextureIndex != NOTOK ? _textures[material._metallicRoughnessTextureIndex].BindTexture(shaderPass, commandList) : PRINT("metallicRoughnessTextureIndex NOTOK");
-			material._normalTextureIndex != NOTOK ? _textures[material._normalTextureIndex].BindTexture(shaderPass, commandList) : PRINT("normalTextureIndex NOTOK");
-			material._emissiveTextureIndex != NOTOK ? _textures[material._emissiveTextureIndex].BindTexture(shaderPass, commandList) : PRINT("emissiveTextureIndex NOTOK");
-			material._occlusionTextureIndex != NOTOK ? _textures[material._occlusionTextureIndex].BindTexture(shaderPass, commandList) : PRINT("occlusionTextureIndex NOTOK");
-			material.BindMaterialFactorsData(shaderPass, commandList);
-			primitive.BindPrimitiveData(commandList);
+			drawItems.push_back({model, nodeIndex, primitiveIndex});
 		}
 	}
 }
 
-void Model::DrawModelBoundingBox(const ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
+void Model::UpdateDrawItem(Model::DrawItem& item, const XMFLOAT4X4& viewMatrix) const
+{
+	const ModelNode& node = _modelNodes.at(item.nodeIndex);
+	const Primitive& primitive = _meshes.at(node._meshIndex)._primitives.at(item.primitiveIndex);
+	item.alphaMode = _materials.at(primitive._materialIndex)._alphaMode;
+	if (item.alphaMode == fastgltf::AlphaMode::Blend)
+	{
+		const XMVECTOR center = (XMLoadFloat3(&primitive._aabb.GetMin()) + XMLoadFloat3(&primitive._aabb.GetMax())) * 0.5f;
+		item.viewDepth = XMVectorGetZ(XMVector3TransformCoord(center, XMLoadFloat4x4(&node._globalMatrix) * XMLoadFloat4x4(&viewMatrix)));
+	}
+}
+
+void Model::DrawPrimitive(const Model::DrawItem& item, std::shared_ptr<ShaderPass> shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
+{
+	ModelNode& node = _modelNodes.at(item.nodeIndex);
+	Primitive& primitive = _meshes.at(node._meshIndex)._primitives.at(item.primitiveIndex);
+	node.BindModelMatrixData(shaderPass, commandList);
+	Material& material = _materials.at(primitive._materialIndex);
+	material._baseColorTextureIndex != NOTOK ? _textures[material._baseColorTextureIndex].BindTexture(shaderPass, commandList) : PRINT("baseColorTextureIndex NOTOK");
+	material._metallicRoughnessTextureIndex != NOTOK ? _textures[material._metallicRoughnessTextureIndex].BindTexture(shaderPass, commandList) : PRINT("metallicRoughnessTextureIndex NOTOK");
+	material._normalTextureIndex != NOTOK ? _textures[material._normalTextureIndex].BindTexture(shaderPass, commandList) : PRINT("normalTextureIndex NOTOK");
+	material._emissiveTextureIndex != NOTOK ? _textures[material._emissiveTextureIndex].BindTexture(shaderPass, commandList) : PRINT("emissiveTextureIndex NOTOK");
+	material._occlusionTextureIndex != NOTOK ? _textures[material._occlusionTextureIndex].BindTexture(shaderPass, commandList) : PRINT("occlusionTextureIndex NOTOK");
+	material.BindMaterialFactorsData(shaderPass, commandList);
+	primitive.BindPrimitiveData(commandList);
+}
+
+void Model::DrawModelBoundingBox(std::shared_ptr<ShaderPass> shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
 	for (ModelNode& node : _modelNodes)
 	{

@@ -65,6 +65,7 @@ namespace GLTFLoader
 			Material material;
 
 			material._alphaMode = gltfMaterial.alphaMode;
+			material._pbrFactors.alphaCutoff = gltfMaterial.alphaCutoff;
 			material._pbrFactors.baseColorFactor = Utils::ToXMFloat4(gltfMaterial.pbrData.baseColorFactor);
 			material._pbrFactors.metallicFactor = gltfMaterial.pbrData.metallicFactor;
 			material._pbrFactors.roughnessFactor = gltfMaterial.pbrData.roughnessFactor;
@@ -306,8 +307,8 @@ namespace GLTFLoader
 
 	ScratchImage GLTFLoader::LoadFallbackAlbedoTexture()
 	{
-		// Default albedo: mid-gray (e.g., base color = 0.5)
-		return Create1x1Texture(255, 0, 200, 120);
+		// pink color for debugging
+		return Create1x1Texture(255, 23, 189, 255);
 	}
 
 	ScratchImage GLTFLoader::LoadFallbackMetallicRoughnessTexture()

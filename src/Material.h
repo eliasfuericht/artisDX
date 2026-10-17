@@ -23,11 +23,13 @@ public:
 		XMFLOAT4 baseColorFactor = { 1.0f, 1.0f, 1.0f, 1.0f };
 		float metallicFactor = 1.0f;
 		float roughnessFactor = 1.0f;
+		float alphaCutoff = 0.5f;
+		uint32_t alphaMode = 0;
 	};
 
 	PBRFactors _pbrFactors;
 
-	fastgltf::AlphaMode _alphaMode;
+	fastgltf::AlphaMode _alphaMode = fastgltf::AlphaMode::Opaque;
 
 	uint8_t* _mappedMaterialFactorsPtr = nullptr;
 	D3D12_GPU_DESCRIPTOR_HANDLE _cbvMaterialFactorsGpuHandle = {};
@@ -35,5 +37,5 @@ public:
 
 	void CreateCBV();
 
-	void BindMaterialFactorsData(const ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
+	void BindMaterialFactorsData(std::shared_ptr<ShaderPass> shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 };

@@ -34,10 +34,10 @@ void ModelNode::CreateCBV()
 	_cbvModelMatrixGpuHandle = DescriptorAllocator::CBVSRVUAV::GetGPUHandle(cbvCpuHandle);
 }
 
-void ModelNode::BindModelMatrixData(const ShaderPass& shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
+void ModelNode::BindModelMatrixData(std::shared_ptr<ShaderPass> shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
 	memcpy(_mappedCBVModelMatrixPtr, &_globalMatrix, sizeof(XMFLOAT4X4));
 
-	if (auto slot = shaderPass.GetRootParameterIndex("modelMatrixBuffer"))
+	if (auto slot = shaderPass->GetRootParameterIndex("modelMatrixBuffer"))
 		commandList->SetGraphicsRootDescriptorTable(slot.value(), _cbvModelMatrixGpuHandle);
 }

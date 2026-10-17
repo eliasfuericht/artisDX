@@ -26,6 +26,7 @@ public:
 
 	MSWRL::ComPtr<ID3D12RootSignature> _rootSignature;
 	MSWRL::ComPtr<ID3D12PipelineState> _pipelineState;
+	MSWRL::ComPtr<ID3D12PipelineState> _transparentPipelineState;
 
 	std::unordered_map<std::string, uint32_t> _bindingMap;
 	std::unordered_map<SHADERTYPE, Shader> _shaders;

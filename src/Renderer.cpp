@@ -327,7 +327,10 @@ void Renderer::RecordScene(std::shared_ptr<CommandContext> commandContext)
 		if (auto slot = _depthPass->GetRootParameterIndex("lightViewProjMatrixBuffer"))
 			commandContext->GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_dLight->_dLightLVPCPUHandle));
 
-		_modelManager.DrawAll(*_depthPass, commandContext);
+		if (auto slot = _depthPass->GetRootParameterIndex("dShadowMapSampler"))
+			commandContext->GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::Sampler::GetGPUHandle(_samplerCPUHandle));
+
+		_modelManager.DrawAll(_depthPass, commandContext, _viewMatrix);
 
 		commandContext->UseResource(_dLight->_directionalShadowMapBuffer.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
@@ -371,7 +374,7 @@ void Renderer::RecordScene(std::shared_ptr<CommandContext> commandContext)
 		if (auto slot = _mainPass->GetRootParameterIndex("lightViewProjMatrixBuffer"))
 			commandContext->GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_dLight->_dLightLVPCPUHandle));
 
-		_modelManager.DrawAll(*_mainPass, commandContext);
+		_modelManager.DrawAll(_mainPass, commandContext, _viewMatrix);
 	}
 
 	if (_bbPass->_usePass)
@@ -387,7 +390,7 @@ void Renderer::RecordScene(std::shared_ptr<CommandContext> commandContext)
 		if (auto slot = _bbPass->GetRootParameterIndex("viewProjMatrixBuffer"))
 			commandContext->GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_VPBufferDescriptor));
 
-		_modelManager.DrawAllBoundingBoxes(*_bbPass, commandContext);
+		_modelManager.DrawAllBoundingBoxes(_bbPass, commandContext);
 	}
 
 	commandContext->UseResource(_viewportTexture.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
