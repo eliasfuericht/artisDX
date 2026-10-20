@@ -16,6 +16,7 @@ public:
 	void Update();
 
 	void DrawGUI();
+	uint64_t GetID() const { return _id; }
 
 	XMFLOAT4X4 GetViewMatrix() { return _viewMatrix; };
 	float _yaw;
@@ -23,6 +24,7 @@ public:
 	XMVECTOR _position;
 
 private:
+	inline static uint64_t _nextId = 0;
 
 	XMVECTOR _front;
 	XMVECTOR _up;
@@ -34,7 +36,8 @@ private:
 	float _moveSpeed;
 	float _turnSpeed;
 
-	float _multiplier = 15.0f;
+	float _multiplier = 10.0f;
 	XMFLOAT3 _uiposition;
+	uint64_t _id = _nextId++;
 
 };

@@ -23,6 +23,7 @@ public:
 	std::optional<uint32_t> GetRootParameterIndex(const std::string& name) const;
 
 	void DrawGUI();
+	uint64_t GetID() const { return _id; }
 
 	MSWRL::ComPtr<ID3D12RootSignature> _rootSignature;
 	MSWRL::ComPtr<ID3D12PipelineState> _pipelineState;
@@ -34,4 +35,8 @@ public:
 	std::string _name;
 
 	bool _usePass = true;
+
+private:
+	inline static uint64_t _nextId = 0;
+	uint64_t _id = _nextId++;
 };

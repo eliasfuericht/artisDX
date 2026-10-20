@@ -25,10 +25,14 @@ public:
 
 public:
 	Texture() = default;
+	uint64_t GetID() const { return _id; }
 	Texture(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList, Texture::TEXTURETYPE texType, ScratchImage& scratchImage);
 	void BindTexture(std::shared_ptr<ShaderPass> shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 
 private:
+	inline static uint64_t _nextId = 0;
+	uint64_t _id = _nextId++;
+
 	void CreateBuffers(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 
 	MSWRL::ComPtr<ID3D12Resource> _textureUploadHeap;

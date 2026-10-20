@@ -23,5 +23,4 @@ namespace GLTFLoader
 	ScratchImage Create1x1Texture(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255);
 
 	extern fastgltf::Parser parser;
-	extern int32_t modelIdIncrementor;
 }

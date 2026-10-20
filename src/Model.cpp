@@ -1,8 +1,7 @@
 #include "Model.h"
 
-Model::Model(int32_t id, std::string name, std::vector<Mesh> meshes, std::vector<Texture> textures, std::vector<Material> materials, std::vector<ModelNode> modelNodes)
+Model::Model(std::string name, std::vector<Mesh> meshes, std::vector<Texture> textures, std::vector<Material> materials, std::vector<ModelNode> modelNodes)
 {
-	_id = id;
 	_name = name;
 	_meshes = meshes;
 	_textures = std::move(textures);
@@ -118,13 +117,8 @@ void Model::ComputeNodeGlobal(int32_t nodeIndex, const XMMATRIX& parentMatrix)
 	}
 }
 
-int32_t Model::GetID()
-{
-	return _id;
-}
-
 void Model::DrawGUI() {
-	std::string windowName = "Model: " + _name + " ID: " + std::to_string(_id);
+	std::string windowName = std::to_string(_id) + "_" + _name + "###Model_" + std::to_string(_id);
 	ImGui::Begin(windowName.c_str());
 	ImGui::Text("Model Transforms");
 	ImGui::DragFloat3("Translation", &_translation.x, 0.01f);
@@ -135,7 +129,8 @@ void Model::DrawGUI() {
 	{
 		if (node._meshIndex != NOTOK)
 		{
-			ImGui::PushID(node._id);
+			const std::string nodeId = std::to_string(node._id);
+			ImGui::PushID(nodeId.c_str());
 			std::string nodeString = "MeshNode: " + node._name + " ID: " + std::to_string(node._id);
 			ImGui::Text(nodeString.c_str());
 			ImGui::DragFloat3("Translation", &node._translation.x, 0.01f);

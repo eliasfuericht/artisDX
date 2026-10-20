@@ -8,9 +8,13 @@ class Mesh
 {
 public:
 	Mesh() = default;
-	Mesh(int32_t meshId, std::vector<Primitive> primitives);
+	Mesh(std::vector<Primitive> primitives);
+	uint64_t GetID() const { return _id; }
 
-	int32_t _id = NOTOK;
+	uint64_t _id = _nextId++;
 	std::string _name = "";
 	std::vector<Primitive> _primitives;
+
+private:
+	inline static uint64_t _nextId = 0;
 };

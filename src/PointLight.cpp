@@ -40,7 +40,7 @@ void PointLight::UpdateBuffer()
 
 void PointLight::DrawGUI() 
 {
-	std::string windowName = "PointLight";
+	const std::string windowName = std::to_string(_id) + "_PointLight###PointLight_" + std::to_string(_id);
 	ImGui::Begin(windowName.c_str());
 	
 	ImGui::DragFloat3("position", &_position.x, 0.01f);

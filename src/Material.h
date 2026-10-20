@@ -10,6 +10,7 @@ class Material
 {
 public:
 	Material();
+	uint64_t GetID() const { return _id; }
 
 	std::string _name = "";
 	int32_t _baseColorTextureIndex = NOTOK;
@@ -38,4 +39,8 @@ public:
 	void CreateCBV();
 
 	void BindMaterialFactorsData(std::shared_ptr<ShaderPass> shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
+
+private:
+	inline static uint64_t _nextId = 0;
+	uint64_t _id = _nextId++;
 };

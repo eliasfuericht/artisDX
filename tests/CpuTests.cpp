@@ -52,7 +52,7 @@ namespace
         keys[KEYCODE_W] = keys[KEYCODE_SHIFT] = true;
         boosted.ConsumeKey(keys.data(), 0.4f);
         XMStoreFloat3(&position, boosted._position);
-        Near(position, {0, 0, -10}, "Shift movement must apply the configured 15x multiplier");
+        Near(position, {0, 0, -5}, "Shift movement must apply the configured 10x multiplier");
 
         auto split = MakeCamera();
         keys[KEYCODE_SHIFT] = false;

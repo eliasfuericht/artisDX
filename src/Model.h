@@ -16,7 +16,7 @@ class Model : public IGUIComponent
 {
 public:
 	Model() = default;
-	Model(int32_t id, std::string name, std::vector<Mesh> meshes, std::vector<Texture> textures, std::vector<Material> materials, std::vector<ModelNode> modelNodes);
+	Model(std::string name, std::vector<Mesh> meshes, std::vector<Texture> textures, std::vector<Material> materials, std::vector<ModelNode> modelNodes);
 
 	struct DrawItem
 	{
@@ -34,12 +34,13 @@ public:
 	void DrawModelBoundingBox(std::shared_ptr<ShaderPass> shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 
 	void DrawGUI();
-	int32_t GetID();
+	uint64_t GetID() const { return _id; }
 
 private:
 	void ComputeNodeGlobal(int32_t nodeIndex, const XMMATRIX& parentMatrix);
 
-	int32_t _id = NOTOK;
+	inline static uint64_t _nextId = 0;
+	uint64_t _id = _nextId++;
 	std::string _name;
 	std::vector<Mesh> _meshes;
 	std::vector<Texture> _textures;

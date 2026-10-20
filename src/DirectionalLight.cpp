@@ -128,9 +128,8 @@ void DirectionalLight::UpdateBuffer(bool shadowsEnabled)
 
 void DirectionalLight::DrawGUI()
 {
-	std::string windowName = "DirectionalLight";
+	std::string windowName = std::to_string(_id) + "_DirectionalLight###DirectionalLight_" + std::to_string(_id);
 	ImGui::Begin(windowName.c_str());
-
 	ImGui::DragFloat3("Direction", &_position.x, 0.01f);
 	ImGui::DragFloat("width", &_orthoWidth, 0.01f);
 	ImGui::DragFloat("height", &_orthoHeight, 0.01f);
@@ -139,7 +138,7 @@ void DirectionalLight::DrawGUI()
 	ImGui::DragFloat3("focuscenter", &_sceneCenter.x, 0.01f);
 
 	{
-		windowName = "ShadowMap";
+		windowName = std::to_string(_id) + "_DirectionalLightShadowMap###DirectionalLightShadowMap_" + std::to_string(_id);
 		ImGui::Begin(windowName.c_str());
 		auto gpuHandle = DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_directionalShadowMapSRVCPUHandle);
 		ImTextureID texID = (ImTextureID)gpuHandle.ptr;

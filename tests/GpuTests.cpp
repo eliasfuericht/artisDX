@@ -28,6 +28,13 @@ namespace
 
     MSWRL::ComPtr<ID3D12InfoQueue> infoQueue;
 
+    void InitializeScene(Renderer& renderer, const std::filesystem::path& scene)
+    {
+        renderer.InitializeResources();
+        renderer._modelManager.ClearModels();
+        renderer._modelManager.LoadModel(scene);
+    }
+
     struct SceneFrames
     {
         FrameCoordinator coordinator;
@@ -658,7 +665,7 @@ namespace
             ShowCursor(true); // Balance the editor window's startup capture without showing it.
             Window::captureMouse = false;
             D3D12Core::Swapchain::InitializeSwapchain();
-            renderer.InitializeResources(scene);
+            InitializeScene(renderer, scene);
             GUI::InitializeGUI();
             GUI::imguiIO->IniFilename = nullptr;
             GUI::imguiIO->ConfigFlags &= ~ImGuiConfigFlags_ViewportsEnable;
@@ -714,7 +721,7 @@ namespace
                 detachedViewport = ImGui::GetWindowViewport()->ID;
                 ImGui::Image(static_cast<ImTextureID>(renderer._viewportSRV_GPU.ptr), ImVec2(96, 96));
                 ImGui::Image(static_cast<ImTextureID>(DescriptorAllocator::CBVSRVUAV::GetGPUHandle(
-                    renderer._dLight->_directionalShadowMapSRVCPUHandle).ptr), ImVec2(96, 96));
+                    renderer._dLights.back()->_directionalShadowMapSRVCPUHandle).ptr), ImVec2(96, 96));
                 ImGui::End();
             }
         }
@@ -737,12 +744,53 @@ namespace
     {
         GuiFrameFixture runtime;
         runtime.Initialize(scene);
+        const auto checkIds = []<typename T>()
+        {
+            const T first{};
+            const T second{};
+            Require(second.GetID() == first.GetID() + 1,
+                "New objects must receive consecutive IDs from their own class");
+        };
+        checkIds.operator()<Camera>();
+        checkIds.operator()<DirectionalLight>();
+        checkIds.operator()<PointLight>();
+        checkIds.operator()<ShaderPass>();
+        checkIds.operator()<Model>();
+        checkIds.operator()<ModelNode>();
+        checkIds.operator()<Mesh>();
+        checkIds.operator()<Primitive>();
+        checkIds.operator()<Material>();
+        checkIds.operator()<Texture>();
+        std::vector<Mesh> meshes(1);
+        const uint64_t meshId = meshes.front().GetID();
+        meshes.reserve(8);
+        Require(meshes.front().GetID() == meshId, "Container relocation must preserve logical asset IDs");
+        const Mesh copied = meshes.front();
+        Require(copied.GetID() == meshId, "Copying a shared asset must preserve its logical ID");
+
+        auto duplicatePass = std::make_shared<ShaderPass>(runtime.renderer._mainPass->_name);
+        duplicatePass->RegisterWithGUI();
         auto overlay = std::make_shared<SceneImageOverlay>(runtime.renderer);
         overlay->RegisterWithGUI();
         auto& queue = CommandQueueManager::GetCommandQueue(QUEUE_GRAPHICS);
         const auto before = queue._fenceValue;
         runtime.frames.RenderFrame(runtime.renderer, 0);
         Require(queue._fenceValue == before + 1, "Scene and main-window GUI must use exactly one submission");
+        const std::string settings = ImGui::SaveIniSettingsToMemory();
+        const std::string passKey = "[Window][###ShaderPass_" + std::to_string(runtime.renderer._mainPass->GetID()) + "]";
+        const std::string duplicateKey = "[Window][###ShaderPass_" + std::to_string(duplicatePass->GetID()) + "]";
+        Require(passKey != duplicateKey && settings.find(passKey) != std::string::npos && settings.find(duplicateKey) != std::string::npos,
+            "Passes with the same display name must have separate saved windows");
+        const std::string lightId = std::to_string(runtime.renderer._dLights.back()->GetID());
+        Require(settings.find("[Window][###DirectionalLight_" + lightId + "]") != std::string::npos &&
+            settings.find("[Window][###DirectionalLightShadowMap_" + lightId + "]") != std::string::npos,
+            "A light and its shadow map must have separate saved windows");
+        runtime.renderer._mainPass->_name = "Renamed main pass";
+        runtime.frames.RenderFrame(runtime.renderer, 0);
+        const std::string renamedSettings = ImGui::SaveIniSettingsToMemory();
+        Require(renamedSettings.find(passKey) != std::string::npos &&
+            renamedSettings.find(passKey, renamedSettings.find(passKey) + passKey.size()) == std::string::npos,
+            "Renaming a pass must preserve its single saved window identity");
         const auto viewport = CaptureTexture(runtime.renderer._viewportTexture.Get());
         Require(DrawnPixels(viewport) > 100, "GUI composition must exercise a rendered scene");
         const auto backbuffer = overlay->ReadPixels(); // Scene readback waited for the combined submission.
@@ -824,7 +872,7 @@ namespace
             "A panel outside the main viewport must create a secondary OS window");
         Require(queue._fence->GetCompletedValue() >= queue._fenceValue,
             "The detached-window stage must wait for this frame's texture producer");
-        runtime.renderer._dLight->_position = { -1, 2, 1 };
+        runtime.renderer._dLights.back()->_position = { -1, 2, 1 };
         runtime.frames.RenderFrame(runtime.renderer, 0);
         overlay->detached = false;
         for (int frame = 0; frame < 4; ++frame)
@@ -875,10 +923,10 @@ namespace
         CheckGpuDiagnostics(); // Do not allow unrelated warnings into the injection scope.
         CommandContext context;
         context.InitializeCommandContext(QUEUE_GRAPHICS);
-        D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(renderer._dLight->_directionalShadowMapBuffer.Get(),
+        D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(renderer._dLights.back()->_directionalShadowMapBuffer.Get(),
             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
         context.GetCommandList()->ResourceBarrier(1, &barrier);
-        context.GetCommandList()->ClearDepthStencilView(renderer._dLight->_directionalShadowMapDSVCPUHandle,
+        context.GetCommandList()->ClearDepthStencilView(renderer._dLights.back()->_directionalShadowMapDSVCPUHandle,
             D3D12_CLEAR_FLAG_DEPTH, depth, 0, 0, nullptr);
         std::swap(barrier.Transition.StateBefore, barrier.Transition.StateAfter);
         context.GetCommandList()->ResourceBarrier(1, &barrier);
@@ -901,7 +949,7 @@ namespace
         Require(CaptureTexture(renderer._viewportTexture.Get()) == disabled,
             "Shadows off must ignore fully occluding stale depth");
 
-        renderer._dLight->_position = {-1, 0.7f, 1};
+        renderer._dLights.back()->_position = {-1, 0.7f, 1};
         frames.Render(renderer, 0);
         const auto movedLight = CaptureTexture(renderer._viewportTexture.Get());
         Require(DrawnPixels(movedLight) > 100 && movedLight != disabled,
@@ -911,18 +959,18 @@ namespace
         Require(CaptureTexture(renderer._viewportTexture.Get()) == movedLight,
             "Shadows off must ignore stale depth after moving the light");
 
-        const auto lightMatrix = renderer._dLight->_lightViewProjMatrix;
-        renderer._dLight->_orthoWidth = 10;
-        renderer._dLight->_sceneCenter = {0.4f, 0.2f, 0};
+        const auto lightMatrix = renderer._dLights.back()->_lightViewProjMatrix;
+        renderer._dLights.back()->_orthoWidth = 10;
+        renderer._dLights.back()->_sceneCenter = {0.4f, 0.2f, 0};
         frames.Render(renderer, 0);
-        Require(std::memcmp(&lightMatrix, &renderer._dLight->_lightViewProjMatrix, sizeof(lightMatrix)) != 0,
+        Require(std::memcmp(&lightMatrix, &renderer._dLights.back()->_lightViewProjMatrix, sizeof(lightMatrix)) != 0,
             "The test must change the shadow projection");
         Require(CaptureTexture(renderer._viewportTexture.Get()) == movedLight,
             "Shadow projection changes must not affect Main with shadows off");
 
-        renderer._dLight->_position = {1, 1, 1};
-        renderer._dLight->_orthoWidth = 7.5f;
-        renderer._dLight->_sceneCenter = {0, 0, 0};
+        renderer._dLights.back()->_position = {1, 1, 1};
+        renderer._dLights.back()->_orthoWidth = 7.5f;
+        renderer._dLights.back()->_sceneCenter = {0, 0, 0};
         frames.Render(renderer, 0);
         Require(CaptureTexture(renderer._viewportTexture.Get()) == disabled,
             "Restoring the light with shadows off must restore full visibility");
@@ -955,7 +1003,7 @@ namespace
         Renderer renderer;
         renderer.InitializeRenderer();
         SceneFrames frames;
-        renderer.InitializeResources(scene);
+        InitializeScene(renderer, scene);
         CheckGpuDiagnostics();
         frames.Render(renderer, 0);
         const auto pixels = CaptureTexture(renderer._viewportTexture.Get());
@@ -987,8 +1035,8 @@ namespace
             D3D12_RESOURCE_STATE_DEPTH_WRITE, "retirement depth");
         context.KeepAlive(renderer._VPBufferResource);
         context.KeepAlive(renderer._camPosBufferResource);
-        context.KeepAlive(renderer._pLight);
-        context.KeepAlive(renderer._dLight);
+        for (const auto& light : renderer._pLights) context.KeepAlive(light);
+        context.KeepAlive(renderer._dLights.back());
         context.KeepAlive(MSWRL::ComPtr<IUnknown>(DescriptorAllocator::CBVSRVUAV::GetHeap()));
         context.KeepAlive(MSWRL::ComPtr<IUnknown>(DescriptorAllocator::Sampler::GetHeap()));
         auto list = context.GetCommandList();
@@ -1012,11 +1060,11 @@ namespace
         bind("viewProjMatrixBuffer", renderer._VPBufferDescriptor);
         bind("cameraBuffer", renderer._camPosBufferDescriptor);
         // The current PBR shader does not use point lighting; optimized reflection drops it.
-        if (auto slot = renderer._mainPass->GetRootParameterIndex("plightBuffer"))
-            list->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::CBVSRVUAV::GetGPUHandle(renderer._pLight->_cbvpLightCPUHandle));
-        bind("dlightBuffer", renderer._dLight->_dLightDirectionCPUHandle);
-        bind("lightViewProjMatrixBuffer", renderer._dLight->_dLightLVPCPUHandle);
-        bind("dShadowMap", renderer._dLight->_directionalShadowMapSRVCPUHandle);
+        if (auto slot = renderer._mainPass->GetRootParameterIndex("plightBuffer"); slot && !renderer._pLights.empty())
+            list->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::CBVSRVUAV::GetGPUHandle(renderer._pLights.back()->_cbvpLightCPUHandle));
+        bind("dlightBuffer", renderer._dLights.back()->_dLightDirectionCPUHandle);
+        bind("lightViewProjMatrixBuffer", renderer._dLights.back()->_dLightLVPCPUHandle);
+        bind("dShadowMap", renderer._dLights.back()->_directionalShadowMapSRVCPUHandle);
         const auto sampler = renderer._mainPass->GetRootParameterIndex("mySampler");
         Require(sampler.has_value(), "Main draw requires its sampler");
         list->SetGraphicsRootDescriptorTable(*sampler, DescriptorAllocator::Sampler::GetGPUHandle(renderer._samplerCPUHandle));
@@ -1095,7 +1143,7 @@ namespace
         pass.GeneratePipeLineStateObjectForwardPass(D3D12_FILL_MODE_SOLID, D3D12_CULL_MODE_BACK, false);
         graphicsUse.Finish(true);
 
-        renderer.InitializeResources(scene);
+        InitializeScene(renderer, scene);
         renderer._depthPass->_usePass = false;
         frames.Render(renderer, 0);
         const auto expectedImage = CaptureTexture(renderer._viewportTexture.Get());
@@ -1104,7 +1152,7 @@ namespace
         for (const auto& component : GUI::guiComponents)
             if (auto model = std::dynamic_pointer_cast<Model>(component.lock())) modelOwner = model;
         Require(!modelOwner.expired(), "The fixture model must expose an observable weak owner");
-        std::vector<DrawItem> borrowedDrawItems;
+        std::vector<Model::DrawItem> borrowedDrawItems;
         {
             const std::shared_ptr<Model> model = modelOwner.lock();
             model->AppendDrawItems(borrowedDrawItems);
@@ -1123,7 +1171,7 @@ namespace
         modelGate.Release();
         graphics.WaitCPU(modelPending);
         Require(modelOwner.expired(), "Model owner must retire after its submitted draw completes");
-        for (const DrawItem& item : borrowedDrawItems)
+        for (const Model::DrawItem& item : borrowedDrawItems)
             Require(!item.model.lock(), "Surviving draw items must expire without retaining or accessing the unloaded model");
         Require(CaptureTexture(renderer._viewportTexture.Get()) == expectedImage,
             "An in-flight draw must preserve the model's expected image after unload");
@@ -1137,7 +1185,7 @@ namespace
         Renderer renderer;
         renderer.InitializeRenderer();
         SceneFrames frames;
-        renderer.InitializeResources(scene);
+        InitializeScene(renderer, scene);
         auto& queue = CommandQueueManager::GetCommandQueue(QUEUE_GRAPHICS);
         auto* viewport = renderer._viewportTexture.Get();
         CommandContext context;
@@ -1208,7 +1256,7 @@ namespace
                     Require(DrawnPixels(pixels) > 100, scenario + "Main must draw the scene");
                 CheckGpuDiagnostics();
             }
-        const auto shadow = CaptureTexture(renderer._dLight->_directionalShadowMapBuffer.Get());
+        const auto shadow = CaptureTexture(renderer._dLights.back()->_directionalShadowMapBuffer.Get());
         Require(!shadow.empty(), "Shadow texture must remain readable after the pass cycles");
         frames.Shutdown();
     }
@@ -1262,7 +1310,7 @@ namespace
         };
         const auto shadowWritten = [&]
         {
-            const auto bytes = CaptureTexture(renderer._dLight->_directionalShadowMapBuffer.Get());
+            const auto bytes = CaptureTexture(renderer._dLights.back()->_directionalShadowMapBuffer.Get());
             for (size_t i = 0; i < bytes.size(); i += sizeof(float))
             {
                 float depth;
@@ -1339,11 +1387,11 @@ namespace
         Renderer renderer;
         renderer.InitializeRenderer();
         SceneFrames frames;
-        renderer.InitializeResources(scene);
+        InitializeScene(renderer, scene);
         const auto mainPixels = TestShadowToggle(renderer, frames);
         WriteCapture(mainPixels, "pbr");
         Require(DrawnPixels(mainPixels) > 100, "GLB geometry/materials must produce visible PBR pixels");
-        const auto depth = CaptureTexture(renderer._dLight->_directionalShadowMapBuffer.Get());
+        const auto depth = CaptureTexture(renderer._dLights.back()->_directionalShadowMapBuffer.Get());
         bool shadowWritten = false;
         for (size_t i = 0; i < depth.size(); i += sizeof(float))
         {

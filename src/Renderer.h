@@ -17,7 +17,7 @@ class Renderer
 public:
 	Renderer() = default;
 	void InitializeRenderer();
-	void InitializeResources(const std::filesystem::path& modelPath = "../assets/sponza.glb");
+	void InitializeResources();
 	void CreateRenderTarget();
 	void CreateDepthBuffer();
 	void CreateConstantBuffers();
@@ -57,8 +57,8 @@ public:
 
 	D3D12_CPU_DESCRIPTOR_HANDLE _samplerCPUHandle;
 
-	std::shared_ptr<PointLight> _pLight;
-	std::shared_ptr<DirectionalLight> _dLight;
+	std::vector<std::shared_ptr<PointLight>> _pLights;
+	std::vector<std::shared_ptr<DirectionalLight>> _dLights;
 	std::shared_ptr<Camera> _camera;
 
 	ModelManager _modelManager;

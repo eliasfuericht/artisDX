@@ -9,8 +9,9 @@
 class ModelNode {
 public:
 	ModelNode();
+	uint64_t GetID() const { return _id; }
 
-	int32_t _id = NOTOK;
+	uint64_t _id = _nextId++;
 	std::string _name;
 	int32_t _meshIndex = NOTOK;
 	int32_t _parentIndex = -1;
@@ -29,6 +30,8 @@ public:
 
 	void BindModelMatrixData(std::shared_ptr<ShaderPass> shaderPass, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 private:
+	inline static uint64_t _nextId = 0;
+
 	void CreateCBV();
 
 	MSWRL::ComPtr<ID3D12Resource> _ModelMatrixBufferResource;

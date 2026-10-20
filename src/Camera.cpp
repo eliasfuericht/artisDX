@@ -86,7 +86,8 @@ void Camera::Update()
 
 void Camera::DrawGUI()
 {
-	ImGui::Begin("Camera Window");
+	const std::string windowName = std::to_string(_id) + "_Camera###Camera_" + std::to_string(_id);
+	ImGui::Begin(windowName.c_str());
 
 	ImGui::InputFloat("Camera Speed", &_multiplier);
 	ImGui::DragFloat3("Position", &_uiposition.x, 0.01f);

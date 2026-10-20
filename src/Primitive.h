@@ -9,6 +9,7 @@ class Primitive
 {
 public:
 	Primitive() = default;
+	uint64_t GetID() const { return _id; }
 	Primitive(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, int32_t materialIndex);
 	void BindPrimitiveData(MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 
@@ -25,4 +26,8 @@ public:
 
 	int32_t _materialIndex = NOTOK;
 	AABB _aabb;
+
+private:
+	inline static uint64_t _nextId = 0;
+	uint64_t _id = _nextId++;
 };

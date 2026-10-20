@@ -3,7 +3,6 @@
 namespace GLTFLoader
 {
 	fastgltf::Parser parser;
-	int32_t modelIdIncrementor = 0;
 
 	bool GLTFLoader::ConstructModelFromFile(const std::filesystem::path& path, std::shared_ptr<Model>& model, MSWRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 	{
@@ -31,7 +30,6 @@ namespace GLTFLoader
 
 		// Extract Vertex and Index Information
 		std::vector<Mesh> meshes;
-		int32_t meshIdIncrementor = 0;
 		for (const fastgltf::Mesh& mesh : asset->meshes)
 		{
 			std::vector<Primitive> primitives;
@@ -53,7 +51,7 @@ namespace GLTFLoader
 				primitives.emplace_back(Primitive{vertices, indices, static_cast<int32_t>(materialIndex)});
 			}
 
-			meshes.emplace_back(Mesh(meshIdIncrementor++, primitives));
+			meshes.emplace_back(Mesh(primitives));
 		}
 
 		// extract materials and textures
@@ -178,13 +176,11 @@ namespace GLTFLoader
 		}
 
 		std::vector<ModelNode> modelNodes;
-		int32_t nodeIdIncrementor = 0;
 		modelNodes.reserve(asset->nodes.size());
 
 		for (const fastgltf::Node& node : asset->nodes)
 		{
 			ModelNode modelNode;
-			modelNode._id = nodeIdIncrementor++;
 			modelNode._name = node.name.data() ? node.name : "UnnamedNode";
 			modelNode._meshIndex = node.meshIndex.has_value() ? static_cast<int>(*node.meshIndex) : -1;
 
@@ -210,7 +206,7 @@ namespace GLTFLoader
 			}
 		}
 
-		model = std::make_shared<Model>(modelIdIncrementor++, modelName, meshes, std::move(textures), materials, modelNodes);
+		model = std::make_shared<Model>(modelName, meshes, std::move(textures), materials, modelNodes);
 
 		return true;
 	}

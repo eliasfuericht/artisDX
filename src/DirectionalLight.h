@@ -16,6 +16,7 @@ public:
 
 	void UpdateBuffer(bool shadowsEnabled);
 	void DrawGUI();
+	uint64_t GetID() const { return _id; }
 
 	XMFLOAT3 _position = { 0, 0, 0 };
 	XMFLOAT3 _sceneCenter = { 0, 0, 0 };
@@ -41,6 +42,9 @@ public:
 	D3D12_RECT _scissor;
 
 private:
+	inline static uint64_t _nextId = 0;
+	uint64_t _id = _nextId++;
+
 	void BuildLightProjMatrix();
 	void CreateShadowMapResource(int32_t resolution);
 	void CreateCBV(unsigned long long size, D3D12_CPU_DESCRIPTOR_HANDLE& handle, MSWRL::ComPtr<ID3D12Resource>& buffer, uint8_t*& mappedPtr);
