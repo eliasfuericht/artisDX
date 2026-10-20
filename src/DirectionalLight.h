@@ -18,8 +18,7 @@ public:
 	void DrawGUI();
 	uint64_t GetID() const { return _id; }
 
-	XMFLOAT3 _position = { 0, 0, 0 };
-	XMFLOAT3 _sceneCenter = { 0, 0, 0 };
+	XMFLOAT3 _direction = { 0, 0, 0 };
 	float _orthoWidth = 40.0f;
 	float _orthoHeight = 40.0f;
 	float _nearPlane = -20.0f;

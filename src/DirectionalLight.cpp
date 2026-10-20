@@ -2,7 +2,7 @@
 
 DirectionalLight::DirectionalLight(float x, float y, float z, float enableShadowMap, int32_t shadowMapResolution)
 {
-	_position = XMFLOAT3(x, y, z);
+	_direction = XMFLOAT3(x, y, z);
 
 	BuildLightProjMatrix();
 
@@ -15,8 +15,8 @@ DirectionalLight::DirectionalLight(float x, float y, float z, float enableShadow
 
 void DirectionalLight::BuildLightProjMatrix() 
 {
-	XMVECTOR sceneCenter = XMLoadFloat3(&_sceneCenter);
-	XMVECTOR lightPos = XMVector4Normalize(XMLoadFloat3(&_position));
+	XMVECTOR sceneCenter = XMVectorSet(0, 0, 0, 0);
+	XMVECTOR lightPos = XMLoadFloat3(&_direction);
 
 	XMVECTOR up = XMVectorSet(0, 1, 0, 0);
 	XMMATRIX lightView = XMMatrixLookAtRH(lightPos, sceneCenter, up);
@@ -119,7 +119,7 @@ void DirectionalLight::CreateCBV(unsigned long long size, D3D12_CPU_DESCRIPTOR_H
 void DirectionalLight::UpdateBuffer(bool shadowsEnabled)
 {
 	// Match dlightBuffer: direction in xyz, the current DepthPass toggle in w.
-	const XMFLOAT4 directionAndShadows(_position.x, _position.y, _position.z, shadowsEnabled ? 1.0f : 0.0f);
+	const XMFLOAT4 directionAndShadows(_direction.x, _direction.y, _direction.z, shadowsEnabled ? 1.0f : 0.0f);
 	memcpy(_mappedDirectionPtr, &directionAndShadows, sizeof(directionAndShadows));
 
 	BuildLightProjMatrix();
@@ -130,12 +130,11 @@ void DirectionalLight::DrawGUI()
 {
 	std::string windowName = std::to_string(_id) + "_DirectionalLight###DirectionalLight_" + std::to_string(_id);
 	ImGui::Begin(windowName.c_str());
-	ImGui::DragFloat3("Direction", &_position.x, 0.01f);
+	ImGui::DragFloat3("Direction", &_direction.x, 0.01f);
 	ImGui::DragFloat("width", &_orthoWidth, 0.01f);
 	ImGui::DragFloat("height", &_orthoHeight, 0.01f);
 	ImGui::DragFloat("near", &_nearPlane, 0.01f);
 	ImGui::DragFloat("far", &_farPlane, 0.01f);
-	ImGui::DragFloat3("focuscenter", &_sceneCenter.x, 0.01f);
 
 	{
 		windowName = std::to_string(_id) + "_DirectionalLightShadowMap###DirectionalLightShadowMap_" + std::to_string(_id);
