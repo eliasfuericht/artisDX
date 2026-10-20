@@ -140,6 +140,7 @@ void ShaderPass::GeneratePipeLineStateObjectForwardPass(D3D12_FILL_MODE fillMode
 	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	psoDesc.RasterizerState.FillMode = fillMode;
 	psoDesc.RasterizerState.CullMode = cullMode;
+	psoDesc.RasterizerState.FrontCounterClockwise = true;
 	
 	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 

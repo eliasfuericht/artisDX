@@ -12,7 +12,7 @@ void Camera::ConsumeMouse(float xChange, float yChange)
 	xChange *= _turnSpeed;
 	yChange *= _turnSpeed;
 
-	_yaw += xChange;
+	_yaw -= xChange;
 	_pitch += yChange;
 
 	if (_pitch > 89.0f)
@@ -44,7 +44,7 @@ void Camera::ConsumeKey(bool* keys, float deltaTime)
 	}
 	if (keys[KEYCODES::KEYCODE_A])
 	{
-		_position = XMVectorAdd(_position, XMVectorScale(_right, velocity));
+		_position = XMVectorSubtract(_position, XMVectorScale(_right, velocity));
 	}
 	if (keys[KEYCODES::KEYCODE_S])
 	{
@@ -52,7 +52,7 @@ void Camera::ConsumeKey(bool* keys, float deltaTime)
 	}
 	if (keys[KEYCODES::KEYCODE_D])
 	{
-		_position = XMVectorSubtract(_position, XMVectorScale(_right, velocity));
+		_position = XMVectorAdd(_position, XMVectorScale(_right, velocity));
 	}
 	if (keys[KEYCODES::KEYCODE_SPACE])
 	{
@@ -81,7 +81,7 @@ void Camera::Update()
 	_right = XMVector3Normalize(XMVector3Cross(_front, _worldUp));
 	_up = XMVector3Normalize(XMVector3Cross(_right, _front));
 
-	XMStoreFloat4x4(&_viewMatrix, XMMatrixLookAtLH(_position, XMVectorAdd(_position, _front), _up));
+	XMStoreFloat4x4(&_viewMatrix, XMMatrixLookAtRH(_position, XMVectorAdd(_position, _front), _up));
 }
 
 void Camera::DrawGUI()

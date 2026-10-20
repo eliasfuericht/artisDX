@@ -176,29 +176,26 @@ StageOutput main(StageInput stageInput)
     
     float3 ambient = float3(0.03, 0.03, 0.03) * albedo * ao;
 
-    float3 color = ambient + (diffuse + specular) * lightColor * NdotL + emissive;
-    
-    color = pow(color, 1.0 / 2.2);
-    
-    // DepthPass off means full visibility, without reading unrendered or stale depth.
     float shadowFactor = 1.0f;
     [branch]
     if (c_shadowsEnabled != 0.0f)
     {
         float3 projCoords = stageInput.inFragPosLightSpace.xyz / stageInput.inFragPosLightSpace.w;
 
-        // Convert XY from NDC [-1,1] to UV [0,1], flip Y for DX texture coords
         float2 shadowUV;
         shadowUV.x = projCoords.x * 0.5f + 0.5f;
         shadowUV.y = projCoords.y * -0.5f + 0.5f;
 
-        // Z is already [0,1] in DirectX orthographic projection - don't remap
         float currentDepth = projCoords.z;
 
         float shadow = PercentageCloserFiltering(dShadowMap, mySampler, shadowUV, currentDepth, 5);
-        shadowFactor = lerp(1.0f, 0.5f, shadow);
+        shadowFactor = 1.0f - shadow;
     }
     
-    stageOutput.outFragColor = float4(color.rgb * shadowFactor, albedoalpha.a);
+    float3 direct = (diffuse + specular) * lightColor * NdotL;
+    float3 color = ambient + shadowFactor * direct + emissive;
+    color = pow(color, 1.0 / 2.2);
+
+    stageOutput.outFragColor = float4(color, albedoalpha.a);
     return stageOutput;
 }

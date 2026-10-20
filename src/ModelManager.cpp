@@ -47,10 +47,10 @@ void ModelManager::DrawAll(std::shared_ptr<ShaderPass> shaderPass, std::shared_p
 			return item.alphaMode != fastgltf::AlphaMode::Blend;
 		});
 
-		// order by aabb center
+		// Farther AABB centers have more negative Z in right-handed view space.
 		std::sort(blendedBegin, _drawItems.end(), [](const Model::DrawItem& a, const Model::DrawItem& b)
 		{
-			return a.viewDepth > b.viewDepth;
+			return a.viewDepth < b.viewDepth;
 		});
 	}
 

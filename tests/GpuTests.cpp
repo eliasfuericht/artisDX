@@ -3,6 +3,7 @@
 #include "Renderer.h"
 #include "FrameCoordinator.h"
 #include "Model.h"
+#include "GLTFLoader.h"
 
 #include <array>
 #include <cstring>
@@ -509,7 +510,7 @@ namespace
             GUI::SetViewportExtent(extent);
             renderer.UpdateBuffers(0);
             const auto matrix = ReadConstant<XMFLOAT4X4>(renderer._VPBufferResource.Get());
-            const auto expected = XMMatrixPerspectiveFovLH(XMConvertToRadians(45.0f), extent.x / extent.y, 0.1f, 100.0f);
+            const auto expected = XMMatrixPerspectiveFovRH(XMConvertToRadians(45.0f), extent.x / extent.y, 0.1f, 100.0f);
             XMFLOAT4X4 expectedVP;
             XMStoreFloat4x4(&expectedVP, XMLoadFloat4x4(&renderer._viewMatrix) * expected);
             for (int row = 0; row < 4; ++row)
@@ -1000,6 +1001,11 @@ namespace
 
     void TestTextureUpload(const std::filesystem::path& scene)
     {
+        const ScratchImage fallback = GLTFLoader::LoadFallbackAlbedoTexture();
+        const Image* fallbackImage = fallback.GetImage(0, 0, 0);
+        Require(fallbackImage && fallbackImage->pixels[0] == 255 && fallbackImage->pixels[1] == 255 &&
+            fallbackImage->pixels[2] == 255 && fallbackImage->pixels[3] == 255,
+            "A missing base-color texture must preserve the material factor with opaque white");
         Renderer renderer;
         renderer.InitializeRenderer();
         SceneFrames frames;

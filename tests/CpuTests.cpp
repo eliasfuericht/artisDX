@@ -40,7 +40,7 @@ namespace
         keys[KEYCODE_A] = true;
         camera.ConsumeKey(keys.data(), 0.4f);
         XMStoreFloat3(&position, camera._position);
-        Near(position, {1, 0, 5}, "Left movement must follow the initial camera's screen-left direction");
+        Near(position, {-1, 0, 5}, "Left movement must follow the initial camera's screen-left direction");
         keys[KEYCODE_A] = false;
         keys[KEYCODE_D] = true;
         camera.ConsumeKey(keys.data(), 0.4f);
@@ -76,8 +76,11 @@ namespace
         XMFLOAT3 eyeInView;
         XMStoreFloat3(&eyeInView, XMVector3TransformCoord(camera._position, XMLoadFloat4x4(&view)));
         Near(eyeInView, {0, 0, 0}, "The view matrix must put the camera at the origin");
+        XMFLOAT3 rightInView;
+        XMStoreFloat3(&rightInView, XMVector3TransformCoord(XMVectorSet(1, 0, 0, 1), XMLoadFloat4x4(&view)));
+        Near(rightInView, {1, 0, -5}, "The right-handed view must preserve screen-right and put visible geometry at negative Z");
         camera.ConsumeMouse(100, 10000);
-        Near(camera._yaw, 100, "Mouse movement must update yaw using turn speed");
+        Near(camera._yaw, 80, "Moving the mouse right must turn toward positive X");
         Near(camera._pitch, 89, "Pitch must clamp before the upper pole");
         camera.ConsumeMouse(0, -20000);
         Near(camera._pitch, -89, "Pitch must clamp before the lower pole");

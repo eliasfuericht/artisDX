@@ -19,9 +19,9 @@ void DirectionalLight::BuildLightProjMatrix()
 	XMVECTOR lightPos = XMVector4Normalize(XMLoadFloat3(&_position));
 
 	XMVECTOR up = XMVectorSet(0, 1, 0, 0);
-	XMMATRIX lightView = XMMatrixLookAtLH(lightPos, sceneCenter, up);
+	XMMATRIX lightView = XMMatrixLookAtRH(lightPos, sceneCenter, up);
 
-	XMMATRIX lightProj = XMMatrixOrthographicLH(_orthoWidth, _orthoHeight, _nearPlane, _farPlane);
+	XMMATRIX lightProj = XMMatrixOrthographicRH(_orthoWidth, _orthoHeight, _nearPlane, _farPlane);
 
 	XMMATRIX lightViewProj = lightView * lightProj;
 

@@ -43,6 +43,9 @@ void Renderer::InitializeResources()
 	//_modelManager.LoadModel("../assets/helmet.glb");
 	//_modelManager.LoadModel("../assets/helmets.glb");
 	_modelManager.LoadModel("../assets/sponza.glb");
+	//_modelManager.LoadModel("../assets/ClearCoatTest.glb");
+	//_modelManager.LoadModel("../assets/CompareAmbientOcclusion.glb");
+	//_modelManager.LoadModel("../assets/DragonAttenuation.glb");
 	//_modelManager.LoadModel("../assets/brick_wall.glb");
 	//_modelManager.LoadModel("../assets/DamagedHelmet.glb"); 
 	//_modelManager.LoadModel("../assets/apollo.glb");
@@ -214,7 +217,7 @@ void Renderer::CreateConstantBuffers()
 
 	// setup matrices
 	XMStoreFloat4x4(&_projectionMatrix,
-		XMMatrixPerspectiveFovLH(
+		XMMatrixPerspectiveFovRH(
 			XMConvertToRadians(45.0f),
 			(GUI::viewportWidth > 0 && GUI::viewportHeight > 0)
 				? static_cast<float>(GUI::viewportWidth) / static_cast<float>(GUI::viewportHeight) : 1.0f,
@@ -243,7 +246,7 @@ void Renderer::CreateConstantBuffers()
 
 	//_pLight = std::make_shared<PointLight>(1.0f, 1.0f, 1.0f);
 	//_pLight->RegisterWithGUI();
-	unsigned int numdLights = 2;
+	unsigned int numdLights = 1;
 	_dLights.resize(numdLights);
 	for (size_t i = 0; i < numdLights; i++)
 	{
@@ -274,7 +277,7 @@ void Renderer::UpdateBuffers(float dt)
 	if (GUI::viewportResized && GUI::viewportWidth > 0 && GUI::viewportHeight > 0)
 	{
 		XMStoreFloat4x4(&_projectionMatrix,
-			XMMatrixPerspectiveFovLH(
+			XMMatrixPerspectiveFovRH(
 				XMConvertToRadians(45.0f),
 				static_cast<float>(GUI::viewportWidth) / static_cast<float>(GUI::viewportHeight),
 				0.1f,
