@@ -873,7 +873,7 @@ namespace
             "A panel outside the main viewport must create a secondary OS window");
         Require(queue._fence->GetCompletedValue() >= queue._fenceValue,
             "The detached-window stage must wait for this frame's texture producer");
-        runtime.renderer._dLights.back()->_position = { -1, 2, 1 };
+        runtime.renderer._dLights.back()->_direction = { -1, 2, 1 };
         runtime.frames.RenderFrame(runtime.renderer, 0);
         overlay->detached = false;
         for (int frame = 0; frame < 4; ++frame)
@@ -950,7 +950,7 @@ namespace
         Require(CaptureTexture(renderer._viewportTexture.Get()) == disabled,
             "Shadows off must ignore fully occluding stale depth");
 
-        renderer._dLights.back()->_position = {-1, 0.7f, 1};
+        renderer._dLights.back()->_direction = {-1, 0.7f, 1};
         frames.Render(renderer, 0);
         const auto movedLight = CaptureTexture(renderer._viewportTexture.Get());
         Require(DrawnPixels(movedLight) > 100 && movedLight != disabled,
@@ -962,16 +962,14 @@ namespace
 
         const auto lightMatrix = renderer._dLights.back()->_lightViewProjMatrix;
         renderer._dLights.back()->_orthoWidth = 10;
-        renderer._dLights.back()->_sceneCenter = {0.4f, 0.2f, 0};
         frames.Render(renderer, 0);
         Require(std::memcmp(&lightMatrix, &renderer._dLights.back()->_lightViewProjMatrix, sizeof(lightMatrix)) != 0,
             "The test must change the shadow projection");
         Require(CaptureTexture(renderer._viewportTexture.Get()) == movedLight,
             "Shadow projection changes must not affect Main with shadows off");
 
-        renderer._dLights.back()->_position = {1, 1, 1};
+        renderer._dLights.back()->_direction = {1, 1, 1};
         renderer._dLights.back()->_orthoWidth = 7.5f;
-        renderer._dLights.back()->_sceneCenter = {0, 0, 0};
         frames.Render(renderer, 0);
         Require(CaptureTexture(renderer._viewportTexture.Get()) == disabled,
             "Restoring the light with shadows off must restore full visibility");
@@ -986,7 +984,7 @@ namespace
             const int disabledColor = disabled[i] + disabled[i + 1] + disabled[i + 2];
             shadowedPixels += disabledColor - enabledColor > 20;
         }
-        Require(shadowedPixels > 5, "Enabling DepthPass must produce visible shadows on the receiver quad");
+        Require(shadowedPixels == 0, "A blended surface must not cast an opaque shadow or make the receiver shadow itself");
         renderer._depthPass->_usePass = false;
         frames.Render(renderer, 0);
         Require(CaptureTexture(renderer._viewportTexture.Get()) == disabled,
@@ -1276,13 +1274,13 @@ namespace
             ~Fixture() { std::error_code error; std::filesystem::remove(path, error); }
         } fixture;
         // A quad plus an RGBA PNG with alpha=128, embedded to avoid new fixture files.
-        const auto load = [&](const char* mode, const char* color, float z, float cutoff = 0.5f, bool textured = false)
+        const auto load = [&](const char* mode, const char* color, float z, float cutoff = 0.5f, bool textured = false, float scale = 1.0f)
         {
             std::ofstream output;
             output.exceptions(std::ios::failbit | std::ios::badbit);
             output.open(fixture.path);
             output << R"({"asset":{"version":"2.0"},"scene":0,"scenes":[{"nodes":[0]}],
-"nodes":[{"translation":[0,0,)" << z << R"(],"children":[1]},{"mesh":0}],
+"nodes":[{"translation":[0,0,)" << z << R"(],"children":[1]},{"mesh":0,"scale":[)" << scale << ',' << scale << ',' << scale << R"(]}],
 "meshes":[{"primitives":[{"attributes":{"POSITION":0,"NORMAL":1,"TEXCOORD_0":2},"indices":3,"material":0}]}],
 "materials":[{"alphaMode":")" << mode << R"(","alphaCutoff":)" << cutoff << R"(,"pbrMetallicRoughness":{
 "baseColorFactor":)" << color << R"(,"metallicFactor":0,"roughnessFactor":1)";
@@ -1325,6 +1323,42 @@ namespace
             }
             return false;
         };
+
+        const float originalWidth = renderer._dLights.back()->_orthoWidth;
+        const float originalHeight = renderer._dLights.back()->_orthoHeight;
+        renderer._modelManager.ClearModels();
+        load("OPAQUE", "[0.7,0.7,0.7,1]", 0);
+        for (const float extent : {7.5f, 40.0f, 0.001f})
+        {
+            renderer._dLights.back()->_orthoWidth = extent;
+            renderer._dLights.back()->_orthoHeight = extent;
+            renderer._depthPass->_usePass = false;
+            const auto unshadowed = pixel();
+            renderer._depthPass->_usePass = true;
+            const auto withShadowMap = pixel();
+            for (size_t channel = 0; channel < 3; ++channel)
+                Require(std::abs(static_cast<int>(withShadowMap[channel]) - unshadowed[channel]) <= 2,
+                    "An isolated lit plane must not darken with shadows enabled, extent " + std::to_string(extent) +
+                    ": disabled=" + std::to_string(unshadowed[channel]) + ", enabled=" + std::to_string(withShadowMap[channel]));
+        }
+        renderer._modelManager.ClearModels();
+        load("OPAQUE", "[0.7,0.7,0.7,1]", 0);
+        load("OPAQUE", "[1,0,0,1]", 0.5f, 0.5f, false, 0.25f);
+        renderer._dLights.back()->_orthoWidth = 7.5f;
+        renderer._dLights.back()->_orthoHeight = 7.5f;
+        renderer._depthPass->_usePass = false;
+        pixel();
+        const auto withoutOcclusion = CaptureTexture(renderer._viewportTexture.Get());
+        renderer._depthPass->_usePass = true;
+        pixel();
+        const auto withOcclusion = CaptureTexture(renderer._viewportTexture.Get());
+        size_t shadowedPixels = 0;
+        for (size_t i = 0; i < withOcclusion.size(); i += 4)
+            shadowedPixels += withoutOcclusion[i] + withoutOcclusion[i + 1] + withoutOcclusion[i + 2] -
+                withOcclusion[i] - withOcclusion[i + 1] - withOcclusion[i + 2] > 20;
+        Require(shadowedPixels > 5, "A separate opaque blocker must still cast a visible shadow on the lit plane");
+        renderer._dLights.back()->_orthoWidth = originalWidth;
+        renderer._dLights.back()->_orthoHeight = originalHeight;
 
         renderer._modelManager.ClearModels();
         renderer._depthPass->_usePass = false;

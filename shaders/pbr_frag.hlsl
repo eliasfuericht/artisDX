@@ -89,30 +89,33 @@ float3 FresnelSchlick(float cosTheta, float3 F0)
     return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 }
 
-float PercentageCloserFiltering(Texture2D shadowMap, SamplerState shadowSampler, float2 locationUV, float currentDepth, int samplingDistance)
+float PercentageCloserFiltering(Texture2D shadowMap, float2 locationUV, float currentDepth, float bias)
 {
+    if (any(locationUV < 0.0f) || any(locationUV >= 1.0f) || currentDepth < 0.0f || currentDepth > 1.0f)
+        return 0.0f;
+
     uint width, height;
     shadowMap.GetDimensions(width, height);
 
     float2 texelSize = 1.0f / float2(width, height);
-    float bias = 0.001f;
     float shadow = 0.0f;
-    int sampleCount = 0;
 
-    for (int y = -samplingDistance; y <= samplingDistance; ++y)
+    for (int y = -1; y <= 1; ++y)
     {
-        for (int x = -samplingDistance; x <= samplingDistance; ++x)
+        for (int x = -1; x <= 1; ++x)
         {
             float2 sampleUV = locationUV + float2(x, y) * texelSize;
 
-            float sampledDepth = shadowMap.SampleLevel(shadowSampler, sampleUV, 0).r;
+            int2 samplePixel = int2(floor(sampleUV * float2(width, height)));
+            if (any(samplePixel < 0) || any(samplePixel >= int2(width, height)))
+                continue;
 
+            float sampledDepth = shadowMap.Load(int3(samplePixel, 0)).r;
             shadow += currentDepth - bias > sampledDepth ? 1.0f : 0.0f;
-            sampleCount++;
         }
     }
 
-    return shadow / float(sampleCount);
+    return shadow / 9.0f;
 }
 
 StageOutput main(StageInput stageInput)
@@ -188,7 +191,8 @@ StageOutput main(StageInput stageInput)
 
         float currentDepth = projCoords.z;
 
-        float shadow = PercentageCloserFiltering(dShadowMap, mySampler, shadowUV, currentDepth, 5);
+        float bias = max(0.01f * (1.0f - dot(N, lightDir)), 0.001f);
+        float shadow = PercentageCloserFiltering(dShadowMap, shadowUV, currentDepth, bias);
         shadowFactor = 1.0f - shadow;
     }
     
