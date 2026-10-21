@@ -14,7 +14,7 @@ public:
 	DirectionalLight() = default;
 	DirectionalLight(float x, float y, float z, float enableShadowMap, int32_t shadowMapResolution);
 
-	void UpdateBuffer(bool shadowsEnabled);
+	void UpdateBuffer();
 	void DrawGUI();
 	uint64_t GetID() const { return _id; }
 
@@ -39,6 +39,7 @@ public:
 
 	D3D12_VIEWPORT _vp;
 	D3D12_RECT _scissor;
+	bool _shadowsEnabled = false;
 
 private:
 	inline static uint64_t _nextId = 0;

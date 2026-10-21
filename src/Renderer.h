@@ -5,12 +5,10 @@
 #include "CommandQueue.h"
 #include "CommandContext.h"
 #include "DescriptorAllocator.h"
-#include "Shader.h"
 #include "ShaderPass.h"
 #include "ModelManager.h"
+#include "LightManager.h"
 #include "Camera.h"
-#include "DirectionalLight.h"
-#include "PointLight.h"
 
 class Renderer
 {
@@ -21,7 +19,6 @@ public:
 	void CreateRenderTarget();
 	void CreateDepthBuffer();
 	void CreateConstantBuffers();
-	// Call after frame acquisition; preparation writes the shared GPU constants.
 	void PrepareFrame(float dt);
 	void UpdateBuffers(float dt);
 	void RecordScene(std::shared_ptr<CommandContext> commandContext);
@@ -57,9 +54,8 @@ public:
 
 	D3D12_CPU_DESCRIPTOR_HANDLE _samplerCPUHandle;
 
-	std::vector<std::shared_ptr<PointLight>> _pLights;
-	std::vector<std::shared_ptr<DirectionalLight>> _dLights;
 	std::shared_ptr<Camera> _camera;
 
 	ModelManager _modelManager;
+	LightManager _lightManager;
 };

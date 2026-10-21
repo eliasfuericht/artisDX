@@ -6,8 +6,9 @@ DirectionalLight::DirectionalLight(float x, float y, float z, float enableShadow
 
 	BuildLightProjMatrix();
 
-	if(enableShadowMap)
-		CreateShadowMapResource(shadowMapResolution);
+	_shadowsEnabled = enableShadowMap;
+	
+	CreateShadowMapResource(shadowMapResolution);
 
 	CreateCBV(sizeof(XMFLOAT4), _dLightDirectionCPUHandle, _dLightDirectionBufferResource, _mappedDirectionPtr);
 	CreateCBV(sizeof(XMFLOAT4X4), _dLightLVPCPUHandle, _dLightLVPBufferResource, _mappedLVPPtr);
@@ -116,10 +117,10 @@ void DirectionalLight::CreateCBV(unsigned long long size, D3D12_CPU_DESCRIPTOR_H
 	D3D12Core::GraphicsDevice::device->CreateConstantBufferView(&cbvDesc, handle);
 }
 
-void DirectionalLight::UpdateBuffer(bool shadowsEnabled)
+void DirectionalLight::UpdateBuffer()
 {
 	// Match dlightBuffer: direction in xyz, the current DepthPass toggle in w.
-	const XMFLOAT4 directionAndShadows(_direction.x, _direction.y, _direction.z, shadowsEnabled ? 1.0f : 0.0f);
+	const XMFLOAT4 directionAndShadows(_direction.x, _direction.y, _direction.z, _shadowsEnabled ? 1.0f : 0.0f);
 	memcpy(_mappedDirectionPtr, &directionAndShadows, sizeof(directionAndShadows));
 
 	BuildLightProjMatrix();
@@ -135,6 +136,7 @@ void DirectionalLight::DrawGUI()
 	ImGui::DragFloat("height", &_orthoHeight, 0.01f);
 	ImGui::DragFloat("near", &_nearPlane, 0.01f);
 	ImGui::DragFloat("far", &_farPlane, 0.01f);
+	ImGui::Checkbox("Casts shadows", &_shadowsEnabled);
 
 	{
 		windowName = std::to_string(_id) + "_DirectionalLightShadowMap###DirectionalLightShadowMap_" + std::to_string(_id);

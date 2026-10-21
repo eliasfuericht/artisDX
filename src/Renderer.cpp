@@ -244,14 +244,16 @@ void Renderer::CreateConstantBuffers()
 	ThrowIfFailed(_camPosBufferResource->Map(0, &readRange, reinterpret_cast<void**>(&_mappedCamPosBuffer)));
 	memcpy(_mappedCamPosBuffer, &camPos, sizeof(XMFLOAT3));
 
-	//_pLight = std::make_shared<PointLight>(1.0f, 1.0f, 1.0f);
-	//_pLight->RegisterWithGUI();
-	unsigned int numdLights = 1;
-	_dLights.resize(numdLights);
+	unsigned int numpLights = 2;
+	for (size_t i = 0; i < numpLights; i++)
+	{
+		_lightManager.AddPointLight(0.0f, 0.0f, static_cast<float>(i));
+	}
+
+	unsigned int numdLights = 0;
 	for (size_t i = 0; i < numdLights; i++)
 	{
-		_dLights[i] = std::make_shared<DirectionalLight>(1.0f, 1.0f, 1.0f, true, 1024);
-		_dLights[i]->RegisterWithGUI();
+		_lightManager.AddDirectionalLight(1.0f, 1.0f, 1.0f, false, 1024);
 	}
 
 	_samplerCPUHandle = DescriptorAllocator::Sampler::Allocate();
@@ -295,12 +297,7 @@ void Renderer::UpdateBuffers(float dt)
 
 	memcpy(_mappedCamPosBuffer, &camPos, sizeof(XMFLOAT3));
 
-	//_pLight->UpdateBuffer();
-
-	for (auto dL : _dLights)
-	{
-		dL->UpdateBuffer(_depthPass && _depthPass->_usePass);
-	}
+	_lightManager.UpdateLightBuffers();
 
 	XMStoreFloat4x4(&_viewProjectionMatrix, XMMatrixMultiply(XMLoadFloat4x4(&_viewMatrix), XMLoadFloat4x4(&_projectionMatrix)));
 
@@ -312,14 +309,11 @@ void Renderer::RecordScene(std::shared_ptr<CommandContext> commandContext)
 	// Fixed pass-use contract: both sampled textures end ready for GUI/next frame.
 	commandContext->DeclareResource(_viewportTexture.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, "viewport");
 	commandContext->DeclareResource(_depthStencilBuffer.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE,D3D12_RESOURCE_STATE_DEPTH_WRITE, "scene depth");
-	for (auto dL : _dLights)
-	{
-		commandContext->DeclareResource(dL->_directionalShadowMapBuffer.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, "shadow map");
-		commandContext->KeepAlive(dL);
-	}
+
+	_lightManager.TransitionStartDLightShadowMap(commandContext);
+
 	commandContext->KeepAlive(_VPBufferResource);
 	commandContext->KeepAlive(_camPosBufferResource);
-	//commandContext->KeepAlive(_pLight);
 
 	commandContext->KeepAlive(MSWRL::ComPtr<IUnknown>(DescriptorAllocator::CBVSRVUAV::GetHeap()));
 	commandContext->KeepAlive(MSWRL::ComPtr<IUnknown>(DescriptorAllocator::Sampler::GetHeap()));
@@ -331,26 +325,16 @@ void Renderer::RecordScene(std::shared_ptr<CommandContext> commandContext)
 	{
 		commandContext->SetPipelineState(_depthPass->_pipelineState);
 		commandContext->SetGraphicsRootSignature(_depthPass->_rootSignature);
-		for (auto dL : _dLights)
-		{
-			commandContext->GetCommandList()->RSSetViewports(1, &dL->_vp);
-			commandContext->GetCommandList()->RSSetScissorRects(1, &dL->_scissor);
-			commandContext->UseResource(dL->_directionalShadowMapBuffer.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
-			commandContext->GetCommandList()->OMSetRenderTargets(0, nullptr, false, &dL->_directionalShadowMapDSVCPUHandle);
-			commandContext->GetCommandList()->ClearDepthStencilView(dL->_directionalShadowMapDSVCPUHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, '\0', 0, nullptr);
-			if (auto slot = _depthPass->GetRootParameterIndex("lightViewProjMatrixBuffer"))
-				commandContext->GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(dL->_dLightLVPCPUHandle));
-		}
+
+		_lightManager.RenderDLightShadowMap(commandContext);
+		_lightManager.BindDLightVPBuffer(_depthPass, commandContext);
 
 		if (auto slot = _depthPass->GetRootParameterIndex("dShadowMapSampler"))
 			commandContext->GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::Sampler::GetGPUHandle(_samplerCPUHandle));
 
 		_modelManager.DrawAll(_depthPass, commandContext, _viewMatrix);
 
-		for (auto dL : _dLights)
-		{
-			commandContext->UseResource(dL->_directionalShadowMapBuffer.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		}
+		_lightManager.TransitionEndDLightShadowMap(commandContext);
 	}
 
 	commandContext->UseResource(_viewportTexture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -375,21 +359,11 @@ void Renderer::RecordScene(std::shared_ptr<CommandContext> commandContext)
 
 		if (auto slot = _mainPass->GetRootParameterIndex("cameraBuffer"))
 			commandContext->GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_camPosBufferDescriptor));
+		
+		_lightManager.BindPLightBuffers(_mainPass, commandContext);
 
-		//if (auto slot = _mainPass->GetRootParameterIndex("plightBuffer"))
-			//commandContext->GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_pLight->_cbvpLightCPUHandle));
-
-		for (auto dL : _dLights)
-		{
-			if (auto slot = _mainPass->GetRootParameterIndex("dlightBuffer"))
-				commandContext->GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(dL->_dLightDirectionCPUHandle));
-
-			if (auto slot = _mainPass->GetRootParameterIndex("dShadowMap"))
-				commandContext->GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(dL->_directionalShadowMapSRVCPUHandle));
-
-			if (auto slot = _mainPass->GetRootParameterIndex("lightViewProjMatrixBuffer"))
-				commandContext->GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(dL->_dLightLVPCPUHandle));
-		}
+		_lightManager.BindDLightBuffers(_mainPass, commandContext);
+		_lightManager.BindDLightVPBuffer(_mainPass, commandContext);
 
 		if (auto slot = _mainPass->GetRootParameterIndex("mySampler"))
 			commandContext->GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::Sampler::GetGPUHandle(_samplerCPUHandle));

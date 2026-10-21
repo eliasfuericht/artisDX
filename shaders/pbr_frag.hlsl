@@ -155,7 +155,8 @@ StageOutput main(StageInput stageInput)
     
     float3 worldNormal = normalize(mul(tangentNormal, TBN));
     
-    float3 lightDir = normalize(c_dLightDirection);
+    //float3 lightDir = normalize(c_dLightDirection);
+    float3 lightDir = normalize(c_pLightPosition - stageInput.inWorldPos);
     float NdotL = max(dot(worldNormal, lightDir), 0.0);
     
     float3 viewDir = normalize(c_camPos - stageInput.inWorldPos); 

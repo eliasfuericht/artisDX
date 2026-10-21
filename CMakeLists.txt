@@ -35,6 +35,7 @@ set(ARTISDX_HEADERS
     src/ShadowMap.h
     src/Renderer.h
     src/FrameCoordinator.h
+    src/LightManager.h
 )
 
 set(ARTISDX_SOURCES 
@@ -64,6 +65,7 @@ set(ARTISDX_SOURCES
     src/ShadowMap.cpp
     src/Renderer.cpp
     src/FrameCoordinator.cpp
+    src/LightManager.cpp
 )
 
 add_executable(${APPLICATION_NAME} ${ARTISDX_SOURCES} ${ARTISDX_HEADERS})
