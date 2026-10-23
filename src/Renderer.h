@@ -56,6 +56,6 @@ public:
 
 	std::shared_ptr<Camera> _camera;
 
-	ModelManager _modelManager;
-	LightManager _lightManager;
+	std::shared_ptr<ModelManager> _modelManager;
+	std::shared_ptr<LightManager> _lightManager;
 };

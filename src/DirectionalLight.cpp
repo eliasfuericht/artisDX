@@ -38,24 +38,9 @@ void DirectionalLight::DrawGUI()
 	ImGui::DragFloat("height", &_orthoHeight, 0.01f);
 	ImGui::DragFloat("near", &_nearPlane, 0.01f);
 	ImGui::DragFloat("far", &_farPlane, 0.01f);
+	ImGui::DragFloat("intensity", &_intensity, 0.01f, 0.0f, FLT_MAX);
+	ImGui::ColorEdit3("color", &_color.x);
 	ImGui::Checkbox("Casts shadows", &_shadowsEnabled);
-	/*
-	{
-		windowName = std::to_string(_id) + "_DirectionalLightShadowMap###DirectionalLightShadowMap_" + std::to_string(_id);
-		ImGui::Begin(windowName.c_str());
-		auto gpuHandle = DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_directionalShadowMapSRVCPUHandle);
-		ImTextureID texID = (ImTextureID)gpuHandle.ptr;
 
-		ImGui::Image(
-			texID,
-			ImVec2(300, 300),
-			ImVec2(0, 0),
-			ImVec2(1, 1),
-			ImVec4(1, 1, 1, 1),
-			ImVec4(0, 0, 0, 0)
-		);
-		ImGui::End();
-	}
-*/
 	ImGui::End();
 }

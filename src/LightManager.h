@@ -3,28 +3,31 @@
 #include "pch.h"
 
 #include "CommandContext.h"
+#include "IGUIComponent.h"
 
 #include "DirectionalLight.h"
 #include "PointLight.h"
 #include "ShaderPass.h"
 #include <array>
 
-class LightManager
+class LightManager : public IGUIComponent
 {
 public:
 	LightManager() = default;
 
 	void AddPointLight(float x, float y, float z);
 	void AddDirectionalLight(float x, float y, float z, bool shadows, int shadowMapResolution);
+
+	void UpdateDirectionalLightBuffer();
 	
-	void TransitionStartDLightShadowMap(std::shared_ptr<CommandContext> commandContext);
-	void TransitionEndDLightShadowMap(std::shared_ptr<CommandContext> commandContext);
-	void RenderDLightShadowMap(std::shared_ptr<CommandContext> commandContext);
+	void BindDShadowMapBuffersWrite(std::shared_ptr<CommandContext> commandContext);
 	void BindDLightBuffers(std::shared_ptr<ShaderPass> shaderPass, std::shared_ptr<CommandContext> commandContext);
-	void BindDLightShadowMapBuffers(std::shared_ptr<ShaderPass> shaderPass, std::shared_ptr<CommandContext> commandContext);
+	void BindDShadowMapBuffersRead(std::shared_ptr<ShaderPass> shaderPass, std::shared_ptr<CommandContext> commandContext);
 	
 	void BindPLightBuffers(std::shared_ptr<ShaderPass> shaderPass, std::shared_ptr<CommandContext> commandContext);
 	[[nodiscard]] bool HasShadowLights() const;
+
+	virtual void DrawGUI();
 
 private:
 	struct PointLightDataGPU
@@ -79,7 +82,6 @@ private:
 	std::array<DirectionalLightBuffer, D3D12Core::Swapchain::backBufferCount> _dLightBuffers;
 	std::vector<DShadowMap> _dShadowMaps;
 
-	void UpdateDirectionalLightBuffer(DirectionalLightBuffer& buffer);
 	void CreateEmptyDirectionalLightBuffers();
 	void CreateDShadowMapResource(int32_t resolution);
 

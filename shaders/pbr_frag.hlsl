@@ -4,7 +4,7 @@ Texture2D metallicRoughnessTexture  : register(t1);
 Texture2D normalTexture             : register(t2);
 Texture2D emissiveTexture           : register(t3);
 Texture2D occlusionTexture          : register(t4);
-Texture2D shadowMaps[5] : register(t5);
+Texture2D shadowMaps[1] : register(t5);
 
 SamplerState mySampler              : register(s0);
 
@@ -16,7 +16,6 @@ struct StageInput
     float3 inNormal : NORMAL;
     float4 inTangent : TANGENT;
     float3 inBiTangent : BITANGENT;
-    float4 inFragPosLightSpace : FRAGPOSLIGHTSPACE;
 };
 
 struct StageOutput
@@ -59,8 +58,6 @@ struct PointLightData
 
 StructuredBuffer<DirectionalLightData> directionalLights : register(t10);
 StructuredBuffer<PointLightData> pointLights : register(t11);
-
-static const float3 lightColor = float3(1.0, 1.0, 1.0);
 
 // Helper functions for PBR
 float DistributionGGX(float3 N, float3 H, float roughness)
@@ -202,15 +199,16 @@ StageOutput main(StageInput stageInput)
 
     float3 ambient = float3(0.03, 0.03, 0.03) * albedo * ao;
 
-    float shadowFactor = 1.0f;
     uint dlightCount, dlightStride;
     directionalLights.GetDimensions(dlightCount, dlightStride);
     for (uint i = 0; i < dlightCount; ++i)
     {
+        float shadowFactor = 1.0f;
         [branch]
         if (directionalLights[i].shadowsEnabled != 0.0f)
         {
-            float3 projCoords = stageInput.inFragPosLightSpace.xyz / stageInput.inFragPosLightSpace.w;
+            float4 lightSpace = mul(float4(stageInput.inWorldPos, 1.0f), directionalLights[i].lightViewProjection);
+            float3 projCoords = lightSpace.xyz / lightSpace.w;
 
             float2 shadowUV;
             shadowUV.x = projCoords.x * 0.5f + 0.5f;
@@ -225,7 +223,7 @@ StageOutput main(StageInput stageInput)
     
         if (dot(directionalLights[i].direction, directionalLights[i].direction) > 1e-8f)
         {
-            direct += shadowFactor * lightColor * EvaluateDirectLight(worldNormal, viewDir,
+            direct += shadowFactor * directionalLights[i].color * EvaluateDirectLight(worldNormal, viewDir,
                 normalize(directionalLights[i].direction), albedo, metallic, roughness);
         }
     }

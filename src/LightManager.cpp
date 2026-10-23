@@ -18,30 +18,15 @@ void LightManager::AddDirectionalLight(float x, float y, float z, bool shadows, 
 	}
 }
 
-void LightManager::TransitionStartDLightShadowMap(std::shared_ptr<CommandContext> commandContext)
-{
-	for (auto& dS : _dShadowMaps)
-	{
-		commandContext->DeclareResource(dS.resource.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, "shadow map");
-		commandContext->KeepAlive(dS.resource);
-	}
-}
-
-void LightManager::TransitionEndDLightShadowMap(std::shared_ptr<CommandContext> commandContext)
-{
-	for (auto& dS : _dShadowMaps)
-	{
-		commandContext->UseResource(dS.resource.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		commandContext->KeepAlive(dS.resource);
-	}
-}
-
-void LightManager::RenderDLightShadowMap(std::shared_ptr<CommandContext> commandContext)
+void LightManager::BindDShadowMapBuffersWrite(std::shared_ptr<CommandContext> commandContext)
 {
 	for (int i = 0; i < _dShadowMaps.size(); i++)
 	{
 		if (_dLights[i]->_shadowsEnabled)
 		{
+			commandContext->DeclareResource(_dShadowMaps[i].resource.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, "shadow map");
+			commandContext->KeepAlive(_dShadowMaps[i].resource);
+
 			commandContext->GetCommandList()->RSSetViewports(1, &_dShadowMaps[i].vp);
 			commandContext->GetCommandList()->RSSetScissorRects(1, &_dShadowMaps[i].scissor);
 			commandContext->UseResource(_dShadowMaps[i].resource.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
@@ -60,7 +45,7 @@ void LightManager::BindDLightBuffers(std::shared_ptr<ShaderPass> shaderPass, std
 		commandContext->KeepAlive(_emptyDLightShadowMapBuffer);
 		if (auto slot = shaderPass->GetRootParameterIndex("directionalLights"))
 			commandContext->GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_emptyDLightSRV));
-		if (auto slot = shaderPass->GetRootParameterIndex("dShadowMap"))
+		if (auto slot = shaderPass->GetRootParameterIndex("shadowMaps"))
 			commandContext->GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_emptyDLightShadowMapSRV));
 		return;
 	}
@@ -69,16 +54,22 @@ void LightManager::BindDLightBuffers(std::shared_ptr<ShaderPass> shaderPass, std
 	{
 		const UINT frameIndex = D3D12Core::Swapchain::swapchain ? D3D12Core::Swapchain::swapchain->GetCurrentBackBufferIndex() : 0;
 		DirectionalLightBuffer& buffer = _dLightBuffers[frameIndex];
-		UpdateDirectionalLightBuffer(buffer);
 		commandContext->KeepAlive(buffer.resource);
 		commandContext->GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(buffer.srv));
 	}
+}
+
+void LightManager::BindDShadowMapBuffersRead(std::shared_ptr<ShaderPass> shaderPass, std::shared_ptr<CommandContext> commandContext)
+{
+	if (_dLights.empty()) return;
+
 	for (auto& dS : _dShadowMaps)
 	{
+		commandContext->UseResource(dS.resource.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		commandContext->KeepAlive(dS.resource);
 	}
 
-	if (auto slot = shaderPass->GetRootParameterIndex("dShadowMap"))
+	if (auto slot = shaderPass->GetRootParameterIndex("shadowMaps"))
 		commandContext->GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_dShadowMaps[0].srv));
 }
 
@@ -166,8 +157,11 @@ void LightManager::UpdatePointLightBuffer(PointLightBuffer& buffer)
 	D3D12Core::GraphicsDevice::device->CreateShaderResourceView(buffer.resource.Get(), &srvDesc, buffer.srv);
 }
 
-void LightManager::UpdateDirectionalLightBuffer(DirectionalLightBuffer& buffer)
+void LightManager::UpdateDirectionalLightBuffer()
 {
+	const UINT frameIndex = D3D12Core::Swapchain::swapchain ? D3D12Core::Swapchain::swapchain->GetCurrentBackBufferIndex() : 0;
+	DirectionalLightBuffer& buffer = _dLightBuffers[frameIndex];
+
 	const uint32_t count = static_cast<uint32_t>(std::max(size_t{ 1 }, _dLights.size()));
 	if (count > buffer.capacity)
 	{
@@ -267,4 +261,25 @@ void LightManager::CreateDShadowMapResource(int32_t resolution)
 	D3D12Core::GraphicsDevice::device->CreateShaderResourceView(resource.Get(), &srvDesc, srv);
 
 	_dShadowMaps.push_back({ resource, dsv, srv, vp, scissor });
+}
+
+void LightManager::DrawGUI()
+{
+	for (size_t i = 0; i < _dShadowMaps.size(); i++)
+	{
+		const std::string windowName = std::to_string(i) + "_dShadowMap";
+		ImGui::Begin(windowName.c_str());
+		auto gpuHandle = DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_dShadowMaps[i].srv);
+		ImTextureID texID = (ImTextureID)gpuHandle.ptr;
+
+		ImGui::Image(
+			texID,
+			ImVec2(300, 300),
+			ImVec2(0, 0),
+			ImVec2(1, 1),
+			ImVec4(1, 1, 1, 1),
+			ImVec4(0, 0, 0, 0)
+		);
+		ImGui::End();
+	}
 }

@@ -12,7 +12,16 @@ void ShaderPass::AddShader(const std::filesystem::path& path, SHADERTYPE shaderT
 
 MSWRL::ComPtr<ID3DBlob> ShaderPass::GenerateGraphicsRootSignature()
 {
-	std::vector<std::pair<SHADERTYPE, D3D12_DESCRIPTOR_RANGE1>> ranges;
+	struct ReflectedBinding
+	{
+		D3D12_DESCRIPTOR_RANGE1 range;
+		D3D12_SHADER_VISIBILITY visibility;
+		D3D_SHADER_INPUT_TYPE type;
+		D3D_RESOURCE_RETURN_TYPE returnType;
+		D3D_SRV_DIMENSION dimension;
+		UINT numSamples;
+	};
+	std::vector<ReflectedBinding> ranges;
 	std::vector<D3D12_ROOT_PARAMETER1> rootParams;
 	std::unordered_map<std::string, uint32_t> bindings;
 	std::unordered_map<std::string, std::string> bindingDescriptions;
@@ -57,23 +66,33 @@ MSWRL::ComPtr<ID3DBlob> ShaderPass::GenerateGraphicsRootSignature()
 			case D3D_SIT_UAV_RWTYPED: range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV; break;
 			default: ThrowException(description + ": unsupported binding kind");
 			}
-			if (auto previous = bindingDescriptions.find(binding.Name); previous != bindingDescriptions.end())
-				ThrowException(description + ": duplicate binding name; first binding: " + previous->second);
+			if (auto previous = bindings.find(binding.Name); previous != bindings.end())
+			{
+				ReflectedBinding& existing = ranges[previous->second];
+				if (existing.type != binding.Type || existing.returnType != binding.ReturnType ||
+					existing.dimension != binding.Dimension || existing.numSamples != binding.NumSamples ||
+					existing.range.BaseShaderRegister != binding.BindPoint || existing.range.RegisterSpace != binding.Space ||
+					existing.range.NumDescriptors != binding.BindCount)
+					ThrowException(description + ": conflicting binding; first binding: " + bindingDescriptions.at(binding.Name));
+				existing.visibility = D3D12_SHADER_VISIBILITY_ALL;
+				continue;
+			}
 			bindingDescriptions.emplace(binding.Name, description);
 			bindings.emplace(binding.Name, static_cast<uint32_t>(ranges.size()));
 			range.NumDescriptors = binding.BindCount;
 			range.BaseShaderRegister = binding.BindPoint;
 			range.RegisterSpace = binding.Space;
 			range.OffsetInDescriptorsFromTableStart = 0;
-			ranges.emplace_back(stage, range);
+			ranges.push_back({range, stage == SHADER_VERTEX ? D3D12_SHADER_VISIBILITY_VERTEX : D3D12_SHADER_VISIBILITY_PIXEL,
+				binding.Type, binding.ReturnType, binding.Dimension, binding.NumSamples});
 		}
 	}
 	for (const auto& range : ranges)
 	{
 		D3D12_ROOT_PARAMETER1 param{};
 		param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		param.ShaderVisibility = range.first == SHADER_VERTEX ? D3D12_SHADER_VISIBILITY_VERTEX : D3D12_SHADER_VISIBILITY_PIXEL;
-		param.DescriptorTable = {1, &range.second};
+		param.ShaderVisibility = range.visibility;
+		param.DescriptorTable = {1, &range.range};
 		rootParams.push_back(param);
 	}
 	D3D12_VERSIONED_ROOT_SIGNATURE_DESC rootDesc{};

@@ -261,9 +261,26 @@ namespace
         pass.AddShader(fixtures / "layout_shared_vert.hlsl", SHADER_VERTEX);
         auto* previous = pass._rootSignature.Get();
         const auto validBindings = pass._bindingMap;
-        ExpectFailure([&] { pass.GenerateGraphicsRootSignature(); }, "duplicate binding name; first binding:");
+        ExpectFailure([&] { pass.GenerateGraphicsRootSignature(); }, "conflicting binding; first binding:");
         Require(pass._rootSignature.Get() == previous && pass._bindingMap == validBindings,
-            "Ambiguous cross-stage names must preserve the last valid layout");
+            "Conflicting cross-stage bindings must preserve the last valid layout");
+
+        pass._shaders.at(SHADER_PIXEL) = Shader(fixtures / "layout_shared_matching_frag.hlsl", SHADER_PIXEL);
+        const auto shared = pass.GenerateGraphicsRootSignature();
+        ThrowIfFailed(D3D12CreateVersionedRootSignatureDeserializer(shared->GetBufferPointer(), shared->GetBufferSize(), IID_PPV_ARGS(&deserializer)));
+        const auto& sharedDesc = deserializer->GetUnconvertedRootSignatureDesc()->Desc_1_1;
+        Require(sharedDesc.NumParameters == 1 && pass.GetRootParameterIndex("sharedBuffer") == 0 &&
+            sharedDesc.pParameters[0].ShaderVisibility == D3D12_SHADER_VISIBILITY_ALL &&
+            sharedDesc.pParameters[0].DescriptorTable.pDescriptorRanges[0].BaseShaderRegister == 0,
+            "Matching cross-stage resources must share one root parameter visible to both shaders");
+
+        ShaderPass sharedReverse("shared-reverse-insertion");
+        sharedReverse.AddShader(fixtures / "layout_shared_matching_frag.hlsl", SHADER_PIXEL);
+        sharedReverse.AddShader(fixtures / "layout_shared_vert.hlsl", SHADER_VERTEX);
+        const auto reversedShared = sharedReverse.GenerateGraphicsRootSignature();
+        Require(sharedReverse._bindingMap == pass._bindingMap && reversedShared->GetBufferSize() == shared->GetBufferSize() &&
+            std::memcmp(reversedShared->GetBufferPointer(), shared->GetBufferPointer(), shared->GetBufferSize()) == 0,
+            "Shared bindings must merge identically regardless of shader insertion order");
 
         ShaderPass forward("forward-insertion"), reverse("reverse-insertion");
         forward.AddShader("../shaders/bb_vert.hlsl", SHADER_VERTEX);

@@ -8,11 +8,6 @@ cbuffer modelMatrixBuffer : register(b1)
     row_major float4x4 c_modelMatrix : packoffset(c0);
 };
 
-cbuffer lightViewProjMatrixBuffer : register(b2)
-{
-    row_major float4x4 c_lightViewProjectionMatrix : packoffset(c0);
-};
-
 struct StageInput
 {
     float3 inPos : POSITION;
@@ -30,7 +25,6 @@ struct StageOutput
     float3 outNormal : NORMAL;
     float4 outTangent : TANGENT;
     float3 outBiTangent : BITANGENT;
-    float4 outFragPosLightSpace : FRAGPOSLIGHTSPACE;
 };
 
 StageOutput main(StageInput stageInput)
@@ -48,8 +42,6 @@ StageOutput main(StageInput stageInput)
     output.outTangent = float4(tangentWorld, stageInput.inTangent.w);
     
     output.outBiTangent = normalize(mul(float4(stageInput.inBiTangent.xyz, 0.0f), c_modelMatrix).xyz);
-
-    output.outFragPosLightSpace = mul(worldPos, c_lightViewProjectionMatrix);
     
     output.outUV = stageInput.inUV;
 

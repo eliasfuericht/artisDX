@@ -86,8 +86,7 @@ namespace GLTFLoader
 			{
 				Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::TEXTURE_ALBEDO;
 				ScratchImage scratchImage = LoadFallbackAlbedoTexture();
-				PrintHelper("Warning: glTF ", path, ", material ", materials.size(), " (", gltfMaterial.name,
-					"): Missing base-color texture; using white fallback RGBA (255, 255, 255, 255), multiplied by baseColorFactor.");
+				// PrintHelper("Warning: glTF ", path, ", material ", materials.size(), " (", gltfMaterial.name, "): Missing base-color texture; using white fallback RGBA (255, 255, 255, 255), multiplied by baseColorFactor.");
 				textures.emplace_back(Texture(commandList, texType, scratchImage));
 			}
 
@@ -109,8 +108,7 @@ namespace GLTFLoader
 			{
 				Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::TEXTURE_METALLICROUGHNESS;
 				ScratchImage scratchImage = LoadFallbackMetallicRoughnessTexture();
-				PrintHelper("Warning: glTF ", path, ", material ", materials.size(), " (", gltfMaterial.name,
-					"): Missing metallic-roughness texture; using fallback roughness 1 and metallic 0, multiplied by material factors.");
+				// PrintHelper("Warning: glTF ", path, ", material ", materials.size(), " (", gltfMaterial.name, "): Missing metallic-roughness texture; using fallback roughness 1 and metallic 0, multiplied by material factors.");
 				textures.emplace_back(Texture(commandList, texType, scratchImage));
 			}
 
@@ -132,8 +130,7 @@ namespace GLTFLoader
 			{
 				Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::TEXTURE_NORMAL;
 				ScratchImage scratchImage = LoadFallbackNormalTexture();
-				PrintHelper("Warning: glTF ", path, ", material ", materials.size(), " (", gltfMaterial.name,
-					"): Missing normal texture; using flat-normal fallback RGB (128, 128, 255).");
+				// PrintHelper("Warning: glTF ", path, ", material ", materials.size(), " (", gltfMaterial.name, "): Missing normal texture; using flat-normal fallback RGB (128, 128, 255).");
 				textures.emplace_back(Texture(commandList, texType, scratchImage));
 			}
 
@@ -155,8 +152,7 @@ namespace GLTFLoader
 			{
 				Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::TEXTURE_EMISSIVE;
 				ScratchImage scratchImage = LoadFallbackEmissiveTexture();
-				PrintHelper("Warning: glTF ", path, ", material ", materials.size(), " (", gltfMaterial.name,
-					"): Missing emissive texture; using black fallback RGB (0, 0, 0), no emission.");
+				// PrintHelper("Warning: glTF ", path, ", material ", materials.size(), " (", gltfMaterial.name, "): Missing emissive texture; using black fallback RGB (0, 0, 0), no emission.");
 				textures.emplace_back(Texture(commandList, texType, scratchImage));
 			}
 
@@ -178,8 +174,7 @@ namespace GLTFLoader
 			{
 				Texture::TEXTURETYPE texType = Texture::TEXTURETYPE::TEXTURE_OCCLUSION;
 				ScratchImage scratchImage = LoadFallbackOcclusionTexture();
-				PrintHelper("Warning: glTF ", path, ", material ", materials.size(), " (", gltfMaterial.name,
-					"): Missing occlusion texture; using white fallback RGB (255, 255, 255), occlusion 1.");
+				// PrintHelper("Warning: glTF ", path, ", material ", materials.size(), " (", gltfMaterial.name, "): Missing occlusion texture; using white fallback RGB (255, 255, 255), occlusion 1.");
 				textures.emplace_back(Texture(commandList, texType, scratchImage));
 			}
 			materials.push_back(material);

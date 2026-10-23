@@ -15,6 +15,11 @@ void Renderer::InitializeResources()
 	CreateRenderTarget();
 	CreateDepthBuffer();
 
+	_modelManager = std::make_shared<ModelManager>();
+
+	_lightManager = std::make_shared<LightManager>();
+	_lightManager->RegisterWithGUI();
+
 	_depthPass = std::make_shared<ShaderPass>("DepthPass");
 	_depthPass->_usePass = true;
 	_depthPass->RegisterWithGUI();
@@ -40,16 +45,16 @@ void Renderer::InitializeResources()
 
 	CreateConstantBuffers();
 
-	//_modelManager.LoadModel("../assets/helmet.glb");
-	//_modelManager.LoadModel("../assets/helmets.glb");
-	_modelManager.LoadModel("../assets/sponza.glb");
-	//_modelManager.LoadModel("../assets/ClearCoatTest.glb");
-	//_modelManager.LoadModel("../assets/CompareAmbientOcclusion.glb");
-	//_modelManager.LoadModel("../assets/DragonAttenuation.glb");
-	//_modelManager.LoadModel("../assets/brick_wall.glb");
-	//_modelManager.LoadModel("../assets/DamagedHelmet.glb"); 
-	//_modelManager.LoadModel("../assets/apollo.glb");
-	//_modelManager.LoadModel("../assets/bistro.glb");
+	//_modelManager->LoadModel("../assets/helmet.glb");
+	//_modelManager->LoadModel("../assets/helmets.glb");
+	_modelManager->LoadModel("../assets/sponza.glb");
+	//_modelManager->LoadModel("../assets/ClearCoatTest.glb");
+	//_modelManager->LoadModel("../assets/CompareAmbientOcclusion.glb");
+	//_modelManager->LoadModel("../assets/DragonAttenuation.glb");
+	//_modelManager->LoadModel("../assets/brick_wall.glb");
+	//_modelManager->LoadModel("../assets/DamagedHelmet.glb"); 
+	//_modelManager->LoadModel("../assets/apollo.glb");
+	//_modelManager->LoadModel("../assets/bistro.glb");
 }
 
 void Renderer::CreateRenderTarget()
@@ -244,16 +249,16 @@ void Renderer::CreateConstantBuffers()
 	ThrowIfFailed(_camPosBufferResource->Map(0, &readRange, reinterpret_cast<void**>(&_mappedCamPosBuffer)));
 	memcpy(_mappedCamPosBuffer, &camPos, sizeof(XMFLOAT3));
 
-	unsigned int numpLights = 0;
+	unsigned int numpLights = 3;
 	for (size_t i = 0; i < numpLights; i++)
 	{
-		_lightManager.AddPointLight(0.0f, 0.0f, static_cast<float>(i));
+		_lightManager->AddPointLight(0.0f, 0.0f, static_cast<float>(i));
 	}
 
 	unsigned int numdLights = 2;
 	for (size_t i = 0; i < numdLights; i++)
 	{
-		_lightManager.AddDirectionalLight(1.0f, static_cast<float>(i), static_cast<float>(i), true, 1024);
+		_lightManager->AddDirectionalLight(1.0f, static_cast<float>(i), static_cast<float>(i), true, 1024);
 	}
 
 	_samplerCPUHandle = DescriptorAllocator::Sampler::Allocate();
@@ -271,7 +276,7 @@ void Renderer::CreateConstantBuffers()
 void Renderer::PrepareFrame(float dt)
 {
 	UpdateBuffers(dt);
-	_modelManager.ComputeGlobalTransforms();
+	_modelManager->ComputeGlobalTransforms();
 }
 
 void Renderer::UpdateBuffers(float dt)
@@ -300,6 +305,8 @@ void Renderer::UpdateBuffers(float dt)
 	XMStoreFloat4x4(&_viewProjectionMatrix, XMMatrixMultiply(XMLoadFloat4x4(&_viewMatrix), XMLoadFloat4x4(&_projectionMatrix)));
 
 	memcpy(_mappedVPBuffer, &_viewProjectionMatrix, sizeof(_viewProjectionMatrix));
+
+	_lightManager->UpdateDirectionalLightBuffer();
 }
 
 void Renderer::RecordScene(std::shared_ptr<CommandContext> commandContext)
@@ -307,8 +314,6 @@ void Renderer::RecordScene(std::shared_ptr<CommandContext> commandContext)
 	// Fixed pass-use contract: both sampled textures end ready for GUI/next frame.
 	commandContext->DeclareResource(_viewportTexture.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, "viewport");
 	commandContext->DeclareResource(_depthStencilBuffer.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE,D3D12_RESOURCE_STATE_DEPTH_WRITE, "scene depth");
-
-	_lightManager.TransitionStartDLightShadowMap(commandContext);
 
 	commandContext->KeepAlive(_VPBufferResource);
 	commandContext->KeepAlive(_camPosBufferResource);
@@ -319,20 +324,18 @@ void Renderer::RecordScene(std::shared_ptr<CommandContext> commandContext)
 	ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::CBVSRVUAV::GetHeap(), DescriptorAllocator::Sampler::GetHeap() };
 	commandContext->GetCommandList()->SetDescriptorHeaps(_countof(heaps), heaps);
 
-	if (_depthPass->_usePass && _lightManager.HasShadowLights())
+	if (_depthPass->_usePass && _lightManager->HasShadowLights())
 	{
 		commandContext->SetPipelineState(_depthPass->_pipelineState);
 		commandContext->SetGraphicsRootSignature(_depthPass->_rootSignature);
 
-		_lightManager.RenderDLightShadowMap(commandContext);
-		_lightManager.BindDLightBuffers(_depthPass, commandContext);
+		_lightManager->BindDShadowMapBuffersWrite(commandContext);
+		_lightManager->BindDLightBuffers(_depthPass, commandContext);
 
 		if (auto slot = _depthPass->GetRootParameterIndex("dShadowMapSampler"))
 			commandContext->GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::Sampler::GetGPUHandle(_samplerCPUHandle));
 
-		_modelManager.DrawAll(_depthPass, commandContext, _viewMatrix);
-
-		_lightManager.TransitionEndDLightShadowMap(commandContext);
+		_modelManager->DrawAll(_depthPass, commandContext, _viewMatrix);
 	}
 
 	commandContext->UseResource(_viewportTexture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -358,13 +361,17 @@ void Renderer::RecordScene(std::shared_ptr<CommandContext> commandContext)
 		if (auto slot = _mainPass->GetRootParameterIndex("cameraBuffer"))
 			commandContext->GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_camPosBufferDescriptor));
 		
-		_lightManager.BindPLightBuffers(_mainPass, commandContext);
-		_lightManager.BindDLightBuffers(_mainPass, commandContext);
+		_lightManager->BindPLightBuffers(_mainPass, commandContext);
+		_lightManager->BindDLightBuffers(_mainPass, commandContext);
+		if (_depthPass->_usePass && _lightManager->HasShadowLights())
+		{
+			_lightManager->BindDShadowMapBuffersRead(_mainPass, commandContext);
+		}
 
 		if (auto slot = _mainPass->GetRootParameterIndex("mySampler"))
 			commandContext->GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::Sampler::GetGPUHandle(_samplerCPUHandle));
 
-		_modelManager.DrawAll(_mainPass, commandContext, _viewMatrix);
+		_modelManager->DrawAll(_mainPass, commandContext, _viewMatrix);
 	}
 
 	if (_bbPass->_usePass)
@@ -380,7 +387,7 @@ void Renderer::RecordScene(std::shared_ptr<CommandContext> commandContext)
 		if (auto slot = _bbPass->GetRootParameterIndex("viewProjMatrixBuffer"))
 			commandContext->GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_VPBufferDescriptor));
 
-		_modelManager.DrawAllBoundingBoxes(_bbPass, commandContext);
+		_modelManager->DrawAllBoundingBoxes(_bbPass, commandContext);
 	}
 
 	commandContext->UseResource(_viewportTexture.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
