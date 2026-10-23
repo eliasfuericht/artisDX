@@ -242,11 +242,10 @@ namespace
             std::memcmp(repeated->GetBufferPointer(), blob->GetBufferPointer(), blob->GetBufferSize()) == 0,
             "Regeneration must produce identical metadata and serialized layout");
 
-        for (const auto& fixture : {"layout_structured.hlsl", "layout_unbounded.hlsl"})
         {
-            pass._shaders.at(SHADER_PIXEL) = Shader(fixtures / fixture, SHADER_PIXEL);
+            pass._shaders.at(SHADER_PIXEL) = Shader(fixtures / "layout_unbounded.hlsl", SHADER_PIXEL);
             auto* previous = pass._rootSignature.Get();
-            ExpectFailure([&] { pass.GenerateGraphicsRootSignature(); }, fixture == std::string_view("layout_structured.hlsl") ? "unsupported binding kind" : "unbounded descriptor ranges");
+            ExpectFailure([&] { pass.GenerateGraphicsRootSignature(); }, "unbounded descriptor ranges");
             Require(pass._rootSignature.Get() == previous && pass._bindingMap == originalBindings,
                 "Rejected layout must preserve the previous complete signature and bindings");
         }
@@ -280,6 +279,16 @@ namespace
         typed.AddShader(fixtures / "layout_typed_uav.hlsl", SHADER_PIXEL);
         typed.GenerateGraphicsRootSignature();
         Require(typed.GetRootParameterIndex("outputTexture") == 0, "Existing typed UAV support must remain valid");
+
+        ShaderPass structured("supported-structured-buffer");
+        structured.AddShader(fixtures / "layout_structured.hlsl", SHADER_PIXEL);
+        const auto structuredBlob = structured.GenerateGraphicsRootSignature();
+        ThrowIfFailed(D3D12CreateVersionedRootSignatureDeserializer(structuredBlob->GetBufferPointer(),
+            structuredBlob->GetBufferSize(), IID_PPV_ARGS(&deserializer)));
+        const auto& structuredRange = deserializer->GetUnconvertedRootSignatureDesc()->Desc_1_1.pParameters[0].DescriptorTable.pDescriptorRanges[0];
+        Require(structured.GetRootParameterIndex("unsupportedBuffer") == 0 &&
+            structuredRange.RangeType == D3D12_DESCRIPTOR_RANGE_TYPE_SRV && structuredRange.NumDescriptors == 1,
+            "Structured buffer must produce one SRV descriptor, regardless of its element count");
     }
 
     MSWRL::ComPtr<ID3D12Resource> ReadbackBuffer(uint64_t size)

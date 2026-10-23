@@ -244,16 +244,16 @@ void Renderer::CreateConstantBuffers()
 	ThrowIfFailed(_camPosBufferResource->Map(0, &readRange, reinterpret_cast<void**>(&_mappedCamPosBuffer)));
 	memcpy(_mappedCamPosBuffer, &camPos, sizeof(XMFLOAT3));
 
-	unsigned int numpLights = 2;
+	unsigned int numpLights = 0;
 	for (size_t i = 0; i < numpLights; i++)
 	{
 		_lightManager.AddPointLight(0.0f, 0.0f, static_cast<float>(i));
 	}
 
-	unsigned int numdLights = 0;
+	unsigned int numdLights = 2;
 	for (size_t i = 0; i < numdLights; i++)
 	{
-		_lightManager.AddDirectionalLight(1.0f, 1.0f, 1.0f, false, 1024);
+		_lightManager.AddDirectionalLight(1.0f, static_cast<float>(i), static_cast<float>(i), true, 1024);
 	}
 
 	_samplerCPUHandle = DescriptorAllocator::Sampler::Allocate();
@@ -297,8 +297,6 @@ void Renderer::UpdateBuffers(float dt)
 
 	memcpy(_mappedCamPosBuffer, &camPos, sizeof(XMFLOAT3));
 
-	_lightManager.UpdateLightBuffers();
-
 	XMStoreFloat4x4(&_viewProjectionMatrix, XMMatrixMultiply(XMLoadFloat4x4(&_viewMatrix), XMLoadFloat4x4(&_projectionMatrix)));
 
 	memcpy(_mappedVPBuffer, &_viewProjectionMatrix, sizeof(_viewProjectionMatrix));
@@ -321,13 +319,13 @@ void Renderer::RecordScene(std::shared_ptr<CommandContext> commandContext)
 	ID3D12DescriptorHeap* heaps[] = { DescriptorAllocator::CBVSRVUAV::GetHeap(), DescriptorAllocator::Sampler::GetHeap() };
 	commandContext->GetCommandList()->SetDescriptorHeaps(_countof(heaps), heaps);
 
-	if (_depthPass->_usePass)
+	if (_depthPass->_usePass && _lightManager.HasShadowLights())
 	{
 		commandContext->SetPipelineState(_depthPass->_pipelineState);
 		commandContext->SetGraphicsRootSignature(_depthPass->_rootSignature);
 
 		_lightManager.RenderDLightShadowMap(commandContext);
-		_lightManager.BindDLightVPBuffer(_depthPass, commandContext);
+		_lightManager.BindDLightBuffers(_depthPass, commandContext);
 
 		if (auto slot = _depthPass->GetRootParameterIndex("dShadowMapSampler"))
 			commandContext->GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::Sampler::GetGPUHandle(_samplerCPUHandle));
@@ -361,9 +359,7 @@ void Renderer::RecordScene(std::shared_ptr<CommandContext> commandContext)
 			commandContext->GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_camPosBufferDescriptor));
 		
 		_lightManager.BindPLightBuffers(_mainPass, commandContext);
-
 		_lightManager.BindDLightBuffers(_mainPass, commandContext);
-		_lightManager.BindDLightVPBuffer(_mainPass, commandContext);
 
 		if (auto slot = _mainPass->GetRootParameterIndex("mySampler"))
 			commandContext->GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::Sampler::GetGPUHandle(_samplerCPUHandle));

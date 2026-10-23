@@ -4,34 +4,9 @@ Texture2D metallicRoughnessTexture  : register(t1);
 Texture2D normalTexture             : register(t2);
 Texture2D emissiveTexture           : register(t3);
 Texture2D occlusionTexture          : register(t4);
-Texture2D dShadowMap : register(t5);
+Texture2D shadowMaps[5] : register(t5);
 
 SamplerState mySampler              : register(s0);
-
-cbuffer cameraBuffer : register(b2)
-{
-    float3 c_camPos : packoffset(c0);
-};
-
-cbuffer plightBuffer : register(b3)
-{
-    float3 c_pLightPosition : packoffset(c0);
-};
-
-cbuffer dlightBuffer : register(b4)
-{
-    float3 c_dLightDirection : packoffset(c0);
-    float c_shadowsEnabled : packoffset(c0.w);
-};
-
-cbuffer pbrFactors : register(b5)
-{
-    float4 c_baseColorFactor;
-    float c_metallicFactor;
-    float c_roughnessFactor;
-    float c_alphaCutoff;
-    uint c_alphaMode; // fastgltf::AlphaMode: Opaque=0, Mask=1, Blend=2.
-};
 
 struct StageInput
 {
@@ -48,6 +23,42 @@ struct StageOutput
 {
     float4 outFragColor : SV_Target0;
 };
+
+cbuffer cameraBuffer : register(b2)
+{
+    float3 c_camPos : packoffset(c0);
+};
+
+cbuffer pbrFactors : register(b5)
+{
+    float4 c_baseColorFactor;
+    float c_metallicFactor;
+    float c_roughnessFactor;
+    float c_alphaCutoff;
+    uint c_alphaMode;
+};
+
+struct DirectionalLightData
+{
+    float3 direction;
+    uint shadowsEnabled;
+    float intensity;
+    float3 color;
+    uint shadowMapIndex;
+    float3 padding;
+    float4x4 lightViewProjection;
+};
+
+struct PointLightData
+{
+    float3 position;
+    float intensity;
+    float3 color;
+    float padding;
+};
+
+StructuredBuffer<DirectionalLightData> directionalLights : register(t10);
+StructuredBuffer<PointLightData> pointLights : register(t11);
 
 static const float3 lightColor = float3(1.0, 1.0, 1.0);
 
@@ -87,6 +98,23 @@ float GeometrySmith(float3 N, float3 V, float3 L, float roughness)
 float3 FresnelSchlick(float cosTheta, float3 F0)
 {
     return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
+}
+
+float3 EvaluateDirectLight(float3 N, float3 V, float3 L, float3 albedo, float metallic, float roughness)
+{
+    float NdotV = saturate(dot(N, V));
+    float NdotL = saturate(dot(N, L));
+    if (NdotV <= 0.0f || NdotL <= 0.0f)
+        return 0.0f;
+
+    float3 H = normalize(V + L);
+    float3 F0 = lerp(float3(0.04f, 0.04f, 0.04f), albedo, metallic);
+    float D = DistributionGGX(N, H, roughness);
+    float G = GeometrySmith(N, V, L, roughness);
+    float3 F = FresnelSchlick(saturate(dot(H, V)), F0);
+    float3 specular = D * G * F / max(4.0f * NdotV * NdotL, 1e-6f);
+    float3 diffuse = (1.0f - F) * (1.0f - metallic) * albedo / 3.14159265f;
+    return (diffuse + specular) * NdotL;
 }
 
 float PercentageCloserFiltering(Texture2D shadowMap, float2 locationUV, float currentDepth, float bias)
@@ -138,8 +166,8 @@ StageOutput main(StageInput stageInput)
     float3 albedo = albedoalpha.rgb;
 
     float4 mr = metallicRoughnessTexture.Sample(mySampler, stageInput.inUV);
-    float metallic = mr.b * c_metallicFactor; 
-    float roughness = mr.g * c_roughnessFactor;
+    float metallic = saturate(mr.b * c_metallicFactor);
+    float roughness = clamp(mr.g * c_roughnessFactor, 0.045f, 1.0f);
 
     float3 emissive = emissiveTexture.Sample(mySampler, stageInput.inUV).rgb;
     float ao = occlusionTexture.Sample(mySampler, stageInput.inUV).r;
@@ -155,50 +183,53 @@ StageOutput main(StageInput stageInput)
     
     float3 worldNormal = normalize(mul(tangentNormal, TBN));
     
-    //float3 lightDir = normalize(c_dLightDirection);
-    float3 lightDir = normalize(c_pLightPosition - stageInput.inWorldPos);
-    float NdotL = max(dot(worldNormal, lightDir), 0.0);
-    
     float3 viewDir = normalize(c_camPos - stageInput.inWorldPos); 
-    float3 H = normalize(viewDir + lightDir); 
-    
-    float3 F0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);
-    
-    float NDF = DistributionGGX(worldNormal, H, roughness);
-    float G = GeometrySmith(worldNormal, viewDir, lightDir, roughness);
-    float3 F = FresnelSchlick(max(dot(H, viewDir), 0.0), F0);
+    float3 direct = 0.0f;
+    uint plightCount, plightStride;
+    pointLights.GetDimensions(plightCount, plightStride);
+    for (uint i = 0; i < plightCount; ++i)
+    {
+        PointLightData light = pointLights[i];
+        float3 toLight = light.position - stageInput.inWorldPos;
+        float distanceSquared = dot(toLight, toLight);
+        if (light.intensity <= 0.0f || distanceSquared <= 1e-8f)
+            continue;
 
-    float3 numerator = NDF * G * F;
-    float denominator = 4.0 * max(dot(worldNormal, viewDir), 0.0) * max(dot(worldNormal, lightDir), 0.0) + 0.001;
-    float3 specular = numerator / denominator;
-    
-    float3 kS = F;
-    float3 kD = 1.0 - kS;
-    kD *= 1.0 - metallic;
-    
-    float3 diffuse = kD * albedo / 3.14159265;
-    
+        float3 L = toLight * rsqrt(distanceSquared);
+        direct += EvaluateDirectLight(worldNormal, viewDir, L, albedo, metallic, roughness)
+            * light.color * light.intensity / distanceSquared;
+    }
+
     float3 ambient = float3(0.03, 0.03, 0.03) * albedo * ao;
 
     float shadowFactor = 1.0f;
-    [branch]
-    if (c_shadowsEnabled != 0.0f)
+    uint dlightCount, dlightStride;
+    directionalLights.GetDimensions(dlightCount, dlightStride);
+    for (uint i = 0; i < dlightCount; ++i)
     {
-        float3 projCoords = stageInput.inFragPosLightSpace.xyz / stageInput.inFragPosLightSpace.w;
+        [branch]
+        if (directionalLights[i].shadowsEnabled != 0.0f)
+        {
+            float3 projCoords = stageInput.inFragPosLightSpace.xyz / stageInput.inFragPosLightSpace.w;
 
-        float2 shadowUV;
-        shadowUV.x = projCoords.x * 0.5f + 0.5f;
-        shadowUV.y = projCoords.y * -0.5f + 0.5f;
+            float2 shadowUV;
+            shadowUV.x = projCoords.x * 0.5f + 0.5f;
+            shadowUV.y = projCoords.y * -0.5f + 0.5f;
 
-        float currentDepth = projCoords.z;
+            float currentDepth = projCoords.z;
 
-        float bias = max(0.01f * (1.0f - dot(N, lightDir)), 0.001f);
-        float shadow = PercentageCloserFiltering(dShadowMap, shadowUV, currentDepth, bias);
-        shadowFactor = 1.0f - shadow;
-    }
+            float bias = max(0.01f * (1.0f - dot(N, normalize(directionalLights[i].direction))), 0.001f);
+            float shadow = PercentageCloserFiltering(shadowMaps[i], shadowUV, currentDepth, bias);
+            shadowFactor = 1.0f - shadow;
+        }
     
-    float3 direct = (diffuse + specular) * lightColor * NdotL;
-    float3 color = ambient + shadowFactor * direct + emissive;
+        if (dot(directionalLights[i].direction, directionalLights[i].direction) > 1e-8f)
+        {
+            direct += shadowFactor * lightColor * EvaluateDirectLight(worldNormal, viewDir,
+                normalize(directionalLights[i].direction), albedo, metallic, roughness);
+        }
+    }
+    float3 color = ambient + direct + emissive;
     color = pow(color, 1.0 / 2.2);
 
     stageOutput.outFragColor = float4(color, albedoalpha.a);

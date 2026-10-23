@@ -51,7 +51,8 @@ MSWRL::ComPtr<ID3DBlob> ShaderPass::GenerateGraphicsRootSignature()
 			switch (binding.Type)
 			{
 			case D3D_SIT_CBUFFER: range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV; break;
-			case D3D_SIT_TEXTURE: range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV; break;
+			case D3D_SIT_TEXTURE:
+			case D3D_SIT_STRUCTURED: range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV; break;
 			case D3D_SIT_SAMPLER: range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER; break;
 			case D3D_SIT_UAV_RWTYPED: range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV; break;
 			default: ThrowException(description + ": unsupported binding kind");
