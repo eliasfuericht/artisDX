@@ -25,6 +25,7 @@ MSWRL::ComPtr<ID3DBlob> ShaderPass::GenerateGraphicsRootSignature()
 	std::vector<D3D12_ROOT_PARAMETER1> rootParams;
 	std::unordered_map<std::string, uint32_t> bindings;
 	std::unordered_map<std::string, std::string> bindingDescriptions;
+	D3D12_ROOT_SIGNATURE_FLAGS rootFlags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
 	// Fix stage order independently of unordered_map iteration and insertion order.
 	std::vector<SHADERTYPE> stages;
@@ -48,6 +49,8 @@ MSWRL::ComPtr<ID3DBlob> ShaderPass::GenerateGraphicsRootSignature()
 		ThrowIfFailed(D3D12Core::ShaderCompiler::utils->CreateReflection(&reflectionBuffer, IID_PPV_ARGS(&reflection)), context + ": CreateReflection failed");
 		D3D12_SHADER_DESC shaderDesc{};
 		ThrowIfFailed(reflection->GetDesc(&shaderDesc), context + ": reflection GetDesc failed");
+		if (reflection->GetRequiresFlags() & D3D_SHADER_REQUIRES_RESOURCE_DESCRIPTOR_HEAP_INDEXING)
+			rootFlags |= D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;
 		for (uint32_t i = 0; i < shaderDesc.BoundResources; ++i)
 		{
 			D3D12_SHADER_INPUT_BIND_DESC binding{};
@@ -99,7 +102,7 @@ MSWRL::ComPtr<ID3DBlob> ShaderPass::GenerateGraphicsRootSignature()
 	rootDesc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
 	rootDesc.Desc_1_1.NumParameters = static_cast<uint32_t>(rootParams.size());
 	rootDesc.Desc_1_1.pParameters = rootParams.data();
-	rootDesc.Desc_1_1.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+	rootDesc.Desc_1_1.Flags = rootFlags;
 	auto serialized = CreateRootSignature(rootDesc);
 	_bindingMap.swap(bindings);
 	return serialized;

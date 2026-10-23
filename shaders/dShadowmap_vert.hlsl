@@ -36,6 +36,7 @@ StageOutput main(StageInput stageInput)
     StageOutput stageOutput;
 
     float4 worldPos = mul(float4(stageInput.inPos, 1.0f), c_modelMatrix);
+    // for shadowpass we only bind 1 dLight at location 0
     stageOutput.position = mul(worldPos, directionalLights[0].lightViewProjection);
     stageOutput.uv = stageInput.inUV;
     

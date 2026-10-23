@@ -306,6 +306,15 @@ namespace
         Require(structured.GetRootParameterIndex("unsupportedBuffer") == 0 &&
             structuredRange.RangeType == D3D12_DESCRIPTOR_RANGE_TYPE_SRV && structuredRange.NumDescriptors == 1,
             "Structured buffer must produce one SRV descriptor, regardless of its element count");
+
+        ShaderPass heapIndexed("heap-indexed-shadows");
+        heapIndexed.AddShader("../shaders/pbr_frag.hlsl", SHADER_PIXEL);
+        const auto heapBlob = heapIndexed.GenerateGraphicsRootSignature();
+        ThrowIfFailed(D3D12CreateVersionedRootSignatureDeserializer(heapBlob->GetBufferPointer(),
+            heapBlob->GetBufferSize(), IID_PPV_ARGS(&deserializer)));
+        Require((deserializer->GetUnconvertedRootSignatureDesc()->Desc_1_1.Flags & D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED) != 0 &&
+            !heapIndexed.GetRootParameterIndex("shadowMaps"),
+            "Heap-indexed shadow maps must enable direct indexing without a fixed descriptor table");
     }
 
     MSWRL::ComPtr<ID3D12Resource> ReadbackBuffer(uint64_t size)

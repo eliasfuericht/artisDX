@@ -1,4 +1,5 @@
 #include "LightManager.h"
+#include "ModelManager.h"
 
 void LightManager::AddPointLight(float x, float y, float z)
 {
@@ -12,44 +13,33 @@ void LightManager::AddDirectionalLight(float x, float y, float z, bool shadows, 
 	std::shared_ptr<DirectionalLight> dLight = std::make_shared<DirectionalLight>(x, y, z, shadows);
 	dLight->RegisterWithGUI();
 	_dLights.push_back(dLight);
-	if (shadows)
-	{
-		CreateDShadowMapResource(shadowMapResolution);
-	}
+	CreateDShadowMapResource(shadowMapResolution);
 }
 
-void LightManager::BindDShadowMapBuffersWrite(std::shared_ptr<CommandContext> commandContext)
+void LightManager::RenderDShadowMaps(std::shared_ptr<ShaderPass> shaderPass, std::shared_ptr<CommandContext> commandContext, std::shared_ptr<ModelManager> modelManager, const XMFLOAT4X4& viewMatrix)
 {
-	for (int i = 0; i < _dShadowMaps.size(); i++)
+	const UINT frameIndex = D3D12Core::Swapchain::swapchain ? D3D12Core::Swapchain::swapchain->GetCurrentBackBufferIndex() : 0;
+	const auto slot = shaderPass->GetRootParameterIndex("directionalLights");
+	if (!slot) ThrowException("Shadow pass requires directionalLights");
+	commandContext->KeepAlive(_dLightBuffers[frameIndex].resource);
+	for (const DShadowMap& shadowMap : _dShadowMaps)
 	{
-		if (_dLights[i]->_shadowsEnabled)
-		{
-			commandContext->DeclareResource(_dShadowMaps[i].resource.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, "shadow map");
-			commandContext->KeepAlive(_dShadowMaps[i].resource);
-
-			commandContext->GetCommandList()->RSSetViewports(1, &_dShadowMaps[i].vp);
-			commandContext->GetCommandList()->RSSetScissorRects(1, &_dShadowMaps[i].scissor);
-			commandContext->UseResource(_dShadowMaps[i].resource.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
-			commandContext->GetCommandList()->OMSetRenderTargets(0, nullptr, false, &_dShadowMaps[i].dsv);
-			commandContext->GetCommandList()->ClearDepthStencilView(_dShadowMaps[i].dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, '\0', 0, nullptr);
-		}
+		if (!_dLights[shadowMap.lightIndex]->_shadowsEnabled) continue;
+		commandContext->KeepAlive(shadowMap.resource);
+		commandContext->DeclareResource(shadowMap.resource.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, "shadow map");
+		commandContext->UseResource(shadowMap.resource.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+		commandContext->GetCommandList()->RSSetViewports(1, &shadowMap.vp);
+		commandContext->GetCommandList()->RSSetScissorRects(1, &shadowMap.scissor);
+		commandContext->GetCommandList()->OMSetRenderTargets(0, nullptr, false, &shadowMap.dsv);
+		commandContext->GetCommandList()->ClearDepthStencilView(shadowMap.dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, '\0', 0, nullptr);
+		commandContext->GetCommandList()->SetGraphicsRootDescriptorTable(*slot, DescriptorAllocator::CBVSRVUAV::GetGPUHandle(shadowMap.lightSRVs[frameIndex]));
+		modelManager->DrawAll(shaderPass, commandContext, viewMatrix);
+		commandContext->UseResource(shadowMap.resource.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
 }
 
 void LightManager::BindDLightBuffers(std::shared_ptr<ShaderPass> shaderPass, std::shared_ptr<CommandContext> commandContext)
 {
-	if (_dLights.empty())
-	{
-		CreateEmptyDirectionalLightBuffers();
-		commandContext->KeepAlive(_emptyDLightBuffer);
-		commandContext->KeepAlive(_emptyDLightShadowMapBuffer);
-		if (auto slot = shaderPass->GetRootParameterIndex("directionalLights"))
-			commandContext->GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_emptyDLightSRV));
-		if (auto slot = shaderPass->GetRootParameterIndex("shadowMaps"))
-			commandContext->GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_emptyDLightShadowMapSRV));
-		return;
-	}
-
 	if (auto slot = shaderPass->GetRootParameterIndex("directionalLights"))
 	{
 		const UINT frameIndex = D3D12Core::Swapchain::swapchain ? D3D12Core::Swapchain::swapchain->GetCurrentBackBufferIndex() : 0;
@@ -59,55 +49,9 @@ void LightManager::BindDLightBuffers(std::shared_ptr<ShaderPass> shaderPass, std
 	}
 }
 
-void LightManager::BindDShadowMapBuffersRead(std::shared_ptr<ShaderPass> shaderPass, std::shared_ptr<CommandContext> commandContext)
-{
-	if (_dLights.empty()) return;
-
-	for (auto& dS : _dShadowMaps)
-	{
-		commandContext->UseResource(dS.resource.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		commandContext->KeepAlive(dS.resource);
-	}
-
-	if (auto slot = shaderPass->GetRootParameterIndex("shadowMaps"))
-		commandContext->GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::CBVSRVUAV::GetGPUHandle(_dShadowMaps[0].srv));
-}
-
 bool LightManager::HasShadowLights() const
 {
 	return std::any_of(_dLights.begin(), _dLights.end(), [](const std::shared_ptr<DirectionalLight>& light) { return light->_shadowsEnabled; });
-}
-
-void LightManager::CreateEmptyDirectionalLightBuffers()
-{
-	if (_emptyDLightBuffer) return;
-	const CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
-	const CD3DX12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Buffer(512);
-	ThrowIfFailed(D3D12Core::GraphicsDevice::device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE,
-		&desc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&_emptyDLightBuffer)), "Empty directional light buffer creation failed");
-	ThrowIfFailed(_emptyDLightBuffer->SetName(L"EmptyDirectionalLightConstants"));
-	uint8_t* mapped = nullptr;
-	const CD3DX12_RANGE readRange(0, 0);
-	ThrowIfFailed(_emptyDLightBuffer->Map(0, &readRange, reinterpret_cast<void**>(&mapped)));
-	memset(mapped, 0, 512);
-	XMFLOAT4X4 identity;
-	XMStoreFloat4x4(&identity, XMMatrixIdentity());
-	memcpy(mapped + 256, &identity, sizeof(identity));
-	_emptyDLightBuffer->Unmap(0, nullptr);
-
-	_emptyDLightSRV = DescriptorAllocator::CBVSRVUAV::Allocate();
-	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc{};
-	cbvDesc.BufferLocation = _emptyDLightBuffer->GetGPUVirtualAddress();
-	cbvDesc.SizeInBytes = 256;
-	D3D12Core::GraphicsDevice::device->CreateConstantBufferView(&cbvDesc, _emptyDLightSRV);
-
-	_emptyDLightShadowMapSRV = DescriptorAllocator::CBVSRVUAV::Allocate();
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-	srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Texture2D.MipLevels = 1;
-	D3D12Core::GraphicsDevice::device->CreateShaderResourceView(nullptr, &srvDesc, _emptyDLightShadowMapSRV);
 }
 
 void LightManager::BindPLightBuffers(std::shared_ptr<ShaderPass> shaderPass, std::shared_ptr<CommandContext> commandContext)
@@ -157,12 +101,13 @@ void LightManager::UpdatePointLightBuffer(PointLightBuffer& buffer)
 	D3D12Core::GraphicsDevice::device->CreateShaderResourceView(buffer.resource.Get(), &srvDesc, buffer.srv);
 }
 
-void LightManager::UpdateDirectionalLightBuffer()
+void LightManager::UpdateDirectionalLightBuffer(bool shadowsEnabled)
 {
 	const UINT frameIndex = D3D12Core::Swapchain::swapchain ? D3D12Core::Swapchain::swapchain->GetCurrentBackBufferIndex() : 0;
 	DirectionalLightBuffer& buffer = _dLightBuffers[frameIndex];
 
 	const uint32_t count = static_cast<uint32_t>(std::max(size_t{ 1 }, _dLights.size()));
+	const bool bufferChanged = count > buffer.capacity;
 	if (count > buffer.capacity)
 	{
 		const CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
@@ -182,7 +127,7 @@ void LightManager::UpdateDirectionalLightBuffer()
 	{
 		DirectionalLight& light = *_dLights[i];
 		light.UpdateBuffer();
-		buffer.mapped[i] = {	light._direction, light._shadowsEnabled, 
+		buffer.mapped[i] = {	light._direction, light._shadowsEnabled && shadowsEnabled,
 													light._intensity, light._color, 
 													light._shadowMapIndex, XMFLOAT3(), 
 													light._lightViewProjMatrix};
@@ -197,10 +142,22 @@ void LightManager::UpdateDirectionalLightBuffer()
 	srvDesc.Buffer.NumElements = count;
 	srvDesc.Buffer.StructureByteStride = sizeof(DirectionalLightDataGPU);
 	D3D12Core::GraphicsDevice::device->CreateShaderResourceView(buffer.resource.Get(), &srvDesc, buffer.srv);
+	for (DShadowMap& shadowMap : _dShadowMaps)
+	{
+		D3D12_CPU_DESCRIPTOR_HANDLE& lightSRV = shadowMap.lightSRVs[frameIndex];
+		if (!bufferChanged && lightSRV.ptr != 0) continue;
+		if (lightSRV.ptr == 0) lightSRV = DescriptorAllocator::CBVSRVUAV::Allocate();
+		// The depth shader sees just the light whose map is being rendered.
+		srvDesc.Buffer.FirstElement = shadowMap.lightIndex;
+		srvDesc.Buffer.NumElements = 1;
+		D3D12Core::GraphicsDevice::device->CreateShaderResourceView(buffer.resource.Get(), &srvDesc, lightSRV);
+	}
 }
 
 void LightManager::CreateDShadowMapResource(int32_t resolution)
 {
+	if (resolution <= 0) ThrowException("Shadow map resolution must be positive");
+	const uint32_t lightIndex = static_cast<uint32_t>(_dLights.size() - 1);
 	D3D12_VIEWPORT vp;
 	vp.TopLeftX = 0;
 	vp.TopLeftY = 0;
@@ -243,6 +200,7 @@ void LightManager::CreateDShadowMapResource(int32_t resolution)
 		&depthOptimizedClearValue,
 		IID_PPV_ARGS(&resource)
 	));
+	ThrowIfFailed(resource->SetName((L"DirectionalShadowMap_" + std::to_wstring(lightIndex)).c_str()));
 
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
 	dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
@@ -260,7 +218,8 @@ void LightManager::CreateDShadowMapResource(int32_t resolution)
 	D3D12_CPU_DESCRIPTOR_HANDLE srv = DescriptorAllocator::CBVSRVUAV::Allocate();
 	D3D12Core::GraphicsDevice::device->CreateShaderResourceView(resource.Get(), &srvDesc, srv);
 
-	_dShadowMaps.push_back({ resource, dsv, srv, vp, scissor });
+	_dLights.back()->_shadowMapIndex = static_cast<uint32_t>((srv.ptr - DescriptorAllocator::CBVSRVUAV::heap->GetCPUDescriptorHandleForHeapStart().ptr) / DescriptorAllocator::CBVSRVUAV::descriptorSize);
+	_dShadowMaps.push_back({ resource, dsv, srv, vp, scissor, lightIndex });
 }
 
 void LightManager::DrawGUI()

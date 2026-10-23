@@ -4,7 +4,6 @@ Texture2D metallicRoughnessTexture  : register(t1);
 Texture2D normalTexture             : register(t2);
 Texture2D emissiveTexture           : register(t3);
 Texture2D occlusionTexture          : register(t4);
-Texture2D shadowMaps[1] : register(t5);
 
 SamplerState mySampler              : register(s0);
 
@@ -217,13 +216,14 @@ StageOutput main(StageInput stageInput)
             float currentDepth = projCoords.z;
 
             float bias = max(0.01f * (1.0f - dot(N, normalize(directionalLights[i].direction))), 0.001f);
-            float shadow = PercentageCloserFiltering(shadowMaps[i], shadowUV, currentDepth, bias);
+            Texture2D shadowMap = ResourceDescriptorHeap[NonUniformResourceIndex(directionalLights[i].shadowMapIndex)];
+            float shadow = PercentageCloserFiltering(shadowMap, shadowUV, currentDepth, bias);
             shadowFactor = 1.0f - shadow;
         }
     
         if (dot(directionalLights[i].direction, directionalLights[i].direction) > 1e-8f)
         {
-            direct += shadowFactor * directionalLights[i].color * EvaluateDirectLight(worldNormal, viewDir,
+            direct += shadowFactor * directionalLights[i].color * directionalLights[i].intensity * EvaluateDirectLight(worldNormal, viewDir,
                 normalize(directionalLights[i].direction), albedo, metallic, roughness);
         }
     }

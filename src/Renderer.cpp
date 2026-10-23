@@ -306,7 +306,7 @@ void Renderer::UpdateBuffers(float dt)
 
 	memcpy(_mappedVPBuffer, &_viewProjectionMatrix, sizeof(_viewProjectionMatrix));
 
-	_lightManager->UpdateDirectionalLightBuffer();
+	_lightManager->UpdateDirectionalLightBuffer(_depthPass->_usePass);
 }
 
 void Renderer::RecordScene(std::shared_ptr<CommandContext> commandContext)
@@ -329,13 +329,10 @@ void Renderer::RecordScene(std::shared_ptr<CommandContext> commandContext)
 		commandContext->SetPipelineState(_depthPass->_pipelineState);
 		commandContext->SetGraphicsRootSignature(_depthPass->_rootSignature);
 
-		_lightManager->BindDShadowMapBuffersWrite(commandContext);
-		_lightManager->BindDLightBuffers(_depthPass, commandContext);
-
 		if (auto slot = _depthPass->GetRootParameterIndex("dShadowMapSampler"))
 			commandContext->GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::Sampler::GetGPUHandle(_samplerCPUHandle));
 
-		_modelManager->DrawAll(_depthPass, commandContext, _viewMatrix);
+		_lightManager->RenderDShadowMaps(_depthPass, commandContext, _modelManager, _viewMatrix);
 	}
 
 	commandContext->UseResource(_viewportTexture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -363,10 +360,6 @@ void Renderer::RecordScene(std::shared_ptr<CommandContext> commandContext)
 		
 		_lightManager->BindPLightBuffers(_mainPass, commandContext);
 		_lightManager->BindDLightBuffers(_mainPass, commandContext);
-		if (_depthPass->_usePass && _lightManager->HasShadowLights())
-		{
-			_lightManager->BindDShadowMapBuffersRead(_mainPass, commandContext);
-		}
 
 		if (auto slot = _mainPass->GetRootParameterIndex("mySampler"))
 			commandContext->GetCommandList()->SetGraphicsRootDescriptorTable(slot.value(), DescriptorAllocator::Sampler::GetGPUHandle(_samplerCPUHandle));

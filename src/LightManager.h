@@ -10,6 +10,8 @@
 #include "ShaderPass.h"
 #include <array>
 
+class ModelManager;
+
 class LightManager : public IGUIComponent
 {
 public:
@@ -18,11 +20,10 @@ public:
 	void AddPointLight(float x, float y, float z);
 	void AddDirectionalLight(float x, float y, float z, bool shadows, int shadowMapResolution);
 
-	void UpdateDirectionalLightBuffer();
+	void UpdateDirectionalLightBuffer(bool shadowsEnabled = true);
 	
-	void BindDShadowMapBuffersWrite(std::shared_ptr<CommandContext> commandContext);
+	void RenderDShadowMaps(std::shared_ptr<ShaderPass> shaderPass, std::shared_ptr<CommandContext> commandContext, std::shared_ptr<ModelManager> modelManager, const XMFLOAT4X4& viewMatrix);
 	void BindDLightBuffers(std::shared_ptr<ShaderPass> shaderPass, std::shared_ptr<CommandContext> commandContext);
-	void BindDShadowMapBuffersRead(std::shared_ptr<ShaderPass> shaderPass, std::shared_ptr<CommandContext> commandContext);
 	
 	void BindPLightBuffers(std::shared_ptr<ShaderPass> shaderPass, std::shared_ptr<CommandContext> commandContext);
 	[[nodiscard]] bool HasShadowLights() const;
@@ -72,6 +73,8 @@ private:
 		D3D12_CPU_DESCRIPTOR_HANDLE srv = {};
 		D3D12_VIEWPORT vp;
 		D3D12_RECT scissor;
+		uint32_t lightIndex;
+		std::array<D3D12_CPU_DESCRIPTOR_HANDLE, D3D12Core::Swapchain::backBufferCount> lightSRVs = {};
 	};
 
 	std::vector<std::shared_ptr<PointLight>> _pLights;
@@ -82,14 +85,6 @@ private:
 	std::array<DirectionalLightBuffer, D3D12Core::Swapchain::backBufferCount> _dLightBuffers;
 	std::vector<DShadowMap> _dShadowMaps;
 
-	void CreateEmptyDirectionalLightBuffers();
 	void CreateDShadowMapResource(int32_t resolution);
-
-	// placeholders
-	MSWRL::ComPtr<ID3D12Resource> _emptyDLightBuffer;
-	D3D12_CPU_DESCRIPTOR_HANDLE _emptyDLightSRV = {};
-
-	MSWRL::ComPtr<ID3D12Resource> _emptyDLightShadowMapBuffer;
-	D3D12_CPU_DESCRIPTOR_HANDLE _emptyDLightShadowMapSRV = {};
 
 };
