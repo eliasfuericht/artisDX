@@ -2,11 +2,14 @@
 <img width="2559" height="1439" alt="project1img1" src="https://github.com/user-attachments/assets/0a2f0221-02ff-4fe4-8c36-aad8ac6a557f" />
 
 ## Current Features:
-- .glb Modelloading
+- Runtime .glb Model Loading via Windows File Picker
+- ImGui GUI exposing functionality and debug information
+- Root Signature Creation using Shader Reflection
+- Physically Based Rendering (Metallic-Roughness)
+- Multiple Directional and Point Lights
+- Directional Shadow Mapping with PCF
 - Normal Mapping
-- Physically Based Rendering
-- Rootsignature Creation using Shader Reflection
-- others are coming...
+- [WIP] Shader Hotreloading
 
 ## Clone
 ```git clone https://github.com/eliasfuericht/artisDX.git```
