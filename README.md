@@ -1,5 +1,5 @@
 # artisDX - DirectX12 Renderer
-<img width="2559" height="1439" alt="project1img1" src="https://github.com/user-attachments/assets/0a2f0221-02ff-4fe4-8c36-aad8ac6a557f" />
+<img width="2483" height="1333" alt="render-03" src="https://github.com/user-attachments/assets/703c95c6-3e92-4541-a5a4-29e9ea95ba56" />
 
 ## Current Features:
 - Runtime .glb Model Loading via Windows File Picker
